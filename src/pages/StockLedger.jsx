@@ -204,3 +204,4 @@ export default function StockLedger() {
     </div>
   );
 }
+

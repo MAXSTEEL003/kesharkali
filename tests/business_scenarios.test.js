@@ -62,7 +62,9 @@ async function runTests() {
                 (3, 'Industry C (Kisan Rice Ind)', 'Tumsar', 2820)`);
 
     run(`INSERT INTO products (id, code, name, brand, variety, unit, min_stock_threshold, standard_selling_rate)
-         VALUES (1, 'PROD-HMT', 'HMT Rice', 'Keshar Kali Diamond', 'Medium Slender', 'QTL', 100, 3200)`);
+         VALUES (1, 'PROD-KK', 'Keshar Kali', 'Keshar Kali', 'Standard Loose Steamed Rice (Bulk)', 'QTL', 100, 3200),
+                (2, 'PROD-KK-5KG', 'Keshar Kali 5 kgs', 'Keshar Kali', '5 kg Consumer Bag Packaging', 'QTL', 80, 3600),
+                (3, 'PROD-KK-10KG', 'Keshar Kali 10 kg', 'Keshar Kali', '10 kg Consumer Bag Packaging', 'QTL', 60, 3500)`);
 
     run(`INSERT INTO warehouses (id, name, location, capacity_qtl)
          VALUES (1, 'Central Godown', 'Nagpur', 15000),
@@ -276,7 +278,7 @@ async function runTests() {
     const waResult = await sendDispatchNotification(dsp1.lastInsertRowid);
     assert.strictEqual(waResult.status, 'Delivered', 'Notification generated and delivered');
     assert.strictEqual(waResult.messageBody.includes('ABC Traders') || waResult.messageBody.includes('Anand Agrawal'), true, 'Customer name included');
-    assert.strictEqual(waResult.messageBody.includes('HMT Rice'), true, 'Product name included');
+    assert.strictEqual(waResult.messageBody.includes('Keshar Kali'), true, 'Product name included');
     
     // Privacy assertions: Must NEVER contain internal industry names or purchase rates
     assert.strictEqual(waResult.messageBody.includes('Industry A'), false, 'CONFIDENTIAL: Industry A must NEVER be mentioned');
@@ -380,3 +382,4 @@ runTests().catch(err => {
     console.error('TEST SUITE FAILED:', err);
     process.exit(1);
 });
+

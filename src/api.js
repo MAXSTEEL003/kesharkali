@@ -226,3 +226,4 @@ export function downloadBlob(blob, filename) {
   window.URL.revokeObjectURL(url);
   document.body.removeChild(a);
 }
+

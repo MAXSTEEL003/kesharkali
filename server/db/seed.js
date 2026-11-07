@@ -61,21 +61,19 @@ function seed() {
             INSERT INTO industries (name, location, contact_person, phone, available_products, default_purchase_rate, notes)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         `);
-        insertInd.run('Industry A (Balaji Modern Rice Mill)', 'Bhandara Industrial Area', 'Rameshji Balaji', '+91 94231 10001', 'HMT Rice, Kolam Rice', 2850, 'High quality sorting, reliable dispatch');
-        insertInd.run('Industry B (Vaishnavi Agro Industries)', 'Gondia Road, Tiroda', 'Suresh Vaishnav', '+91 94231 20002', 'HMT Rice, Sona Masoori', 2900, 'Equipped with Sortex 5-chute machines');
-        insertInd.run('Industry C (Kisan Rice Industries)', 'Tumsar Mandi Gate', 'Dinesh Kisan', '+91 94231 30003', 'HMT Rice, Sharbati Rice', 2820, 'Direct rail siding connectivity');
-        insertInd.run('Industry D (Shree Ram Milling Corp)', 'Waraseoni Highway, Balaghat', 'Harishchand Sharma', '+91 94231 40004', 'Basmati 1121, HMT Rice', 2950, 'Aged paddy stocks available');
+        insertInd.run('Industry A (Balaji Modern Rice Mill)', 'Bhandara Industrial Area', 'Rameshji Balaji', '+91 94231 10001', 'Keshar Kali, Keshar Kali 5 kgs, Keshar Kali 10 kg', 2850, 'High quality sorting, reliable dispatch');
+        insertInd.run('Industry B (Vaishnavi Agro Industries)', 'Gondia Road, Tiroda', 'Suresh Vaishnav', '+91 94231 20002', 'Keshar Kali, Keshar Kali 5 kgs, Keshar Kali 10 kg', 2900, 'Equipped with Sortex 5-chute machines');
+        insertInd.run('Industry C (Kisan Rice Industries)', 'Tumsar Mandi Gate', 'Dinesh Kisan', '+91 94231 30003', 'Keshar Kali, Keshar Kali 10 kg', 2820, 'Direct rail siding connectivity');
+        insertInd.run('Industry D (Shree Ram Milling Corp)', 'Waraseoni Highway, Balaghat', 'Harishchand Sharma', '+91 94231 40004', 'Keshar Kali, Keshar Kali 5 kgs', 2950, 'Aged paddy stocks available');
 
-        // 4. Products
+        // 4. Products (Authorized Keshar Kali Brand Catalog: Exactly 3 Products)
         const insertProd = db.prepare(`
             INSERT INTO products (code, name, brand, variety, unit, min_stock_threshold, standard_selling_rate)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         `);
-        insertProd.run('PROD-HMT', 'HMT Rice', 'Keshar Kali Diamond', 'Medium Slender Polished', 'QTL', 100, 3200);
-        insertProd.run('PROD-KLM', 'Kolam Rice', 'Keshar Kali Gold', 'Wada Kolam Short Fine', 'QTL', 80, 3450);
-        insertProd.run('PROD-SNM', 'Sona Masoori', 'Keshar Kali Silver', 'Medium Fine Raw', 'QTL', 60, 3100);
-        insertProd.run('PROD-SHR', 'Sharbati Rice', 'Keshar Kali Royal', 'Long Grain Steam', 'QTL', 50, 3600);
-        insertProd.run('PROD-BSM', 'Basmati 1121', 'Keshar Kali Emperor', 'Extra Long Traditional Aged', 'QTL', 40, 5800);
+        insertProd.run('PROD-KK', 'Keshar Kali', 'Keshar Kali', 'Standard Loose Steamed Rice (Bulk)', 'QTL', 100, 3200);
+        insertProd.run('PROD-KK-5KG', 'Keshar Kali 5 kgs', 'Keshar Kali', '5 kg Consumer Bag Packaging', 'QTL', 80, 3600);
+        insertProd.run('PROD-KK-10KG', 'Keshar Kali 10 kg', 'Keshar Kali', '10 kg Consumer Bag Packaging', 'QTL', 60, 3500);
 
         // 5. Warehouses
         const insertWh = db.prepare(`
@@ -92,23 +90,23 @@ function seed() {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
-        // HMT Rice Opening Stock (500 QTL)
+        // Keshar Kali Opening Stock (500 QTL)
         insertLedger.run('TXN-2026-0001', '2026-11-01', 1, 1, 'Opening Stock', 'INIT-2026-01', 'Beginning Inventory', 'Central Godown - Yard 1', 500, 0, 2800, 1400000, 500, 'FY2026 Opening physical stock balance verified');
-        // Kolam Rice Opening Stock (300 QTL)
-        insertLedger.run('TXN-2026-0002', '2026-11-01', 2, 2, 'Opening Stock', 'INIT-2026-02', 'Beginning Inventory', 'Railway Siding Godown', 300, 0, 3000, 900000, 300, 'FY2026 Opening physical stock balance verified');
-        // Sona Masoori Opening Stock (200 QTL)
-        insertLedger.run('TXN-2026-0003', '2026-11-01', 3, 1, 'Opening Stock', 'INIT-2026-03', 'Beginning Inventory', 'Central Godown - Yard 1', 200, 0, 2750, 550000, 200, 'FY2026 Opening physical stock balance verified');
+        // Keshar Kali 5 kgs Opening Stock (300 QTL)
+        insertLedger.run('TXN-2026-0002', '2026-11-01', 2, 2, 'Opening Stock', 'INIT-2026-02', 'Beginning Inventory', 'Railway Siding Godown', 300, 0, 3100, 930000, 300, 'FY2026 Opening physical stock balance verified');
+        // Keshar Kali 10 kg Opening Stock (200 QTL)
+        insertLedger.run('TXN-2026-0003', '2026-11-01', 3, 1, 'Opening Stock', 'INIT-2026-03', 'Beginning Inventory', 'Central Godown - Yard 1', 200, 0, 3000, 600000, 200, 'FY2026 Opening physical stock balance verified');
 
-        // Replenishment for HMT Rice (150 QTL) from Balaji Modern
+        // Replenishment for Keshar Kali (150 QTL) from Balaji Modern
         insertLedger.run('TXN-2026-0004', '2026-11-03', 1, 1, 'Purchase Inward', 'PUR-BLJ-108', 'Industry A (Balaji Modern Rice Mill)', 'Central Godown - Yard 1', 150, 0, 2840, 426000, 650, 'Bulk replenishment for winter season');
 
-        // 7. Purchase Orders
+        // 7. Purchase Orders (Customer Orders Received by Keshar Kali)
         const insertPO = db.prepare(`
             INSERT INTO purchase_orders (po_number, customer_id, product_id, po_date, ordered_quantity, customer_selling_rate, delivery_location, expected_delivery_date, notes, status, created_by)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
-        // PO-2026-001: The textbook scenario from prompt (Customer: ABC Traders, 100 QTL HMT Rice @ ₹3,200/QTL)
+        // PO-2026-001: The textbook scenario from prompt (Customer: ABC Traders, 100 QTL Keshar Kali @ ₹3,200/QTL)
         insertPO.run('PO-2026-001', 1, 1, '2026-11-04', 100, 3200, 'Customer Godown, Kalamna, Nagpur', '2026-11-10', 'Primary contract order for Diwali trade distribution', 'Allocated', 'Rajendra Deshmukh');
 
         // Sourcing Allocations for PO-2026-001:
@@ -123,21 +121,21 @@ function seed() {
         insertAlloc.run(1, 2, 1, 35, 2900, 35 * 2900, '2026-11-08', 'Lot #B-205 Tiroda unit', 'Pending');
         insertAlloc.run(1, 3, 1, 25, 2820, 25 * 2820, '2026-11-09', 'Lot #C-112 Tumsar mill', 'Pending');
 
-        // PO-2026-002: Mahavir Provisions (75 QTL Kolam Rice @ ₹3,450/QTL) - Partially Loaded & Dispatched
-        insertPO.run('PO-2026-002', 2, 2, '2026-11-02', 75, 3450, 'Mahavir Godown, Gondia Market', '2026-11-07', 'Regular monthly requirement', 'Partially Dispatched', 'Vikram Shinde');
-        insertAlloc.run(2, 1, 2, 45, 3050, 45 * 3050, '2026-11-04', 'Allocated to Balaji Mill', 'Partially Loaded');
-        insertAlloc.run(2, 2, 2, 30, 3080, 30 * 3080, '2026-11-05', 'Allocated to Vaishnavi Mill', 'Loaded');
+        // PO-2026-002: Mahavir Provisions (75 QTL Keshar Kali 5 kgs @ ₹3,600/QTL) - Partially Loaded & Dispatched
+        insertPO.run('PO-2026-002', 2, 2, '2026-11-02', 75, 3600, 'Mahavir Godown, Gondia Market', '2026-11-07', 'Regular monthly requirement for consumer packs', 'Partially Dispatched', 'Vikram Shinde');
+        insertAlloc.run(2, 1, 2, 45, 3100, 45 * 3100, '2026-11-04', 'Allocated to Balaji Mill', 'Partially Loaded');
+        insertAlloc.run(2, 2, 2, 30, 3150, 30 * 3150, '2026-11-05', 'Allocated to Vaishnavi Mill', 'Loaded');
 
         // Loading entry for PO-2026-002
         const insertLoading = db.prepare(`
             INSERT INTO loading_entries (loading_number, loading_date, po_id, allocation_id, industry_id, product_id, fulfillment_type, warehouse_id, loading_location, vehicle_number, loading_quantity, purchase_rate, loading_amount, loading_status, dispatch_status, remarks, created_by)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
-        insertLoading.run('LD-2026-001', '2026-11-05', 2, 5, 2, 2, 'Direct', null, 'Vaishnavi Agro Gondia Gate 1', 'MH-31-CB-9022', 30, 3080, 30 * 3080, 'Loaded', 'Dispatched', 'Direct dispatch from mill to buyer godown', 'Vikram Shinde');
-        insertLoading.run('LD-2026-002', '2026-11-06', 2, 4, 1, 2, 'Warehouse', 2, 'Balaji Modern Bhandara', 'MH-36-AA-4412', 25, 3050, 25 * 3050, 'Loaded', 'Pending', 'Inwarded to Railway Siding Godown', 'Vikram Shinde');
+        insertLoading.run('LD-2026-001', '2026-11-05', 2, 5, 2, 2, 'Direct', null, 'Vaishnavi Agro Gondia Gate 1', 'MH-31-CB-9022', 30, 3150, 30 * 3150, 'Loaded', 'Dispatched', 'Direct dispatch from mill to buyer godown', 'Vikram Shinde');
+        insertLoading.run('LD-2026-002', '2026-11-06', 2, 4, 1, 2, 'Warehouse', 2, 'Balaji Modern Bhandara', 'MH-36-AA-4412', 25, 3100, 25 * 3100, 'Loaded', 'Pending', 'Inwarded to Railway Siding Godown', 'Vikram Shinde');
 
         // Also create inward stock transaction for the warehouse loading LD-2026-002
-        insertLedger.run('TXN-2026-0005', '2026-11-06', 2, 2, 'Purchase Inward', 'LD-2026-002', 'Industry A (Balaji Modern Rice Mill)', 'Railway Siding Godown', 25, 0, 3050, 76250, 325, 'Inwarded from LD-2026-002 for PO-2026-002 fulfillment');
+        insertLedger.run('TXN-2026-0005', '2026-11-06', 2, 2, 'Purchase Inward', 'LD-2026-002', 'Industry A (Balaji Modern Rice Mill)', 'Railway Siding Godown', 25, 0, 3100, 77500, 325, 'Inwarded from LD-2026-002 for PO-2026-002 fulfillment');
 
         // Dispatch for LD-2026-001 (Direct dispatch 30 QTL)
         const insertDispatch = db.prepare(`
@@ -151,7 +149,7 @@ function seed() {
             INSERT INTO whatsapp_notifications (idempotency_key, dispatch_id, po_id, customer_id, recipient_phone, template_name, message_body, wa_message_id, status)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
-        const waMsgBody = `Hello Anand Agrawal,\n\nYour order has been dispatched.\n\nOrder: PO-2026-002\nProduct: Kolam Rice\nVehicle: MH-31-CB-9022\nQuantity Dispatched: 30 QTL\nTotal Dispatched: 30 QTL\nRemaining Quantity: 45 QTL\n\nThank you for your business.\nKeshar Kali — Precision in Every Grain`;
+        const waMsgBody = `Hello Bhavin Shah,\n\nYour order has been dispatched.\n\nOrder: PO-2026-002\nProduct: Keshar Kali 5 kgs\nVehicle: MH-31-CB-9022\nQuantity Dispatched: 30 QTL\nTotal Dispatched: 30 QTL\nRemaining Quantity: 45 QTL\n\nThank you for your business.\nKeshar Kali — Precision in Every Grain`;
         insertWA.run('dsp_1', 1, 2, 2, '919422144556', 'order_dispatched', waMsgBody, 'wam_live_001928374', 'Delivered');
 
         // Stock Reservation for PO-2026-001 (Reserve 50 QTL from Central Godown buffer)

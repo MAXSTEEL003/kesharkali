@@ -188,7 +188,7 @@ router.delete('/:id', (req, res) => {
         const alloc = get('SELECT * FROM industry_allocations WHERE id = ?', [req.params.id]);
         if (!alloc) return res.status(404).json({ error: 'Allocation not found' });
 
-        const loadCheck = get('SELECT COUNT(*) as count FROM loading_entries WHERE allocation_id = ? AND loading_status != "Cancelled"', [req.params.id]);
+        const loadCheck = get("SELECT COUNT(*) as count FROM loading_entries WHERE allocation_id = ? AND loading_status != 'Cancelled'", [req.params.id]);
         if (loadCheck.count > 0) {
             return res.status(400).json({ error: `Cannot remove allocation with ${loadCheck.count} existing loading entries.` });
         }
@@ -207,3 +207,4 @@ router.delete('/:id', (req, res) => {
 });
 
 module.exports = router;
+

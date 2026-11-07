@@ -410,3 +410,4 @@ export default function ReportsCenter() {
     </div>
   );
 }
+

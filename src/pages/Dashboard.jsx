@@ -11,6 +11,7 @@ import {
   Clock, 
   CheckCircle2, 
   PlusCircle, 
+  Inbox,
   FileSpreadsheet,
   Layers,
   Scale
@@ -79,9 +80,10 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
           <button 
             onClick={() => onOpenQuickAction('po')}
             className="flex items-center gap-1.5 text-xs font-semibold bg-[#8F1717] text-white px-3 py-1.5 rounded hover:bg-[#771212] transition-colors shadow-xs"
+            title="Record incoming customer purchase order received by Keshar Kali"
           >
-            <PlusCircle size={14} />
-            <span>Create PO</span>
+            <Inbox size={14} />
+            <span>Receive PO</span>
           </button>
 
           <button 
@@ -113,10 +115,10 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
       {/* Row 1: Primary Operational KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
         <StatCard 
-          label="Total PO Orders" 
+          label="Received Customer POs" 
           value={`${metrics.totalPurchaseOrders}`} 
           subtext={`Value: ₹${(metrics.totalOrderValue || 0).toLocaleString('en-IN')}`}
-          icon={ShoppingCart} 
+          icon={Inbox} 
           color="red"
           onClick={() => setActivePage('purchase-orders')}
         />
@@ -422,3 +424,4 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
     </div>
   );
 }
+

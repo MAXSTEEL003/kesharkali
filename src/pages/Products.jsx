@@ -12,7 +12,7 @@ export default function Products() {
   const [form, setForm] = useState({
     code: '',
     name: '',
-    brand: 'Keshar Kali Select',
+    brand: 'Keshar Kali',
     variety: '',
     unit: 'QTL',
     min_stock_threshold: '50',
@@ -146,7 +146,7 @@ export default function Products() {
               <input
                 type="text"
                 required
-                placeholder="e.g. PROD-HMT"
+                placeholder="e.g. PROD-KK"
                 value={form.code}
                 onChange={(e) => setForm({ ...form, code: e.target.value })}
                 className="w-full p-2 bg-[#FAF9F6] border border-[#E8E2DC] rounded font-mono uppercase focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
@@ -158,7 +158,7 @@ export default function Products() {
               <input
                 type="text"
                 required
-                placeholder="e.g. HMT Rice"
+                placeholder="e.g. Keshar Kali / Keshar Kali 5 kgs / Keshar Kali 10 kg"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 className="w-full p-2 bg-[#FAF9F6] border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
@@ -169,7 +169,7 @@ export default function Products() {
               <label className="block font-semibold text-[#252525] mb-1">Brand Tier</label>
               <input
                 type="text"
-                placeholder="e.g. Keshar Kali Diamond"
+                placeholder="e.g. Keshar Kali"
                 value={form.brand}
                 onChange={(e) => setForm({ ...form, brand: e.target.value })}
                 className="w-full p-2 bg-[#FAF9F6] border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
@@ -232,3 +232,4 @@ export default function Products() {
     </div>
   );
 }
+

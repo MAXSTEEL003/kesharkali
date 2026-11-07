@@ -17,7 +17,7 @@ import ExcelGrid from '../components/ExcelGrid';
 import Modal from '../components/Modal';
 import { api, downloadBlob } from '../api';
 
-export default function MasterLoadingRegister({ onOpenQuickAction }) {
+export default function MasterLoadingRegister({ onOpenQuickAction, quickActionTrigger }) {
   const [loadingEntries, setLoadingEntries] = useState([]);
   const [summary, setSummary] = useState(null);
   const [customers, setCustomers] = useState([]);
@@ -41,6 +41,12 @@ export default function MasterLoadingRegister({ onOpenQuickAction }) {
 
   // Add Loading Entry Modal
   const [isAddOpen, setIsAddOpen] = useState(false);
+
+  useEffect(() => {
+    if (quickActionTrigger?.action === 'loading') {
+      setIsAddOpen(true);
+    }
+  }, [quickActionTrigger]);
   const [addForm, setAddForm] = useState({
     po_id: '',
     industry_id: '',
@@ -590,3 +596,4 @@ export default function MasterLoadingRegister({ onOpenQuickAction }) {
     </div>
   );
 }
+

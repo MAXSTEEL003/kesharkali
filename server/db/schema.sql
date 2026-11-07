@@ -285,3 +285,4 @@ CREATE INDEX IF NOT EXISTS idx_ledger_date ON stock_ledger(date);
 CREATE INDEX IF NOT EXISTS idx_ledger_warehouse ON stock_ledger(warehouse_id);
 CREATE INDEX IF NOT EXISTS idx_res_po ON stock_reservations(po_id);
 CREATE INDEX IF NOT EXISTS idx_res_product ON stock_reservations(product_id);
+

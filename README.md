@@ -143,3 +143,4 @@ npm run dev
 | `operator` | `operator123` | **Operator** | PO creation, sourcing, loading register, dispatch confirmation |
 
 *Note: You can also instantly switch roles via the navbar role badge in the top right.*
+

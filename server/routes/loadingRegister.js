@@ -264,7 +264,7 @@ router.post('/', (req, res) => {
             // Update allocation status if allocation_id present
             if (allocation_id) {
                 const allocRow = db.prepare('SELECT allocated_quantity FROM industry_allocations WHERE id = ?').get(allocation_id);
-                const loadedSumRow = db.prepare('SELECT COALESCE(SUM(loading_quantity), 0) as total FROM loading_entries WHERE allocation_id = ? AND loading_status != "Cancelled"').get(allocation_id);
+                const loadedSumRow = db.prepare("SELECT COALESCE(SUM(loading_quantity), 0) as total FROM loading_entries WHERE allocation_id = ? AND loading_status != 'Cancelled'").get(allocation_id);
                 const loadedSum = Number(loadedSumRow?.total || 0);
                 const allocStatus = loadedSum >= allocRow.allocated_quantity ? 'Loaded' : 'Partially Loaded';
                 db.prepare('UPDATE industry_allocations SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(allocStatus, allocation_id);
@@ -408,3 +408,4 @@ router.delete('/:id', (req, res) => {
 });
 
 module.exports = router;
+

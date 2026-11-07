@@ -20,6 +20,7 @@ import {
   UserCheck, 
   Clock, 
   PlusCircle,
+  Inbox,
   PackageCheck,
   Scale
 } from 'lucide-react';
@@ -48,7 +49,7 @@ export default function Layout({ activePage, setActivePage, children, onOpenQuic
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'purchase-orders', label: 'Purchase Orders', icon: ShoppingCart },
+    { id: 'purchase-orders', label: 'Received POs', icon: Inbox },
     { id: 'industry-sourcing', label: 'Industry Sourcing', icon: Factory },
     { 
       id: 'stock', 
@@ -254,9 +255,10 @@ export default function Layout({ activePage, setActivePage, children, onOpenQuic
             <button
               onClick={() => onOpenQuickAction && onOpenQuickAction('po')}
               className="flex items-center gap-1.5 bg-[#8F1717] hover:bg-[#771212] text-white text-xs font-semibold px-3 py-1.5 rounded-md shadow-xs transition-colors"
+              title="Record incoming customer purchase order received by Keshar Kali"
             >
-              <PlusCircle size={14} />
-              <span>New PO</span>
+              <Inbox size={14} />
+              <span>Receive PO</span>
             </button>
 
             <button
@@ -285,3 +287,4 @@ export default function Layout({ activePage, setActivePage, children, onOpenQuic
     </div>
   );
 }
+

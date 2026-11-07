@@ -248,10 +248,11 @@ router.get('/:id', (req, res) => {
     }
 });
 
-// Create Purchase Order
+// Record Received Customer Purchase Order
 router.post('/', (req, res) => {
     try {
         const {
+            po_number,
             customer_id,
             product_id,
             po_date,
@@ -266,7 +267,16 @@ router.post('/', (req, res) => {
             return res.status(400).json({ error: 'Customer, product, quantity, selling rate, and delivery location are required' });
         }
 
-        const poNumber = generatePONumber();
+        let assignedPoNumber = po_number ? String(po_number).trim() : '';
+        if (assignedPoNumber) {
+            const existing = get('SELECT id FROM purchase_orders WHERE po_number = ?', [assignedPoNumber]);
+            if (existing) {
+                return res.status(400).json({ error: `A purchase order with number ${assignedPoNumber} already exists in the system` });
+            }
+        } else {
+            assignedPoNumber = generatePONumber();
+        }
+
         const date = po_date || new Date().toISOString().split('T')[0];
 
         const stmt = run(`
@@ -276,7 +286,7 @@ router.post('/', (req, res) => {
                 expected_delivery_date, notes, status, created_by
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'New', ?)
         `, [
-            poNumber,
+            assignedPoNumber,
             customer_id,
             product_id,
             date,
@@ -288,8 +298,8 @@ router.post('/', (req, res) => {
             req.user?.fullName || 'Staff'
         ]);
 
-        logAction('PurchaseOrder', stmt.lastInsertRowid, 'CREATE', req.user?.username || 'Staff', { poNumber, customer_id, ordered_quantity });
-        res.status(201).json({ id: stmt.lastInsertRowid, poNumber, message: 'Purchase Order created successfully' });
+        logAction('PurchaseOrder', stmt.lastInsertRowid, 'RECEIVE_PO', req.user?.username || 'Staff', { poNumber: assignedPoNumber, customer_id, ordered_quantity });
+        res.status(201).json({ id: stmt.lastInsertRowid, poNumber: assignedPoNumber, message: 'Customer Purchase Order recorded successfully' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -361,3 +371,4 @@ module.exports = {
     router,
     derivePOStatus
 };
+

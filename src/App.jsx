@@ -23,8 +23,10 @@ import Settings from './pages/Settings';
 
 export default function App() {
   const [activePage, setActivePage] = useState('dashboard');
+  const [quickActionTrigger, setQuickActionTrigger] = useState(null);
 
   const handleQuickAction = (action) => {
+    setQuickActionTrigger({ action, timestamp: Date.now() });
     if (action === 'po') {
       setActivePage('purchase-orders');
     } else if (action === 'loading') {
@@ -39,7 +41,7 @@ export default function App() {
       case 'dashboard':
         return <Dashboard setActivePage={setActivePage} onOpenQuickAction={handleQuickAction} />;
       case 'purchase-orders':
-        return <PurchaseOrders onOpenQuickAction={handleQuickAction} />;
+        return <PurchaseOrders onOpenQuickAction={handleQuickAction} quickActionTrigger={quickActionTrigger} />;
       case 'industry-sourcing':
         return <IndustrySourcing />;
       case 'stock-dashboard':
@@ -57,7 +59,7 @@ export default function App() {
       case 'stock-valuation':
         return <StockValuation />;
       case 'master-loading-register':
-        return <MasterLoadingRegister onOpenQuickAction={handleQuickAction} />;
+        return <MasterLoadingRegister onOpenQuickAction={handleQuickAction} quickActionTrigger={quickActionTrigger} />;
       case 'pending-loadings':
       case 'dispatch-management':
         return <DispatchManagement />;
@@ -95,3 +97,4 @@ export default function App() {
     </Layout>
   );
 }
+

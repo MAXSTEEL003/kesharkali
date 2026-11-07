@@ -259,7 +259,7 @@ export default function Industries() {
               <label className="block font-semibold text-[#252525] mb-1">Available Rice Products</label>
               <input
                 type="text"
-                placeholder="e.g. HMT Rice, Kolam Rice"
+                placeholder="e.g. Keshar Kali, Keshar Kali 5 kgs, Keshar Kali 10 kg"
                 value={form.available_products}
                 onChange={(e) => setForm({ ...form, available_products: e.target.value })}
                 className="w-full p-2 bg-[#FAF9F6] border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
@@ -310,3 +310,4 @@ export default function Industries() {
     </div>
   );
 }
+

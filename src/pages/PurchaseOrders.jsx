@@ -15,12 +15,13 @@ import {
   Package, 
   Send,
   Building2,
-  Calendar
+  Calendar,
+  Inbox
 } from 'lucide-react';
 import Modal from '../components/Modal';
 import { api } from '../api';
 
-export default function PurchaseOrders({ onOpenQuickAction }) {
+export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }) {
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [products, setProducts] = useState([]);
@@ -38,12 +39,19 @@ export default function PurchaseOrders({ onOpenQuickAction }) {
   const [selectedPO, setSelectedPO] = useState(null);
   const [poDetails, setPoDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isReceiveOpen, setIsReceiveOpen] = useState(false);
   const [isAllocModalOpen, setIsAllocModalOpen] = useState(false);
   const [isReserveModalOpen, setIsReserveModalOpen] = useState(false);
 
+  useEffect(() => {
+    if (quickActionTrigger?.action === 'po') {
+      setIsReceiveOpen(true);
+    }
+  }, [quickActionTrigger]);
+
   // Form states
-  const [createForm, setCreateForm] = useState({
+  const [receiveForm, setReceiveForm] = useState({
+    po_number: '',
     customer_id: '',
     product_id: '',
     po_date: new Date().toISOString().split('T')[0],
@@ -113,12 +121,13 @@ export default function PurchaseOrders({ onOpenQuickAction }) {
     }
   };
 
-  const handleCreatePO = async (e) => {
+  const handleReceivePO = async (e) => {
     e.preventDefault();
     try {
-      await api.purchaseOrders.create(createForm);
-      setIsCreateOpen(false);
-      setCreateForm({
+      await api.purchaseOrders.create(receiveForm);
+      setIsReceiveOpen(false);
+      setReceiveForm({
+        po_number: '',
         customer_id: '',
         product_id: '',
         po_date: new Date().toISOString().split('T')[0],
@@ -130,7 +139,7 @@ export default function PurchaseOrders({ onOpenQuickAction }) {
       });
       loadData();
     } catch (err) {
-      alert(`Failed to create PO: ${err.message}`);
+      alert(`Failed to record received PO: ${err.message}`);
     }
   };
 
@@ -229,21 +238,23 @@ export default function PurchaseOrders({ onOpenQuickAction }) {
       <div className="bg-white rounded-lg border border-[#E8E2DC] p-4 shadow-xs">
         <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#E8E2DC]">
           <div>
-            <h1 className="text-base font-bold text-[#252525] font-['Space_Grotesk']">
-              Customer Purchase Orders
+            <h1 className="text-base font-bold text-[#252525] font-['Space_Grotesk'] flex items-center gap-2">
+              <Inbox size={18} className="text-[#8F1717]" />
+              Received Customer Purchase Orders
             </h1>
             <p className="text-xs text-[#777777]">
-              Manage buyer PO contracts, multi-mill sourcing allocations, and fulfillment tracking
+              Manage buyer PO contracts received by Keshar Kali, multi-mill sourcing allocations, and fulfillment tracking
             </p>
           </div>
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setIsCreateOpen(true)}
+              onClick={() => setIsReceiveOpen(true)}
               className="flex items-center gap-1.5 text-xs font-semibold bg-[#8F1717] hover:bg-[#771212] text-white px-3.5 py-1.5 rounded-md shadow-xs transition-colors"
+              title="Record incoming customer purchase order received by Keshar Kali"
             >
-              <Plus size={14} />
-              <span>Create Purchase Order</span>
+              <Inbox size={14} />
+              <span>Receive Customer PO</span>
             </button>
           </div>
         </div>
@@ -610,21 +621,26 @@ export default function PurchaseOrders({ onOpenQuickAction }) {
         </Modal>
       )}
 
-      {/* Create Purchase Order Modal */}
+      {/* Receive Purchase Order Modal */}
       <Modal
-        isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        title="Create Customer Purchase Order"
-        subtitle="Record incoming buyer demand and delivery terms"
+        isOpen={isReceiveOpen}
+        onClose={() => setIsReceiveOpen(false)}
+        title="Record Received Customer Purchase Order"
+        subtitle="Record incoming buyer purchase order received by Keshar Kali"
       >
-        <form onSubmit={handleCreatePO} className="space-y-4">
+        <div className="bg-amber-50/70 border border-amber-200 rounded p-2.5 text-xs text-[#5E1010] mb-3 flex items-start gap-2">
+          <Inbox size={15} className="text-[#8F1717] shrink-0 mt-0.5" />
+          <span>Keshar Kali receives purchase orders from customers. Enter the buyer's order details below as received.</span>
+        </div>
+
+        <form onSubmit={handleReceivePO} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
             <div>
               <label className="block font-semibold text-[#252525] mb-1">Customer / Buyer *</label>
               <select
                 required
-                value={createForm.customer_id}
-                onChange={(e) => setCreateForm({ ...createForm, customer_id: e.target.value })}
+                value={receiveForm.customer_id}
+                onChange={(e) => setReceiveForm({ ...receiveForm, customer_id: e.target.value })}
                 className="w-full p-2 bg-white border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
               >
                 <option value="">Select Customer</option>
@@ -635,11 +651,22 @@ export default function PurchaseOrders({ onOpenQuickAction }) {
             </div>
 
             <div>
+              <label className="block font-semibold text-[#252525] mb-1">Buyer PO # / Reference (Optional)</label>
+              <input
+                type="text"
+                placeholder="e.g. PO-ABC-884 (or auto-assigned if empty)"
+                value={receiveForm.po_number}
+                onChange={(e) => setReceiveForm({ ...receiveForm, po_number: e.target.value })}
+                className="w-full p-2 bg-white border border-[#E8E2DC] rounded font-mono focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+              />
+            </div>
+
+            <div>
               <label className="block font-semibold text-[#252525] mb-1">Rice Product / Variety *</label>
               <select
                 required
-                value={createForm.product_id}
-                onChange={(e) => setCreateForm({ ...createForm, product_id: e.target.value })}
+                value={receiveForm.product_id}
+                onChange={(e) => setReceiveForm({ ...receiveForm, product_id: e.target.value })}
                 className="w-full p-2 bg-white border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
               >
                 <option value="">Select Product</option>
@@ -650,22 +677,12 @@ export default function PurchaseOrders({ onOpenQuickAction }) {
             </div>
 
             <div>
-              <label className="block font-semibold text-[#252525] mb-1">PO Date *</label>
+              <label className="block font-semibold text-[#252525] mb-1">PO Received Date *</label>
               <input
                 type="date"
                 required
-                value={createForm.po_date}
-                onChange={(e) => setCreateForm({ ...createForm, po_date: e.target.value })}
-                className="w-full p-2 bg-white border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block font-semibold text-[#252525] mb-1">Expected Delivery Date</label>
-              <input
-                type="date"
-                value={createForm.expected_delivery_date}
-                onChange={(e) => setCreateForm({ ...createForm, expected_delivery_date: e.target.value })}
+                value={receiveForm.po_date}
+                onChange={(e) => setReceiveForm({ ...receiveForm, po_date: e.target.value })}
                 className="w-full p-2 bg-white border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
               />
             </div>
@@ -677,22 +694,32 @@ export default function PurchaseOrders({ onOpenQuickAction }) {
                 step="0.01"
                 required
                 placeholder="e.g. 100"
-                value={createForm.ordered_quantity}
-                onChange={(e) => setCreateForm({ ...createForm, ordered_quantity: e.target.value })}
+                value={receiveForm.ordered_quantity}
+                onChange={(e) => setReceiveForm({ ...receiveForm, ordered_quantity: e.target.value })}
                 className="w-full p-2 bg-white border border-[#E8E2DC] rounded font-mono focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="block font-semibold text-[#252525] mb-1">Customer Selling Rate (₹/QTL) *</label>
+              <label className="block font-semibold text-[#252525] mb-1">Agreed Selling Rate (₹/QTL) *</label>
               <input
                 type="number"
                 step="0.01"
                 required
                 placeholder="e.g. 3200"
-                value={createForm.customer_selling_rate}
-                onChange={(e) => setCreateForm({ ...createForm, customer_selling_rate: e.target.value })}
+                value={receiveForm.customer_selling_rate}
+                onChange={(e) => setReceiveForm({ ...receiveForm, customer_selling_rate: e.target.value })}
                 className="w-full p-2 bg-white border border-[#E8E2DC] rounded font-mono focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block font-semibold text-[#252525] mb-1">Expected Delivery Date</label>
+              <input
+                type="date"
+                value={receiveForm.expected_delivery_date}
+                onChange={(e) => setReceiveForm({ ...receiveForm, expected_delivery_date: e.target.value })}
+                className="w-full p-2 bg-white border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
               />
             </div>
           </div>
@@ -703,19 +730,19 @@ export default function PurchaseOrders({ onOpenQuickAction }) {
               type="text"
               required
               placeholder="e.g. Customer Godown, Kalamna Mandi, Nagpur"
-              value={createForm.delivery_location}
-              onChange={(e) => setCreateForm({ ...createForm, delivery_location: e.target.value })}
+              value={receiveForm.delivery_location}
+              onChange={(e) => setReceiveForm({ ...receiveForm, delivery_location: e.target.value })}
               className="w-full p-2 bg-white border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
             />
           </div>
 
           <div className="text-xs">
-            <label className="block font-semibold text-[#252525] mb-1">Notes / Terms</label>
+            <label className="block font-semibold text-[#252525] mb-1">Buyer Notes / Terms</label>
             <textarea
               rows={2}
-              placeholder="Payment terms, special packaging instructions..."
-              value={createForm.notes}
-              onChange={(e) => setCreateForm({ ...createForm, notes: e.target.value })}
+              placeholder="Payment terms, special packaging instructions from buyer..."
+              value={receiveForm.notes}
+              onChange={(e) => setReceiveForm({ ...receiveForm, notes: e.target.value })}
               className="w-full p-2 bg-white border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
             />
           </div>
@@ -723,16 +750,17 @@ export default function PurchaseOrders({ onOpenQuickAction }) {
           <div className="pt-3 border-t border-[#E8E2DC] flex items-center justify-end gap-2">
             <button
               type="button"
-              onClick={() => setIsCreateOpen(false)}
+              onClick={() => setIsReceiveOpen(false)}
               className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2 text-xs font-semibold bg-[#8F1717] text-white rounded hover:bg-[#771212] transition-colors shadow-xs"
+              className="px-5 py-2 text-xs font-semibold bg-[#8F1717] text-white rounded hover:bg-[#771212] transition-colors shadow-xs flex items-center gap-1.5"
             >
-              Save & Generate PO
+              <Inbox size={14} />
+              <span>Record Received PO</span>
             </button>
           </div>
         </form>
@@ -900,3 +928,4 @@ export default function PurchaseOrders({ onOpenQuickAction }) {
     </div>
   );
 }
+
