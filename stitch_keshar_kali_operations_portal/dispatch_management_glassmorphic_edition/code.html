@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&amp;family=Space+Grotesk:wght@500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">tailwind.config={"darkMode":"class","theme":{"extend":{"colors":{"tertiary-fixed":"#ffdea3","tertiary":"#422f00","on-error":"#ffffff","secondary":"#9e403a","on-primary-fixed":"#410002","on-surface-variant":"#59413e","surface-variant":"#ece0dc","primary-fixed":"#ffdad6","on-background":"#201a18","primary-fixed-dim":"#ffb4ab","on-secondary-fixed":"#410003","outline":"#8d706d","inverse-on-surface":"#fbeeea","inverse-primary":"#ffb4ab","on-primary-container":"#ff9d93","outline-variant":"#e0bfbb","background":"#fff8f6","surface":"#fff8f6","surface-container-low":"#fef1ed","on-surface":"#201a18","on-secondary-container":"#75221f","primary":"#6b0007","surface-dim":"#e4d7d4","secondary-fixed":"#ffdad6","surface-container":"#f8ebe8","on-error-container":"#93000a","inverse-surface":"#362f2d","surface-tint":"#ae2f2a","tertiary-fixed-dim":"#efbf5d","surface-container-high":"#f2e6e2","on-tertiary-fixed":"#261900","tertiary-container":"#5e4400","error":"#ba1a1a","surface-container-lowest":"#ffffff","on-primary-fixed-variant":"#8d1516","on-primary":"#ffffff","primary-container":"#8f1717","on-secondary":"#ffffff","secondary-container":"#fe8a81","surface-container-highest":"#ece0dc","on-tertiary-container":"#dfb04f","surface-bright":"#fff8f6","on-tertiary":"#ffffff","error-container":"#ffdad6","on-secondary-fixed-variant":"#7f2925","secondary-fixed-dim":"#ffb3ad","on-tertiary-fixed-variant":"#5c4200"},"borderRadius":{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},"spacing":{"space-xs":"0.25rem","gutter":"1.5rem","space-lg":"1.5rem","margin":"2.5rem","space-sm":"0.5rem","space-xl":"2.5rem","space-md":"1rem"},"fontFamily":{"headline-sm":["Space Grotesk"],"headline-md":["Space Grotesk"],"label-lg":["Plus Jakarta Sans"],"label-md":["Plus Jakarta Sans"],"body-md":["Plus Jakarta Sans"],"display":["Space Grotesk"],"body-sm":["Plus Jakarta Sans"],"headline-lg":["Space Grotesk"],"code-telemetry":["JetBrains Mono"],"body-lg":["Plus Jakarta Sans"]},"fontSize":{"headline-sm":["18px",{"lineHeight":"24px","fontWeight":"600"}],"headline-md":["22px",{"lineHeight":"28px","letterSpacing":"-0.01em","fontWeight":"600"}],"label-lg":["14px",{"lineHeight":"20px","letterSpacing":"0.01em","fontWeight":"600"}],"label-md":["12px",{"lineHeight":"16px","letterSpacing":"0.02em","fontWeight":"600"}],"body-md":["14px",{"lineHeight":"22px","fontWeight":"400"}],"display":["48px",{"lineHeight":"56px","letterSpacing":"-0.03em","fontWeight":"700"}],"body-sm":["12px",{"lineHeight":"18px","fontWeight":"400"}],"headline-lg":["32px",{"lineHeight":"40px","letterSpacing":"-0.02em","fontWeight":"600"}],"body-lg":["16px",{"lineHeight":"26px","fontWeight":"400"}]}}}};</script></head><body class="bg-gradient-to-br from-[#fef5f2] via-[#fff8f6] to-[#fbf1ed] font-body-md text-on-surface antialiased selection:bg-primary-fixed selection:text-primary"><aside class="fixed left-0 top-0 h-screen w-64 bg-primary text-on-primary z-50 flex flex-col justify-between shadow-[4px_0_24px_rgba(107,0,7,0.12)] border-r border-white/10"><div class="flex flex-col flex-1 overflow-y-auto"><div class="px-space-lg pt-space-lg pb-space-md border-b border-white/10"><div class="flex items-center gap-space-sm"><div class="w-9 h-9 rounded-2xl bg-gradient-to-br from-tertiary-fixed-dim/40 to-tertiary-container/80 backdrop-blur-md border border-white/20 flex items-center justify-center text-tertiary-fixed shadow-inner"><span class="material-symbols-outlined text-[20px]">grain</span></div><div class="flex flex-col leading-tight"><span class="font-headline-sm text-headline-sm text-on-primary tracking-wide">Keshar Kali</span><span class="font-label-md text-[10px] text-tertiary-fixed-dim uppercase tracking-wider font-semibold">Precision in Every Grain</span></div></div><div class="mt-space-md pt-space-sm border-t border-white/10 flex items-center justify-between"><div class="flex items-center gap-space-xs"><span class="w-2 h-2 rounded-full bg-tertiary-fixed-dim inline-block ring-2 ring-tertiary-fixed-dim/40 animate-pulse"></span><span class="font-label-md text-[11px] text-on-primary/90 font-medium">Tejas M. (Admin)</span></div><span class="font-label-md text-[10px] px-2.5 py-0.5 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 text-tertiary-fixed font-bold uppercase tracking-wider">Active</span></div></div><nav class="flex-1 px-3 py-space-md space-y-1.5"><a class="flex items-center gap-space-sm px-3.5 py-2.5 rounded-full text-on-primary/80 hover:bg-white/10 hover:text-on-primary transition-all duration-200 font-label-lg text-label-lg" data-path="dashboard" href="#"><span class="material-symbols-outlined text-[18px]">dashboard</span><span>Dashboard</span></a><a class="flex items-center gap-space-sm px-3.5 py-2.5 rounded-full text-on-primary/80 hover:bg-white/10 hover:text-on-primary transition-all duration-200 font-label-lg text-label-lg" data-path="purchase-orders" href="#"><span class="material-symbols-outlined text-[18px]">receipt_long</span><span>Purchase Orders</span></a><a class="flex items-center justify-between px-3.5 py-2.5 rounded-full text-on-primary/80 hover:bg-white/10 hover:text-on-primary transition-all duration-200 font-label-lg text-label-lg bg-white/5" data-path="loading-register" href="#"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-[18px] text-tertiary-fixed-dim">local_shipping</span><span>Loading Register</span></div><span class="font-label-md text-[10px] px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed font-bold tracking-wide shadow-sm">Live</span></a><a aria-current="page" class="flex items-center gap-space-sm px-3.5 py-2.5 rounded-full transition-all duration-200 bg-white/20 backdrop-blur-md text-white font-label-lg font-bold shadow-[0_4px_16px_rgba(0,0,0,0.15)] border border-white/30" data-path="dispatch-management" href="#"><span class="material-symbols-outlined text-[19px] text-tertiary-fixed-dim">fire_truck</span><span>Dispatch Management</span></a><div class="pt-space-xs"><div class="flex items-center justify-between px-3.5 py-space-xs text-on-primary/60 font-label-md text-[11px] uppercase tracking-wider"><span>Reports</span><span class="material-symbols-outlined text-[14px]">expand_more</span></div><div class="pl-2 pr-1 space-y-1 mt-1"><a class="flex items-center gap-space-xs px-3 py-1.5 rounded-full text-on-primary/75 hover:bg-white/10 hover:text-on-primary transition-colors font-label-md text-label-md" data-path="reports-industry-wise" href="#"><span class="material-symbols-outlined text-[14px]">factory</span><span>Industry-wise</span></a><a class="flex items-center gap-space-xs px-3 py-1.5 rounded-full text-on-primary/75 hover:bg-white/10 hover:text-on-primary transition-colors font-label-md text-label-md" data-path="reports-buyer-wise" href="#"><span class="material-symbols-outlined text-[14px]">group</span><span>Buyer-wise</span></a><a class="flex items-center gap-space-xs px-3 py-1.5 rounded-full text-on-primary/75 hover:bg-white/10 hover:text-on-primary transition-colors font-label-md text-label-md" data-path="reports-po-wise" href="#"><span class="material-symbols-outlined text-[14px]">description</span><span>PO-wise</span></a></div></div><div class="pt-space-xs border-t border-white/10 mt-space-sm space-y-1"><a class="flex items-center gap-space-sm px-3.5 py-2 rounded-full text-on-primary/80 hover:bg-white/10 hover:text-on-primary transition-colors font-label-lg text-label-lg" data-path="customers" href="#"><span class="material-symbols-outlined text-[18px]">domain</span><span>Customers</span></a><a class="flex items-center gap-space-sm px-3.5 py-2 rounded-full text-on-primary/80 hover:bg-white/10 hover:text-on-primary transition-colors font-label-lg text-label-lg" data-path="industries-sourcing-mills" href="#"><span class="material-symbols-outlined text-[18px]">warehouse</span><span>Industries (Mills)</span></a><a class="flex items-center gap-space-sm px-3.5 py-2 rounded-full text-on-primary/80 hover:bg-white/10 hover:text-on-primary transition-colors font-label-lg text-label-lg" data-path="products-rice-varieties" href="#"><span class="material-symbols-outlined text-[18px]">agriculture</span><span>Products (Rice)</span></a><a class="flex items-center gap-space-sm px-3.5 py-2 rounded-full text-on-primary/80 hover:bg-white/10 hover:text-on-primary transition-colors font-label-lg text-label-lg" data-path="settings" href="#"><span class="material-symbols-outlined text-[18px]">settings</span><span>Settings</span></a></div></nav></div><div class="px-space-md py-space-sm border-t border-white/10 bg-black/15 backdrop-blur-sm flex items-center justify-between text-on-primary/80 font-label-md text-[11px]"><span>v4.12 ERP Operational</span><span class="material-symbols-outlined text-[16px] text-tertiary-fixed-dim">lock</span></div></aside><div class="pl-64"><header class="fixed top-0 left-64 right-0 h-16 bg-white/75 backdrop-blur-xl z-40 border-b border-white/80 shadow-[0_4px_20px_rgba(107,0,7,0.04)] flex items-center justify-between px-space-lg transition-all"><div class="flex items-center gap-space-md flex-1 max-w-xl"><div class="relative w-full flex items-center"><span class="material-symbols-outlined text-on-surface-variant text-[18px] absolute left-3.5 pointer-events-none">search</span><input class="w-full h-9 pl-10 pr-14 rounded-full bg-white/70 hover:bg-white focus:bg-white text-on-surface font-body-sm text-body-sm placeholder:text-on-surface-variant/70 border border-amber-900/10 focus:border-primary focus:ring-2 focus:ring-primary/20 backdrop-blur-md shadow-inner transition-all outline-none" placeholder="Search PO, Buyer, Vehicle, or Industry... (Ctrl + K)" type="text"/><kbd class="absolute right-3 font-code-telemetry text-[11px] text-on-surface-variant bg-surface-container-high/60 backdrop-blur-sm px-2 py-0.5 rounded-full border border-amber-900/10 pointer-events-none font-medium">Ctrl+K</kbd></div></div><div class="flex items-center gap-space-md"><div class="hidden xl:flex items-center gap-2"><button class="h-8.5 px-3.5 bg-gradient-to-b from-primary-container to-primary text-on-primary font-label-md text-label-md rounded-full shadow-[0_2px_8px_rgba(143,23,23,0.3)] hover:shadow-[0_4px_12px_rgba(143,23,23,0.4)] hover:brightness-110 active:scale-95 transition-all flex items-center gap-1 border-t border-white/30" type="button"><span>+ New PO</span></button><button class="h-8.5 px-3.5 bg-gradient-to-b from-primary to-[#500005] text-on-primary font-label-md text-label-md rounded-full shadow-[0_2px_8px_rgba(107,0,7,0.3)] hover:shadow-[0_4px_12px_rgba(107,0,7,0.4)] hover:brightness-110 active:scale-95 transition-all flex items-center gap-1 border-t border-white/20" type="button"><span>+ Log Loading</span></button><button class="h-8.5 px-3.5 bg-gradient-to-b from-tertiary-container to-tertiary text-tertiary-fixed font-label-md text-label-md rounded-full shadow-[0_2px_8px_rgba(94,68,0,0.3)] hover:shadow-[0_4px_12px_rgba(94,68,0,0.4)] hover:brightness-110 active:scale-95 transition-all flex items-center gap-1 border-t border-white/20" type="button"><span>+ Confirm Dispatch</span></button></div><div class="h-6 w-[1px] bg-amber-900/10 hidden sm:block"></div><div class="hidden md:flex items-center gap-1.5 font-label-md text-[11px] text-on-surface-variant bg-white/60 backdrop-blur-md border border-white/70 px-3 py-1 rounded-full shadow-sm"><span class="material-symbols-outlined text-[16px] text-tertiary">calendar_today</span><span>Today: 24 Nov 2026</span></div><div class="relative flex items-center"><button class="relative w-9 h-9 rounded-full bg-white/60 hover:bg-white/90 border border-white/70 flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-all shadow-sm" type="button"><span class="material-symbols-outlined text-[20px]">notifications</span><span class="absolute top-1 right-1 w-4 h-4 bg-error text-on-error font-label-md text-[10px] font-bold rounded-full flex items-center justify-center leading-none ring-2 ring-white">3</span></button></div><div class="flex items-center gap-space-sm pl-space-xs border-l border-amber-900/10"><div class="hidden lg:flex flex-col items-end leading-tight"><span class="font-label-md text-label-md text-on-surface font-bold">Tejas M.</span><span class="font-label-md text-[11px] text-on-surface-variant">Admin / Ops</span></div><div class="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-[#490005] flex items-center justify-center shadow-md border-2 border-white ring-1 ring-amber-900/10"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="relative pt-16 min-h-screen"><div class="flex flex-col w-full">
+<div class="p-space-lg space-y-space-lg">
+<!-- Top Operational Bar -->
+<div class="bg-white/80 backdrop-blur-xl p-space-lg rounded-3xl border border-white/70 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col xl:flex-row xl:items-center justify-between gap-space-md relative overflow-hidden">
+<div class="absolute -top-24 -left-24 w-64 h-64 bg-primary-fixed/25 rounded-full blur-3xl pointer-events-none"></div>
+<div class="space-y-1 relative z-10">
+<div class="flex items-center gap-space-xs font-label-md text-[11px] text-on-surface-variant uppercase tracking-wider">
+<span>Logistics &amp; Fulfillment Operations</span>
+<span>•</span>
+<span class="text-primary font-bold">Live Freight Desk</span>
+</div>
+<div class="flex flex-wrap items-center gap-space-sm">
+<h1 class="font-headline-lg text-headline-lg text-primary tracking-tight">Dispatch Management &amp; Vehicle Movement</h1>
+<span class="px-3 py-1 rounded-full bg-gradient-to-r from-tertiary-fixed to-tertiary-fixed-dim text-tertiary font-label-md text-[11px] font-bold tracking-wide uppercase shadow-sm border border-tertiary/10">Shift A • Live</span>
+</div>
+</div>
+<!-- Action Group -->
+<div class="flex flex-wrap items-center gap-space-sm relative z-10">
+<button class="h-9 px-4 bg-white/80 hover:bg-white text-on-surface font-label-md text-label-md rounded-full flex items-center gap-1.5 transition-all shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md border border-white active:scale-95" type="button">
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant">sync</span>
+<span>Refresh GPS / Gate</span>
+</button>
+<button class="h-9 px-4 bg-white/80 hover:bg-white text-on-surface font-label-md text-label-md rounded-full flex items-center gap-1.5 transition-all shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md border border-white active:scale-95" type="button">
+<span class="material-symbols-outlined text-[18px] text-tertiary-container">download</span>
+<span>Challan Batch (PDF)</span>
+</button>
+<button class="h-9 px-4.5 bg-gradient-to-r from-primary-container via-primary to-[#500005] hover:brightness-110 text-on-primary font-label-md text-label-md rounded-full flex items-center gap-1.5 transition-all shadow-[0_4px_16px_rgba(107,0,7,0.3)] border-t border-white/30 active:scale-95" onclick="openCreateModal()" type="button">
+<span class="material-symbols-outlined text-[18px]">add_circle</span>
+<span>+ Create Outward Dispatch Entry</span>
+</button>
+</div>
+</div>
+<!-- Operational KPI Ribbon -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-md">
+<!-- KPI 1 -->
+<div class="bg-white/80 backdrop-blur-xl p-space-md rounded-2xl border border-white/70 shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_6px_24px_rgba(107,0,7,0.08)] transition-all flex items-start justify-between relative overflow-hidden group">
+<div class="space-y-1 relative z-10">
+<span class="font-label-md text-[11px] uppercase tracking-wider text-on-surface-variant font-medium">Ready to Dispatch</span>
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-lg text-headline-lg text-primary font-code-telemetry">540.00</span>
+<span class="font-label-md text-label-md font-bold text-on-surface">QTL</span>
+</div>
+<div class="flex items-center gap-1 font-body-sm text-body-sm text-on-surface-variant">
+<span class="font-bold text-on-surface">4 Active POs</span>
+<span>allocated at dock</span>
+</div>
+</div>
+<div class="w-11 h-11 rounded-full bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 flex items-center justify-center text-primary shadow-inner group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-[22px]">pending_actions</span>
+</div>
+</div>
+<!-- KPI 2 -->
+<div class="bg-white/80 backdrop-blur-xl p-space-md rounded-2xl border border-white/70 shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_6px_24px_rgba(94,68,0,0.08)] transition-all flex items-start justify-between relative overflow-hidden group">
+<div class="space-y-1 relative z-10">
+<span class="font-label-md text-[11px] uppercase tracking-wider text-on-surface-variant font-medium">Dispatches Today</span>
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-lg text-headline-lg text-on-surface font-code-telemetry">1,120.00</span>
+<span class="font-label-md text-label-md font-bold text-on-surface">QTL</span>
+</div>
+<div class="flex items-center gap-1 font-body-sm text-body-sm text-on-surface-variant">
+<span class="font-bold text-on-surface">8 Trucks</span>
+<span>outward cleared</span>
+</div>
+</div>
+<div class="w-11 h-11 rounded-full bg-gradient-to-br from-tertiary-fixed to-tertiary-fixed-dim border border-tertiary/20 flex items-center justify-center text-tertiary shadow-inner group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-[22px]">local_shipping</span>
+</div>
+</div>
+<!-- KPI 3 -->
+<div class="bg-white/80 backdrop-blur-xl p-space-md rounded-2xl border border-white/70 shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_6px_24px_rgba(0,0,0,0.06)] transition-all flex items-start justify-between relative overflow-hidden group">
+<div class="space-y-1 relative z-10">
+<span class="font-label-md text-[11px] uppercase tracking-wider text-on-surface-variant font-medium">In-Transit Vehicles</span>
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-lg text-headline-lg text-on-surface font-code-telemetry">14</span>
+<span class="font-label-md text-label-md font-bold text-on-surface">Trucks</span>
+</div>
+<div class="flex items-center gap-1 font-body-sm text-body-sm text-on-surface-variant">
+<span class="font-bold text-on-surface">1,960 QTL</span>
+<span>en route interstate</span>
+</div>
+</div>
+<div class="w-11 h-11 rounded-full bg-gradient-to-br from-surface-container-high/80 to-surface-container border border-amber-900/10 flex items-center justify-center text-on-surface shadow-inner group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-[22px]">route</span>
+</div>
+</div>
+<!-- KPI 4 -->
+<div class="bg-white/80 backdrop-blur-xl p-space-md rounded-2xl border border-white/70 shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_6px_24px_rgba(158,64,58,0.08)] transition-all flex items-start justify-between relative overflow-hidden group">
+<div class="space-y-1 relative z-10">
+<span class="font-label-md text-[11px] uppercase tracking-wider text-on-surface-variant font-medium">Pending Buyer Alerts</span>
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-lg text-headline-lg text-secondary font-code-telemetry">2</span>
+<span class="font-label-md text-label-md font-bold text-secondary">Queued</span>
+</div>
+<div class="flex items-center gap-1 font-body-sm text-body-sm text-on-surface-variant">
+<span class="font-bold text-secondary">Auto-Mask</span>
+<span>sourcing protection ON</span>
+</div>
+</div>
+<div class="w-11 h-11 rounded-full bg-gradient-to-br from-secondary/15 to-secondary/5 border border-secondary/20 flex items-center justify-center text-secondary shadow-inner group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-[22px]">mark_chat_unread</span>
+</div>
+</div>
+</div>
+<!-- Active Dispatch Queue Card -->
+<div class="bg-white/85 backdrop-blur-xl rounded-3xl border border-white/80 shadow-[0_8px_32px_rgba(107,0,7,0.04)] overflow-hidden">
+<!-- Toolbar / Subheader -->
+<div class="p-space-md bg-white/50 backdrop-blur-md border-b border-amber-900/10 flex flex-col md:flex-row md:items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<span class="font-headline-sm text-headline-sm text-primary">Active Outward Loading &amp; Dispatch Queue</span>
+<span class="px-2.5 py-0.5 rounded-full bg-white/80 border border-amber-900/10 text-on-surface font-label-md text-label-md font-semibold shadow-sm">4 Records</span>
+</div>
+<div class="flex items-center gap-1.5 text-on-surface-variant font-label-md text-label-md bg-white/60 px-3 py-1 rounded-full border border-white/80">
+<span class="material-symbols-outlined text-[16px] text-tertiary">verified_user</span>
+<span>Supplier Anonymity Guard Active (Mill details filtered from Consignee Dispatches)</span>
+</div>
+</div>
+<!-- High-Density Data Grid -->
+<div class="overflow-x-auto w-full">
+<table class="w-full text-left text-body-sm font-body-sm">
+<thead class="bg-gradient-to-r from-primary via-primary-container to-primary text-on-primary font-label-md text-label-md uppercase tracking-wider select-none">
+<tr>
+<th class="py-3 px-space-md sticky left-0 bg-primary z-10">Dispatch ID</th>
+<th class="py-3 px-space-sm">PO Number</th>
+<th class="py-3 px-space-sm">Buyer / Consignee</th>
+<th class="py-3 px-space-sm">Rice Variety &amp; Packing</th>
+<th class="py-3 px-space-sm text-right">Total PO</th>
+<th class="py-3 px-space-sm text-right">Loaded</th>
+<th class="py-3 px-space-sm text-right">Prior Out</th>
+<th class="py-3 px-space-sm text-right font-bold text-tertiary-fixed">Ready / Available</th>
+<th class="py-3 px-space-sm text-right font-bold text-tertiary-fixed">Truck &amp; Load</th>
+<th class="py-3 px-space-sm">Bilty / LR</th>
+<th class="py-3 px-space-sm">Status</th>
+<th class="py-3 px-space-sm">Buyer Notice</th>
+<th class="py-3 px-space-md text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-amber-900/10 font-code-telemetry text-body-sm text-on-surface">
+<!-- Row 1: Primary Target (Tirupati Agro) -->
+<tr class="hover:bg-primary-fixed/20 transition-colors bg-white/40">
+<td class="py-3 px-space-md sticky left-0 bg-white/90 backdrop-blur-md font-bold text-primary font-code-telemetry">
+                DP-2026-0412
+              </td>
+<td class="py-3 px-space-sm font-semibold text-on-surface">
+                PO #KK-1048
+              </td>
+<td class="py-3 px-space-sm font-body-md text-body-md">
+<div class="font-bold text-on-surface">Tirupati Agro Foods</div>
+<div class="text-[11px] text-on-surface-variant font-normal">Vashi, APMC Market-II, Navi Mumbai</div>
+</td>
+<td class="py-3 px-space-sm font-body-md text-body-md">
+<div class="font-semibold text-on-surface">1121 Basmati Steam</div>
+<div class="text-[11px] text-on-surface-variant">50kg Branded PP Bags (A-Grade)</div>
+</td>
+<td class="py-3 px-space-sm text-right">500.00 QTL</td>
+<td class="py-3 px-space-sm text-right">380.00 QTL</td>
+<td class="py-3 px-space-sm text-right text-on-surface-variant">150.00 QTL</td>
+<td class="py-3 px-space-sm text-right font-bold text-primary">230.00 QTL</td>
+<td class="py-3 px-space-sm text-right">
+<div class="font-bold text-on-surface">230.00 QTL</div>
+<div class="font-label-md text-[11px] text-on-surface-variant">MH-31-CB-4492 (10-Tyre)</div>
+</td>
+<td class="py-3 px-space-sm font-code-telemetry text-[11px] text-on-surface-variant">LR-99382</td>
+<td class="py-3 px-space-sm font-body-md text-body-md">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-tertiary-fixed to-tertiary-fixed-dim/80 text-tertiary font-label-md text-[11px] font-bold shadow-sm border border-tertiary/15">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                  Weighed &amp; Ready
+                </span>
+</td>
+<td class="py-3 px-space-sm">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-md text-[11px] font-bold shadow-sm border border-secondary/20">
+                  Draft Ready
+                </span>
+</td>
+<td class="py-3 px-space-md text-right">
+<div class="flex items-center justify-end gap-1.5 font-label-md">
+<button class="h-7.5 px-3 bg-gradient-to-r from-primary-container to-primary hover:brightness-110 text-on-primary font-label-md text-label-md rounded-full flex items-center gap-1 shadow-sm hover:shadow transition-all border-t border-white/20 active:scale-95" onclick="openDispatchModal('DP-2026-0412')" type="button">
+<span class="material-symbols-outlined text-[15px]">local_shipping</span>
+<span>Confirm Dispatch</span>
+</button>
+<button class="h-7.5 w-7.5 rounded-full bg-white/80 hover:bg-white text-on-surface flex items-center justify-center transition-all shadow-sm border border-amber-900/10 active:scale-95" onclick="quickPrint('DP-2026-0412')" title="Print Challan" type="button">
+<span class="material-symbols-outlined text-[16px]">print</span>
+</button>
+<button class="h-7.5 w-7.5 rounded-full bg-white/80 hover:bg-white text-tertiary flex items-center justify-center transition-all shadow-sm border border-amber-900/10 active:scale-95" onclick="openDispatchModal('DP-2026-0412')" title="WhatsApp Advice" type="button">
+<span class="material-symbols-outlined text-[16px]">send</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-primary-fixed/20 transition-colors bg-white/20">
+<td class="py-3 px-space-md sticky left-0 bg-white/90 backdrop-blur-md font-bold text-primary font-code-telemetry">
+                DP-2026-0413
+              </td>
+<td class="py-3 px-space-sm font-semibold text-on-surface">
+                PO #KK-1049
+              </td>
+<td class="py-3 px-space-sm font-body-md text-body-md">
+<div class="font-bold text-on-surface">Golden Harvest Ltd</div>
+<div class="text-[11px] text-on-surface-variant font-normal">Sarkhej Highway, Ahmedabad</div>
+</td>
+<td class="py-3 px-space-sm font-body-md text-body-md">
+<div class="font-semibold text-on-surface">Sharbati Raw 100% Sortex</div>
+<div class="text-[11px] text-on-surface-variant">30kg Non-Woven Bags</div>
+</td>
+<td class="py-3 px-space-sm text-right">300.00 QTL</td>
+<td class="py-3 px-space-sm text-right">300.00 QTL</td>
+<td class="py-3 px-space-sm text-right text-on-surface-variant">180.00 QTL</td>
+<td class="py-3 px-space-sm text-right font-bold text-primary">120.00 QTL</td>
+<td class="py-3 px-space-sm text-right">
+<div class="font-bold text-on-surface">120.00 QTL</div>
+<div class="font-label-md text-[11px] text-on-surface-variant">GJ-01-AX-9901 (6-Tyre)</div>
+</td>
+<td class="py-3 px-space-sm font-code-telemetry text-[11px] text-on-surface-variant">LR-99383</td>
+<td class="py-3 px-space-sm font-body-md text-body-md">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-tertiary-fixed to-tertiary-fixed-dim/80 text-tertiary font-label-md text-[11px] font-bold shadow-sm border border-tertiary/15">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                  Gate Pass Printed
+                </span>
+</td>
+<td class="py-3 px-space-sm">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-md text-[11px] font-bold shadow-sm border border-secondary/20">
+                  Draft Ready
+                </span>
+</td>
+<td class="py-3 px-space-md text-right">
+<div class="flex items-center justify-end gap-1.5 font-label-md">
+<button class="h-7.5 px-3 bg-gradient-to-r from-primary-container to-primary hover:brightness-110 text-on-primary font-label-md text-label-md rounded-full flex items-center gap-1 shadow-sm hover:shadow transition-all border-t border-white/20 active:scale-95" onclick="openDispatchModal('DP-2026-0413')" type="button">
+<span class="material-symbols-outlined text-[15px]">local_shipping</span>
+<span>Confirm Dispatch</span>
+</button>
+<button class="h-7.5 w-7.5 rounded-full bg-white/80 hover:bg-white text-on-surface flex items-center justify-center transition-all shadow-sm border border-amber-900/10 active:scale-95" title="Print Challan" type="button">
+<span class="material-symbols-outlined text-[16px]">print</span>
+</button>
+<button class="h-7.5 w-7.5 rounded-full bg-white/80 hover:bg-white text-tertiary flex items-center justify-center transition-all shadow-sm border border-amber-900/10 active:scale-95" onclick="openDispatchModal('DP-2026-0413')" title="WhatsApp Advice" type="button">
+<span class="material-symbols-outlined text-[16px]">send</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-primary-fixed/20 transition-colors bg-white/40">
+<td class="py-3 px-space-md sticky left-0 bg-white/90 backdrop-blur-md font-bold text-primary font-code-telemetry">
+                DP-2026-0414
+              </td>
+<td class="py-3 px-space-sm font-semibold text-on-surface">
+                PO #KK-1051
+              </td>
+<td class="py-3 px-space-sm font-body-md text-body-md">
+<div class="font-bold text-on-surface">Sri Balaji Rice Mart</div>
+<div class="text-[11px] text-on-surface-variant font-normal">Kurnool Industrial Area, AP</div>
+</td>
+<td class="py-3 px-space-sm font-body-md text-body-md">
+<div class="font-semibold text-on-surface">Sona Masoori Raw Old</div>
+<div class="text-[11px] text-on-surface-variant">25kg Poly Bags (Super Clean)</div>
+</td>
+<td class="py-3 px-space-sm text-right">450.00 QTL</td>
+<td class="py-3 px-space-sm text-right">200.00 QTL</td>
+<td class="py-3 px-space-sm text-right text-on-surface-variant">100.00 QTL</td>
+<td class="py-3 px-space-sm text-right font-bold text-primary">100.00 QTL</td>
+<td class="py-3 px-space-sm text-right">
+<div class="font-bold text-on-surface">100.00 QTL</div>
+<div class="font-label-md text-[11px] text-on-surface-variant">AP-21-TX-7108 (6-Tyre)</div>
+</td>
+<td class="py-3 px-space-sm font-code-telemetry text-[11px] text-on-surface-variant">LR-99384</td>
+<td class="py-3 px-space-sm font-body-md text-body-md">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-high/80 text-on-surface-variant font-label-md text-[11px] font-bold border border-amber-900/10">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+                  Tare Weighed
+                </span>
+</td>
+<td class="py-3 px-space-sm">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container-high/80 text-on-surface-variant font-label-md text-[11px] font-bold border border-amber-900/10">
+                  Awaiting Gross
+                </span>
+</td>
+<td class="py-3 px-space-md text-right">
+<div class="flex items-center justify-end gap-1.5 font-label-md">
+<button class="h-7.5 px-3 bg-white/60 text-on-surface-variant/70 font-label-md text-label-md rounded-full flex items-center gap-1 cursor-not-allowed border border-amber-900/10" type="button">
+<span class="material-symbols-outlined text-[15px]">scale</span>
+<span>Pending Gross</span>
+</button>
+<button class="h-7.5 w-7.5 rounded-full bg-white/60 text-on-surface-variant/50 flex items-center justify-center border border-amber-900/10" title="Challan Pending" type="button">
+<span class="material-symbols-outlined text-[16px]">print</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-primary-fixed/20 transition-colors bg-white/20">
+<td class="py-3 px-space-md sticky left-0 bg-white/90 backdrop-blur-md font-bold text-primary font-code-telemetry">
+                DP-2026-0415
+              </td>
+<td class="py-3 px-space-sm font-semibold text-on-surface">
+                PO #KK-1052
+              </td>
+<td class="py-3 px-space-sm font-body-md text-body-md">
+<div class="font-bold text-on-surface">Royal Grains Corp</div>
+<div class="text-[11px] text-on-surface-variant font-normal">Grain Market, Khanna, Punjab</div>
+</td>
+<td class="py-3 px-space-sm font-body-md text-body-md">
+<div class="font-semibold text-on-surface">PR-14 Parboiled Silky</div>
+<div class="text-[11px] text-on-surface-variant">50kg Plain Jute Bags</div>
+</td>
+<td class="py-3 px-space-sm text-right">600.00 QTL</td>
+<td class="py-3 px-space-sm text-right">90.00 QTL</td>
+<td class="py-3 px-space-sm text-right text-on-surface-variant">0.00 QTL</td>
+<td class="py-3 px-space-sm text-right font-bold text-primary">90.00 QTL</td>
+<td class="py-3 px-space-sm text-right">
+<div class="font-bold text-on-surface">90.00 QTL</div>
+<div class="font-label-md text-[11px] text-on-surface-variant">PB-10-DF-3199 (10-Tyre)</div>
+</td>
+<td class="py-3 px-space-sm font-code-telemetry text-[11px] text-on-surface-variant">LR-99385</td>
+<td class="py-3 px-space-sm font-body-md text-body-md">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-tertiary-fixed to-tertiary-fixed-dim/80 text-tertiary font-label-md text-[11px] font-bold shadow-sm border border-tertiary/15">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                  Ready for Gate
+                </span>
+</td>
+<td class="py-3 px-space-sm">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-md text-[11px] font-bold shadow-sm border border-secondary/20">
+                  Draft Ready
+                </span>
+</td>
+<td class="py-3 px-space-md text-right">
+<div class="flex items-center justify-end gap-1.5 font-label-md">
+<button class="h-7.5 px-3 bg-gradient-to-r from-primary-container to-primary hover:brightness-110 text-on-primary font-label-md text-label-md rounded-full flex items-center gap-1 shadow-sm hover:shadow transition-all border-t border-white/20 active:scale-95" onclick="openDispatchModal('DP-2026-0415')" type="button">
+<span class="material-symbols-outlined text-[15px]">local_shipping</span>
+<span>Confirm Dispatch</span>
+</button>
+<button class="h-7.5 w-7.5 rounded-full bg-white/80 hover:bg-white text-on-surface flex items-center justify-center transition-all shadow-sm border border-amber-900/10 active:scale-95" title="Print Challan" type="button">
+<span class="material-symbols-outlined text-[16px]">print</span>
+</button>
+<button class="h-7.5 w-7.5 rounded-full bg-white/80 hover:bg-white text-tertiary flex items-center justify-center transition-all shadow-sm border border-amber-900/10 active:scale-95" onclick="openDispatchModal('DP-2026-0415')" title="WhatsApp Advice" type="button">
+<span class="material-symbols-outlined text-[16px]">send</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Footer Summary -->
+<div class="p-3 px-space-md bg-white/60 backdrop-blur-md border-t border-amber-900/10 flex flex-col sm:flex-row items-center justify-between text-on-surface-variant font-label-md text-label-md gap-2">
+<div class="flex items-center gap-space-md">
+<span>Showing 4 outward consignments</span>
+<span>•</span>
+<span class="text-on-surface font-semibold">Total Queued: 540.00 QTL</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-primary-container ring-4 ring-primary-container/20 animate-pulse"></span>
+<span>Weighbridge Auto-Sync: Active (Baud 9600)</span>
+</div>
+</div>
+</div>
+<!-- Operational Split Panels: Transit Status + Sourcing Anonymity Monitor -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-space-md">
+<!-- Panel 1: Sourcing Masking & Audit Trail -->
+<div class="lg:col-span-1 bg-white/85 backdrop-blur-xl p-space-md rounded-3xl border border-white/80 shadow-[0_8px_32px_rgba(107,0,7,0.04)] space-y-space-md">
+<div class="flex items-center justify-between pb-space-xs border-b border-amber-900/10">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]">shield_person</span>
+</div>
+<span class="font-headline-sm text-headline-sm text-on-surface">Brokerage Neutrality Rule</span>
+</div>
+<span class="font-label-md text-[11px] px-3 py-1 rounded-full bg-tertiary-container text-tertiary-fixed font-bold tracking-wide">Strict</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+          Per trading protocol, originating rice mills and procurement prices are scrubbed from buyer-facing challans and electronic dispatch advices.
+        </p>
+<div class="space-y-2 font-body-sm text-body-sm">
+<div class="p-2.5 rounded-2xl bg-white/70 border border-white flex items-center justify-between shadow-sm">
+<span class="text-on-surface-variant">DP-2026-0412 Origin</span>
+<span class="font-code-telemetry text-primary font-semibold text-[12px]">Shree Ram Modern Mill (Masked)</span>
+</div>
+<div class="p-2.5 rounded-2xl bg-white/70 border border-white flex items-center justify-between shadow-sm">
+<span class="text-on-surface-variant">DP-2026-0413 Origin</span>
+<span class="font-code-telemetry text-primary font-semibold text-[12px]">Gondal Agro Processing (Masked)</span>
+</div>
+<div class="p-2.5 rounded-2xl bg-white/70 border border-white flex items-center justify-between shadow-sm">
+<span class="text-on-surface-variant">Customer Notification Header</span>
+<span class="font-bold text-tertiary tracking-wide font-headline-sm text-[13px]">KESHAR KALI ENTERPRISE</span>
+</div>
+</div>
+<div class="p-3 rounded-2xl bg-white/60 border border-white flex items-center gap-space-sm text-on-surface-variant font-label-md text-[11px] shadow-sm">
+<span class="material-symbols-outlined text-[18px] text-tertiary">info</span>
+<span>Only Authorized Master Admins can bypass dispatch origin masking.</span>
+</div>
+</div>
+<!-- Panel 2: Live In-Transit Fleet Snapshot -->
+<div class="lg:col-span-2 bg-white/85 backdrop-blur-xl p-space-md rounded-3xl border border-white/80 shadow-[0_8px_32px_rgba(107,0,7,0.04)] space-y-space-md">
+<div class="flex items-center justify-between pb-space-xs border-b border-amber-900/10">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-full bg-tertiary-fixed flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined text-[20px]">fmd_good</span>
+</div>
+<span class="font-headline-sm text-headline-sm text-on-surface">Live Dispatched Fleet (En Route)</span>
+</div>
+<a class="font-label-md text-label-md text-primary hover:text-primary-container font-semibold flex items-center gap-1 bg-white/70 px-3 py-1 rounded-full border border-white shadow-sm hover:shadow transition-all" href="#">
+<span>View All 14 In-Transit</span>
+<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</a>
+</div>
+<!-- Horizontal Vehicle Tiles -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-sm">
+<!-- Vehicle Card 1 -->
+<div class="p-3.5 rounded-2xl bg-white/70 backdrop-blur-md border border-white space-y-2 hover:bg-white hover:shadow-md transition-all">
+<div class="flex items-center justify-between">
+<span class="font-bold text-on-surface font-code-telemetry text-headline-sm text-[15px]">KA-01-AB-1234</span>
+<span class="px-2.5 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed font-label-md text-[11px] font-bold border border-tertiary/10">On Schedule</span>
+</div>
+<div class="font-body-sm text-body-sm text-on-surface-variant">
+<span>PO #KK-1044 • </span>
+<span class="font-semibold text-on-surface">140.00 QTL</span>
+<span> to Bangalore Hub</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant font-label-md text-[11px] pt-1 border-t border-amber-900/5">
+<span>Driver: M. Suresh (GPS Live)</span>
+<span class="font-semibold text-primary">ETA: Today 08:30 PM</span>
+</div>
+</div>
+<!-- Vehicle Card 2 -->
+<div class="p-3.5 rounded-2xl bg-white/70 backdrop-blur-md border border-white space-y-2 hover:bg-white hover:shadow-md transition-all">
+<div class="flex items-center justify-between">
+<span class="font-bold text-on-surface font-code-telemetry text-headline-sm text-[15px]">MH-12-PQ-8831</span>
+<span class="px-2.5 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-md text-[11px] font-bold border border-secondary/20">Toll Checkpoint</span>
+</div>
+<div class="font-body-sm text-body-sm text-on-surface-variant">
+<span>PO #KK-1046 • </span>
+<span class="font-semibold text-on-surface">220.00 QTL</span>
+<span> to Pune Logistics Park</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant font-label-md text-[11px] pt-1 border-t border-amber-900/5">
+<span>Driver: Vikas Patil (GPS Live)</span>
+<span class="font-semibold text-primary">ETA: Tomorrow 04:00 AM</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Dispatch Confirmation & WhatsApp Side-Drawer Modal -->
+<div class="fixed inset-0 z-50 hidden" id="dispatchModal">
+<!-- Scrim -->
+<div class="fixed inset-0 bg-inverse-surface/40 backdrop-blur-sm transition-opacity" onclick="closeDispatchModal()"></div>
+<!-- Slide-in Drawer Container -->
+<div class="fixed inset-y-0 right-0 max-w-2xl w-full bg-white/95 backdrop-blur-2xl shadow-2xl flex flex-col z-50 border-l border-white/80">
+<!-- Header -->
+<div class="p-space-md bg-gradient-to-r from-primary via-primary-container to-primary text-on-primary flex items-center justify-between shadow-md">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-tertiary-fixed border border-white/20">
+<span class="material-symbols-outlined text-[22px]">send_to_mobile</span>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md leading-tight">Confirm Dispatch &amp; Buyer Notification</h3>
+<span class="font-label-md text-[11px] text-primary-fixed-dim">Consignment Gate Clearance Protocol</span>
+</div>
+</div>
+<button class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-on-primary transition-colors border border-white/20" onclick="closeDispatchModal()" type="button">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+<!-- Drawer Body Content -->
+<div class="p-space-lg flex-1 overflow-y-auto space-y-space-md">
+<!-- Banner Notice: Masking Applied -->
+<div class="p-space-sm rounded-2xl bg-amber-50/80 border border-amber-200/80 backdrop-blur-md flex items-start gap-space-sm text-on-surface font-body-sm text-body-sm shadow-sm">
+<span class="material-symbols-outlined text-[20px] text-primary">verified_user</span>
+<div class="space-y-0.5">
+<span class="font-bold">Automated Sourcing Masking Enforced</span>
+<p class="text-on-surface-variant font-body-sm text-body-sm">
+              Mill origin (Shree Ram Modern Mill) has been masked. Only <strong>Keshar Kali Dispatch Logistics</strong> is branded on the electronic dispatch notice.
+            </p>
+</div>
+</div>
+<!-- Consignment Summary Matrix -->
+<div class="bg-white/70 backdrop-blur-md border border-white p-space-md rounded-2xl space-y-space-sm shadow-sm">
+<div class="font-label-md text-[11px] uppercase tracking-wider text-on-surface-variant font-bold">Consignment Specifications</div>
+<div class="grid grid-cols-2 gap-space-sm font-body-sm text-body-sm">
+<div>
+<span class="text-on-surface-variant text-[11px] uppercase">Purchase Order</span>
+<div class="font-bold text-on-surface">PO #KK-1048</div>
+</div>
+<div>
+<span class="text-on-surface-variant text-[11px] uppercase">Buyer / Consignee</span>
+<div class="font-bold text-on-surface">Tirupati Agro Foods (Mumbai)</div>
+</div>
+<div>
+<span class="text-on-surface-variant text-[11px] uppercase">Rice Variety &amp; Bagging</span>
+<div class="font-bold text-on-surface">1121 Basmati Steam (50kg PP)</div>
+</div>
+<div>
+<span class="text-on-surface-variant text-[11px] uppercase">Outward Quantity</span>
+<div class="font-bold text-primary font-code-telemetry text-headline-sm text-[15px]">230.00 QTL (460 Bags)</div>
+</div>
+<div>
+<span class="text-on-surface-variant text-[11px] uppercase">Assigned Vehicle</span>
+<div class="font-bold text-on-surface">MH-31-CB-4492 (10-Tyre)</div>
+</div>
+<div>
+<span class="text-on-surface-variant text-[11px] uppercase">Driver &amp; Mobile</span>
+<div class="font-bold text-on-surface">Ramesh Kumar (+91 98221 44019)</div>
+</div>
+<div>
+<span class="text-on-surface-variant text-[11px] uppercase">Bilty / LR Number</span>
+<div class="font-bold font-code-telemetry text-on-surface">LR-99382</div>
+</div>
+<div>
+<span class="text-on-surface-variant text-[11px] uppercase">PO Remaining Balance</span>
+<div class="font-bold text-tertiary">120.00 QTL</div>
+</div>
+</div>
+</div>
+<!-- WhatsApp Notification Live Preview Box -->
+<div class="space-y-space-xs">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-[11px] uppercase tracking-wider text-on-surface-variant font-bold">Customer WhatsApp Preview</span>
+<span class="font-label-md text-label-md text-primary font-semibold flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-primary inline-block animate-pulse"></span>
+              Auto-Generated Format
+            </span>
+</div>
+<!-- WhatsApp Chat Style Card -->
+<div class="p-space-md rounded-2xl bg-white/80 backdrop-blur-md border border-white text-on-surface shadow-sm font-code-telemetry text-[12px] leading-relaxed relative">
+<div class="flex items-center gap-1.5 text-primary font-bold pb-2 border-b border-amber-900/10">
+<span>🌾 KESHAR KALI - DISPATCH ADVICE</span>
+</div>
+<div class="pt-2 space-y-1">
+<p>Dear <strong>Tirupati Agro Foods</strong>,</p>
+<p>Your consignment against <strong>PO #KK-1048</strong> has been successfully dispatched from our dispatch facility!</p>
+<div class="p-2.5 my-2 rounded-xl bg-white/90 border border-amber-900/5 space-y-0.5">
+<div>• <strong>Product:</strong> 1121 Basmati Steam (50kg PP Bags)</div>
+<div>• <strong>Quantity Dispatched:</strong> 230.00 QTL (460 Bags)</div>
+<div>• <strong>Vehicle No:</strong> MH-31-CB-4492</div>
+<div>• <strong>Bilty / LR No:</strong> LR-99382</div>
+<div>• <strong>Balance Remaining on PO:</strong> 120.00 QTL</div>
+<div>• <strong>Dispatch Date:</strong> 24 Nov 2026, 11:30 AM</div>
+</div>
+<p class="text-[11px] text-on-surface-variant">Thank you for choosing Keshar Kali - Precision in Every Grain.</p>
+<div class="text-right text-[10px] text-on-surface-variant pt-1 font-sans">11:32 AM ✓✓</div>
+</div>
+</div>
+</div>
+<!-- Recipient Phone & Channel Validation -->
+<div class="bg-white/70 backdrop-blur-md border border-white p-space-sm rounded-full flex items-center justify-between text-body-sm font-body-sm shadow-sm px-4">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[18px] text-tertiary">chat</span>
+<span>Target: <strong>+91 98200 12849</strong> (Tirupati Accounts &amp; Dispatch Desk)</span>
+</div>
+<span class="font-label-md text-label-md text-primary font-semibold">Active WA API</span>
+</div>
+</div>
+<!-- Action Footer -->
+<div class="p-space-md bg-white/80 backdrop-blur-xl border-t border-amber-900/10 flex flex-col sm:flex-row items-center justify-between gap-space-sm">
+<button class="w-full sm:w-auto h-9 px-5 bg-white hover:bg-surface-container text-on-surface font-label-md text-label-md rounded-full transition-all border border-amber-900/10 shadow-sm active:scale-95" onclick="closeDispatchModal()" type="button">
+          Cancel
+        </button>
+<div class="w-full sm:w-auto flex items-center gap-space-sm">
+<button class="flex-1 sm:flex-initial h-9 px-4.5 bg-white hover:bg-surface-container text-on-surface font-label-md text-label-md rounded-full transition-all border border-amber-900/10 shadow-sm active:scale-95" onclick="confirmDispatchOnly()" type="button">
+            Confirm Only (No Notice)
+          </button>
+<button class="flex-1 sm:flex-initial h-9 px-5 bg-gradient-to-r from-primary to-[#500005] hover:brightness-110 text-on-primary font-label-md text-label-md rounded-full flex items-center justify-center gap-space-xs transition-all shadow-md border-t border-white/25 active:scale-95" onclick="confirmDispatchAndSendWA()" type="button">
+<span class="material-symbols-outlined text-[18px]">send</span>
+<span>Confirm &amp; Fire WhatsApp</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Notification Toast -->
+<div class="fixed bottom-space-lg right-space-lg z-50 hidden transition-all duration-300" id="toastNotification">
+<div class="bg-gradient-to-r from-primary to-[#500005] text-on-primary p-space-md rounded-2xl shadow-2xl flex items-center gap-space-sm border border-white/20 backdrop-blur-xl">
+<span class="material-symbols-outlined text-tertiary-fixed text-[24px]">check_circle</span>
+<div>
+<div class="font-label-md text-label-md font-bold" id="toastTitle">Dispatch Confirmed</div>
+<div class="font-body-sm text-body-sm text-primary-fixed-dim" id="toastBody">Consignment DP-2026-0412 out cleared.</div>
+</div>
+</div>
+</div>
+<!-- Inline Client Interaction Controller -->
+<script>
+    function openDispatchModal(dispatchId) {
+      const modal = document.getElementById('dispatchModal');
+      if (modal) {
+        modal.classList.remove('hidden');
+      }
+    }
+
+    function closeDispatchModal() {
+      const modal = document.getElementById('dispatchModal');
+      if (modal) {
+        modal.classList.add('hidden');
+      }
+    }
+
+    function openCreateModal() {
+      showToast('New Outward Entry', 'Opening weighbridge rapid ticket entry form...');
+    }
+
+    function quickPrint(id) {
+      showToast('Generating Challan', 'Dispatch Challan PDF for ' + id + ' compiling...');
+    }
+
+    function confirmDispatchOnly() {
+      closeDispatchModal();
+      showToast('Dispatch Confirmed', 'Consignment released without outward message broadcast.');
+    }
+
+    function confirmDispatchAndSendWA() {
+      closeDispatchModal();
+      showToast('Success & WhatsApp Dispatched', 'Truck Gate Pass generated & WhatsApp Advice pushed to Tirupati Agro.');
+    }
+
+    function showToast(title, body) {
+      const toast = document.getElementById('toastNotification');
+      const toastTitle = document.getElementById('toastTitle');
+      const toastBody = document.getElementById('toastBody');
+      if (toast && toastTitle && toastBody) {
+        toastTitle.textContent = title;
+        toastBody.textContent = body;
+        toast.classList.remove('hidden');
+        setTimeout(() => {
+          toast.classList.add('hidden');
+        }, 4000);
+      }
+    }
+  </script>
+</div></main></div></body></html>

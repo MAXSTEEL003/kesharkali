@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;family=Plus+Jakarta+Sans:wght@300..800&amp;family=Space+Grotesk:wght@400..700&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "tertiary-fixed": "#ffdea3",
+          "tertiary": "#422f00",
+          "on-error": "#ffffff",
+          "secondary": "#9e403a",
+          "on-primary-fixed": "#410002",
+          "on-surface-variant": "#59413e",
+          "surface-variant": "#ece0dc",
+          "primary-fixed": "#ffdad6",
+          "on-background": "#201a18",
+          "primary-fixed-dim": "#ffb4ab",
+          "on-secondary-fixed": "#410003",
+          "outline": "#8d706d",
+          "inverse-on-surface": "#fbeeea",
+          "inverse-primary": "#ffb4ab",
+          "on-primary-container": "#ff9d93",
+          "outline-variant": "#e0bfbb",
+          "background": "#fff8f6",
+          "surface": "#fff8f6",
+          "surface-container-low": "#fef1ed",
+          "on-surface": "#201a18",
+          "on-secondary-container": "#75221f",
+          "primary": "#6b0007",
+          "surface-dim": "#e4d7d4",
+          "secondary-fixed": "#ffdad6",
+          "surface-container": "#f8ebe8",
+          "on-error-container": "#93000a",
+          "inverse-surface": "#362f2d",
+          "surface-tint": "#ae2f2a",
+          "tertiary-fixed-dim": "#efbf5d",
+          "surface-container-high": "#f2e6e2",
+          "on-tertiary-fixed": "#261900",
+          "tertiary-container": "#5e4400",
+          "error": "#ba1a1a",
+          "surface-container-lowest": "#ffffff",
+          "on-primary-fixed-variant": "#8d1516",
+          "on-primary": "#ffffff",
+          "primary-container": "#8f1717",
+          "on-secondary": "#ffffff",
+          "secondary-container": "#fe8a81",
+          "surface-container-highest": "#ece0dc",
+          "on-tertiary-container": "#dfb04f",
+          "surface-bright": "#fff8f6",
+          "on-tertiary": "#ffffff",
+          "error-container": "#ffdad6",
+          "on-secondary-fixed-variant": "#7f2925",
+          "secondary-fixed-dim": "#ffb3ad",
+          "on-tertiary-fixed-variant": "#5c4200"
+        },
+        "borderRadius": {
+          "DEFAULT": "0.5rem",
+          "lg": "0.75rem",
+          "xl": "1rem",
+          "2xl": "1.25rem",
+          "full": "9999px"
+        },
+        "spacing": {
+          "space-sm": "0.5rem",
+          "space-xs": "0.25rem",
+          "space-lg": "1.5rem",
+          "gutter-mobile": "0.75rem",
+          "space-md": "1rem",
+          "space-xl": "2.5rem",
+          "margin-mobile": "1rem",
+          "margin": "2.5rem",
+          "gutter": "1.5rem"
+        },
+        "fontFamily": {
+          "body-lg": ["Plus Jakarta Sans", "Inter", "sans-serif"],
+          "body-md": ["Plus Jakarta Sans", "Inter", "sans-serif"],
+          "label-lg": ["Plus Jakarta Sans", "Inter", "sans-serif"],
+          "headline-sm": ["Space Grotesk", "sans-serif"],
+          "code-telemetry": ["JetBrains Mono", "monospace"],
+          "headline-md": ["Space Grotesk", "sans-serif"],
+          "display": ["Space Grotesk", "sans-serif"],
+          "label-md": ["Plus Jakarta Sans", "Inter", "sans-serif"],
+          "headline-lg-mobile": ["Space Grotesk", "sans-serif"],
+          "body-sm": ["Plus Jakarta Sans", "Inter", "sans-serif"],
+          "headline-lg": ["Space Grotesk", "sans-serif"],
+          "tabular-metric-sm": ["Inter", "sans-serif"],
+          "tabular-metric-md": ["Inter", "sans-serif"],
+          "tabular-metric-lg": ["Space Grotesk", "Inter", "sans-serif"]
+        }
+      }
+    }
+  };
+</script>
+<style>
+  .glass-card {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 4px 20px -2px rgba(107, 0, 7, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.03);
+  }
+  .glass-card-subtle {
+    background: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+  }
+  .glass-card-tint {
+    background: rgba(254, 241, 237, 0.65);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+  }
+  .glass-header {
+    background: rgba(255, 248, 246, 0.82);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.75);
+    box-shadow: 0 2px 14px rgba(107, 0, 7, 0.04);
+  }
+  .glass-btn {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 2px 6px rgba(0, 0, 0, 0.06);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .glass-btn:hover {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 4px 12px rgba(107, 0, 7, 0.15);
+    transform: translateY(-0.5px);
+  }
+</style>
+</head>
+<body class="bg-background font-body-md text-on-surface antialiased bg-gradient-to-br from-[#fff8f6] via-[#fdf2ee] to-[#fbebe6] min-h-screen">
+<!-- Sidebar with frosted glass depth and Keshar Kali Crimson branding -->
+<aside class="fixed left-0 top-0 h-screen w-64 bg-gradient-to-b from-[#6b0007] via-[#5c0006] to-[#450004] text-on-primary z-50 flex flex-col justify-between shadow-[4px_0_24px_rgba(65,0,2,0.18)] border-r border-white/10 backdrop-blur-xl">
+<div class="flex flex-col flex-1 overflow-y-auto">
+<div class="px-space-lg pt-space-lg pb-space-md border-b border-white/10 bg-white/[0.04] backdrop-blur-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-9 h-9 rounded-xl bg-gradient-to-br from-tertiary-fixed-dim to-tertiary-fixed flex items-center justify-center text-on-tertiary-fixed shadow-md shadow-black/20 ring-1 ring-white/20">
+<span class="material-symbols-outlined text-[20px]">grain</span>
+</div>
+<div class="flex flex-col leading-tight">
+<span class="font-headline-sm text-headline-sm text-white tracking-wide font-bold">Keshar Kali</span>
+<span class="text-[10px] text-tertiary-fixed-dim uppercase tracking-widest font-semibold">Precision in Every Grain</span>
+</div>
+</div>
+<div class="mt-space-md pt-space-sm border-t border-white/10 flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-emerald-400/30 inline-block animate-pulse"></span>
+<span class="text-xs text-white/80 font-medium">Tejas M. (Admin)</span>
+</div>
+<span class="text-[10px] px-2.5 py-0.5 rounded-full bg-white/15 text-tertiary-fixed font-bold uppercase tracking-wider backdrop-blur-sm border border-white/10">Active</span>
+</div>
+</div>
+<nav class="flex-1 px-3 py- space-y-1.5 mt-2" data-active-classes="bg-white/20 text-white font-semibold shadow-inner">
+<a class="flex items-center gap-3 px-3.5 py-2.5 rounded-full text-white/75 hover:bg-white/10 hover:text-white transition-all text-xs font-medium" data-path="dashboard" href="#">
+<span class="material-symbols-outlined text-[19px]">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3.5 py-2.5 rounded-full text-white/75 hover:bg-white/10 hover:text-white transition-all text-xs font-medium" data-path="purchase-orders" href="#">
+<span class="material-symbols-outlined text-[19px]">receipt_long</span>
+<span>Purchase Orders</span>
+</a>
+<a aria-current="page" class="flex items-center justify-between px-3.5 py-2.5 rounded-full transition-all bg-white/20 text-white text-xs font-semibold shadow-[0_2px_10px_rgba(0,0,0,0.15)] border border-white/20 backdrop-blur-md" data-path="loading-register" href="#">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[19px] text-tertiary-fixed-dim">local_shipping</span>
+<span>Loading Register</span>
+</div>
+<span class="text-[10px] px-2 py-0.5 rounded-full bg-tertiary-fixed-dim text-on-tertiary-fixed font-bold uppercase tracking-wider shadow-sm">Live</span>
+</a>
+<a class="flex items-center gap-3 px-3.5 py-2.5 rounded-full text-white/75 hover:bg-white/10 hover:text-white transition-all text-xs font-medium" data-path="dispatch-management" href="#">
+<span class="material-symbols-outlined text-[19px]">fire_truck</span>
+<span>Dispatch Management</span>
+</a>
+<div class="pt-2">
+<div class="flex items-center justify-between px-3.5 py-1 text-white/50 text-[11px] font-semibold uppercase tracking-wider">
+<span>Reports</span>
+<span class="material-symbols-outlined text-[14px]">expand_more</span>
+</div>
+<div class="space-y-1 mt-1">
+<a class="flex items-center gap-2.5 px-3.5 py-1.5 rounded-full text-white/70 hover:bg-white/10 hover:text-white transition-all text-xs font-medium" data-path="reports-industry-wise" href="#">
+<span class="material-symbols-outlined text-[15px]">factory</span>
+<span>Industry-wise</span>
+</a>
+<a class="flex items-center gap-2.5 px-3.5 py-1.5 rounded-full text-white/70 hover:bg-white/10 hover:text-white transition-all text-xs font-medium" data-path="reports-buyer-wise" href="#">
+<span class="material-symbols-outlined text-[15px]">group</span>
+<span>Buyer-wise</span>
+</a>
+<a class="flex items-center gap-2.5 px-3.5 py-1.5 rounded-full text-white/70 hover:bg-white/10 hover:text-white transition-all text-xs font-medium" data-path="reports-po-wise" href="#">
+<span class="material-symbols-outlined text-[15px]">description</span>
+<span>PO-wise</span>
+</a>
+</div>
+</div>
+<div class="pt-2 border-t border-white/10 mt-2 space-y-1">
+<a class="flex items-center gap-3 px-3.5 py-2 rounded-full text-white/75 hover:bg-white/10 hover:text-white transition-all text-xs font-medium" data-path="customers" href="#">
+<span class="material-symbols-outlined text-[18px]">domain</span>
+<span>Customers</span>
+</a>
+<a class="flex items-center gap-3 px-3.5 py-2 rounded-full text-white/75 hover:bg-white/10 hover:text-white transition-all text-xs font-medium" data-path="industries-sourcing-mills" href="#">
+<span class="material-symbols-outlined text-[18px]">warehouse</span>
+<span>Industries (Mills)</span>
+</a>
+<a class="flex items-center gap-3 px-3.5 py-2 rounded-full text-white/75 hover:bg-white/10 hover:text-white transition-all text-xs font-medium" data-path="products-rice-varieties" href="#">
+<span class="material-symbols-outlined text-[18px]">agriculture</span>
+<span>Products (Rice)</span>
+</a>
+<a class="flex items-center gap-3 px-3.5 py-2 rounded-full text-white/75 hover:bg-white/10 hover:text-white transition-all text-xs font-medium" data-path="settings" href="#">
+<span class="material-symbols-outlined text-[18px]">settings</span>
+<span>Settings</span>
+</a>
+</div>
+</nav>
+</div>
+<div class="px-4 py-3 border-t border-white/10 bg-black/15 flex items-center justify-between text-white/70 text-xs backdrop-blur-md">
+<span class="font-medium">v4.12 ERP Operational</span>
+<span class="material-symbols-outlined text-[16px] text-tertiary-fixed">lock</span>
+</div>
+</aside>
+<div class="pl-64">
+<!-- Glass Header -->
+<header class="fixed top-0 left-64 right-0 h-14 glass-header z-40 flex items-center justify-between px-space-lg">
+<div class="flex items-center gap-space-md flex-1 max-w-xl">
+<div class="relative w-full flex items-center">
+<span class="material-symbols-outlined text-outline text-[18px] absolute left-3.5 pointer-events-none">search</span>
+<input class="w-full h-9 pl-9 pr-12 rounded-full bg-white/70 text-on-surface font-body-sm text-body-sm placeholder:text-on-surface-variant/70 border border-white/90 shadow-inner backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:bg-white transition-all" placeholder="Search PO, Buyer, Vehicle, or Industry... (Ctrl + K)" type="text"/>
+<kbd class="absolute right-3 font-label-sm text-[11px] text-on-surface-variant bg-white/80 border border-black/5 px-2 py-0.5 rounded-full pointer-events-none shadow-sm">Ctrl+K</kbd>
+</div>
+</div>
+<div class="flex items-center gap-space-md">
+<div class="hidden xl:flex items-center gap-2">
+<button class="h-8 px-4 bg-primary-container text-on-primary font-label-md text-xs rounded-full flex items-center gap-1.5 glass-btn hover:bg-primary transition-all font-semibold" type="button">
+<span class="text-sm leading-none">+</span>
+<span>New PO</span>
+</button>
+<button class="h-8 px-4 bg-primary text-on-primary font-label-md text-xs rounded-full flex items-center gap-1.5 glass-btn hover:bg-primary-container transition-all font-semibold" type="button">
+<span class="text-sm leading-none">+</span>
+<span>Log Loading</span>
+</button>
+<button class="h-8 px-4 bg-gradient-to-r from-tertiary-container to-tertiary text-tertiary-fixed font-label-md text-xs rounded-full flex items-center gap-1.5 glass-btn hover:brightness-110 transition-all font-semibold border border-tertiary-fixed/30" type="button">
+<span class="text-sm leading-none">+</span>
+<span>Confirm Dispatch</span>
+</button>
+</div>
+<div class="h-6 w-[1px] bg-outline-variant/50 hidden sm:block"></div>
+<div class="hidden md:flex items-center gap-1.5 font-label-sm text-xs text-on-surface font-medium bg-white/70 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/80 shadow-sm">
+<span class="material-symbols-outlined text-[16px] text-primary">calendar_today</span>
+<span>Today: 24 Nov 2026</span>
+</div>
+<div class="relative flex items-center">
+<button class="w-8 h-8 rounded-full bg-white/70 hover:bg-white text-on-surface-variant flex items-center justify-center border border-white/80 shadow-sm transition-all relative" type="button">
+<span class="material-symbols-outlined text-[19px]">notifications</span>
+<span class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-error text-on-error font-bold rounded-full flex items-center justify-center leading-none text-[9px] shadow-sm">3</span>
+</button>
+</div>
+<div class="flex items-center gap-2.5 pl-2 border-l border-outline-variant/40">
+<div class="hidden lg:flex flex-col items-end leading-tight">
+<span class="font-label-md text-xs text-on-surface font-bold">Tejas M.</span>
+<span class="text-[11px] text-on-surface-variant font-medium">Admin / Ops</span>
+</div>
+<div class="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary-container text-on-primary flex items-center justify-center ring-2 ring-white/80 shadow-sm">
+<span class="material-symbols-outlined text-[18px]">person</span>
+</div>
+</div>
+</div>
+</header>
+<main class="relative pt-14 min-h-screen">
+<div class="flex flex-col w-full">
+<!-- Top Operational Banner & Summary KPI Strip in Glassmorphism UI -->
+<section class="px-space-lg pt-space-md pb-space-sm flex flex-col gap-3">
+<!-- Header Level with Breadcrumb and Realtime State -->
+<div class="glass-card p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3">
+<div class="flex items-center gap-space-md">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary-container text-white flex items-center justify-center shadow-md shadow-primary/20">
+<span class="material-symbols-outlined text-[20px]">table_chart</span>
+</div>
+<div>
+<div class="flex items-center gap-2">
+<span class="font-headline-md text-lg text-on-surface tracking-tight font-bold">Master Loading Register</span>
+<span class="text-[10px] px-2.5 py-0.5 rounded-full bg-gradient-to-r from-tertiary-fixed to-amber-200 text-tertiary font-bold tracking-wider uppercase border border-amber-300/40 shadow-sm">DISPATCH READY</span>
+</div>
+<p class="text-xs text-on-surface-variant flex items-center gap-1.5 mt-0.5 font-medium">
+<span>Primary grain ledger for procurement, weighbridge, and logistics allocation</span>
+<span class="text-outline/40">/</span>
+<span class="font-tabular-metric-sm text-primary font-bold">Shift: Morning (06:00 - 18:00)</span>
+</p>
+</div>
+</div>
+<!-- Date Range Filter Tabs as Rounded Glass Pills -->
+<div class="hidden xl:flex items-center bg-white/60 p-1 rounded-full border border-white/80 shadow-sm backdrop-blur-md">
+<button class="px-3 py-1 rounded-full bg-white text-primary text-xs font-bold shadow-sm transition-all" type="button">Today: 24 Nov</button>
+<button class="px-3 py-1 rounded-full text-on-surface-variant hover:text-on-surface text-xs font-medium transition-colors" type="button">Yesterday</button>
+<button class="px-3 py-1 rounded-full text-on-surface-variant hover:text-on-surface text-xs font-medium transition-colors" type="button">This Week</button>
+<button class="px-3 py-1 rounded-full text-on-surface-variant hover:text-on-surface text-xs font-medium transition-colors flex items-center gap-1" type="button">
+<span>Custom</span>
+<span class="material-symbols-outlined text-[14px]">calendar_month</span>
+</button>
+</div>
+</div>
+<!-- Live Action Buttons in Pill / Rounded Style -->
+<div class="flex items-center gap-2">
+<div class="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/60 text-on-surface-variant text-xs font-medium border border-white/80 shadow-sm backdrop-blur-sm">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
+</span>
+<span class="text-on-surface font-semibold text-[11px]">Auto-Sync 100%</span>
+</div>
+<button class="h-8 px-3.5 rounded-full glass-card-subtle hover:bg-white text-on-surface text-xs font-semibold flex items-center gap-1.5 glass-btn transition-all border border-white/80" id="btnOpenPasteModal" type="button">
+<span class="material-symbols-outlined text-[16px] text-tertiary">content_paste_go</span>
+<span>Paste Excel (TSV)</span>
+</button>
+<button class="h-8 px-3.5 rounded-full glass-card-subtle hover:bg-white text-on-surface text-xs font-semibold flex items-center gap-1.5 glass-btn transition-all border border-white/80" onclick="exportSampleExcel()" type="button">
+<span class="material-symbols-outlined text-[16px] text-secondary">file_download</span>
+<span>Export .XLSX</span>
+</button>
+<button class="h-8 px-3 rounded-full glass-card-subtle hover:bg-white text-on-surface text-xs font-semibold flex items-center gap-1 glass-btn transition-all border border-white/80" type="button">
+<span class="material-symbols-outlined text-[16px]">print</span>
+<span class="hidden md:inline">Manifest</span>
+</button>
+<button class="h-8 px-4 rounded-full bg-gradient-to-r from-primary to-primary-container text-white text-xs font-bold flex items-center gap-1.5 glass-btn hover:brightness-110 shadow-md shadow-primary/20 transition-all" id="btnAddNewRow" type="button">
+<span class="material-symbols-outlined text-[17px]">add</span>
+<span>+ Add Single Row <kbd class="ml-1 text-[10px] opacity-75 bg-black/20 px-1.5 py-0.5 rounded-full">Alt+N</kbd></span>
+</button>
+</div>
+</div>
+<!-- Live Aggregates Strip (Frosted Glass KPI Cards) -->
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+<div class="glass-card p-3 rounded-2xl flex flex-col justify-between hover:translate-y-[-1px] transition-all">
+<div class="flex items-center justify-between text-on-surface-variant text-[11px] font-semibold">
+<span class="uppercase tracking-wider">Total Ledger Entries</span>
+<div class="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px] text-primary">receipt</span>
+</div>
+</div>
+<div class="flex items-baseline justify-between mt-1.5">
+<span class="font-tabular-metric-lg text-2xl text-on-surface font-bold">142</span>
+<span class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200/60">+18 Today</span>
+</div>
+</div>
+<div class="glass-card p-3 rounded-2xl flex flex-col justify-between hover:translate-y-[-1px] transition-all">
+<div class="flex items-center justify-between text-on-surface-variant text-[11px] font-semibold">
+<span class="uppercase tracking-wider">Today's Loaded Weight</span>
+<div class="w-6 h-6 rounded-full bg-amber-500/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px] text-tertiary">scale</span>
+</div>
+</div>
+<div class="flex items-baseline justify-between mt-1.5">
+<div class="flex items-baseline gap-1">
+<span class="font-tabular-metric-lg text-2xl text-on-surface font-bold">1,180.00</span>
+<span class="text-[11px] text-on-surface-variant uppercase font-medium">QTL</span>
+</div>
+<span class="text-[11px] text-primary font-bold">94.4% Tar</span>
+</div>
+</div>
+<div class="glass-card p-3 rounded-2xl flex flex-col justify-between hover:translate-y-[-1px] transition-all">
+<div class="flex items-center justify-between text-on-surface-variant text-[11px] font-semibold">
+<span class="uppercase tracking-wider">Gross Procurement</span>
+<div class="w-6 h-6 rounded-full bg-rose-500/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px] text-primary-container">currency_rupee</span>
+</div>
+</div>
+<div class="flex items-baseline justify-between mt-1.5">
+<div class="flex items-baseline gap-1">
+<span class="font-tabular-metric-lg text-2xl text-on-surface font-bold">₹41,89,000</span>
+</div>
+<span class="text-[11px] text-on-surface-variant font-medium">Avg ₹3,550/Q</span>
+</div>
+</div>
+<div class="glass-card p-3 rounded-2xl flex flex-col justify-between hover:translate-y-[-1px] transition-all border-l-4 border-l-error">
+<div class="flex items-center justify-between text-on-surface-variant text-[11px] font-semibold">
+<span class="uppercase tracking-wider">Pending Weighment</span>
+<div class="w-6 h-6 rounded-full bg-error/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px] text-error">hourglass_top</span>
+</div>
+</div>
+<div class="flex items-baseline justify-between mt-1.5">
+<span class="font-tabular-metric-lg text-2xl text-error font-bold">3 Records</span>
+<span class="text-[10px] bg-error-container text-on-error-container px-2 py-0.5 rounded-full uppercase font-bold">Bridge Queued</span>
+</div>
+</div>
+<div class="glass-card p-3 rounded-2xl flex flex-col justify-between col-span-2 md:col-span-1 hover:translate-y-[-1px] transition-all">
+<div class="flex items-center justify-between text-on-surface-variant text-[11px] font-semibold">
+<span class="uppercase tracking-wider">In-Transit / Dispatched</span>
+<div class="w-6 h-6 rounded-full bg-blue-500/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px] text-secondary">local_shipping</span>
+</div>
+</div>
+<div class="flex items-baseline justify-between mt-1.5">
+<span class="font-tabular-metric-lg text-2xl text-on-surface font-bold">139 Records</span>
+<span class="text-[11px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/50">100% On-Route</span>
+</div>
+</div>
+</div>
+<!-- Quick Operations Filter Ribbon with Translucent Rounded Glass UI -->
+<div class="glass-card px-3 py-2 rounded-2xl flex flex-wrap items-center justify-between gap-2.5">
+<div class="flex flex-wrap items-center gap-2 flex-1 min-w-[280px]">
+<div class="relative flex-1 min-w-[220px] max-w-md">
+<span class="material-symbols-outlined absolute left-3 top-2 text-on-surface-variant/70 text-[16px]">filter_alt</span>
+<input class="w-full h-8 pl-8 pr-3 bg-white/70 rounded-full text-on-surface font-body-sm text-xs placeholder:text-on-surface-variant/70 border border-white/80 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:bg-white transition-all shadow-inner" id="gridSearchInput" placeholder="Instant Filter (Vehicle, PO, Mill, Rice Variety, Buyer)..." type="text"/>
+</div>
+<select class="h-8 px-3 rounded-full bg-white/70 text-on-surface text-xs font-medium border border-white/80 focus:outline-none focus:ring-2 focus:ring-primary/30 shadow-sm cursor-pointer hover:bg-white transition-all" id="filterIndustry">
+<option value="">All Sourcing Mills (All)</option>
+<option value="Shri Ram Rice Mill">Shri Ram Rice Mill</option>
+<option value="Gondia Agro Industries">Gondia Agro Industries</option>
+<option value="Vardhman Solvex">Vardhman Solvex</option>
+<option value="Balaji Modern Foods">Balaji Modern Foods</option>
+</select>
+<select class="h-8 px-3 rounded-full bg-white/70 text-on-surface text-xs font-medium border border-white/80 focus:outline-none focus:ring-2 focus:ring-primary/30 shadow-sm cursor-pointer hover:bg-white transition-all" id="filterProduct">
+<option value="">All Rice Varieties</option>
+<option value="1121 Basmati Steam">1121 Basmati Steam</option>
+<option value="HMT Kolam">HMT Kolam</option>
+<option value="PR-14 Parboiled">PR-14 Parboiled</option>
+<option value="Sharbati Golden Sella">Sharbati Golden Sella</option>
+<option value="Wada Kolam Special">Wada Kolam Special</option>
+</select>
+<select class="h-8 px-3 rounded-full bg-white/70 text-on-surface text-xs font-medium border border-white/80 focus:outline-none focus:ring-2 focus:ring-primary/30 shadow-sm cursor-pointer hover:bg-white transition-all" id="filterStatus">
+<option value="">All Statuses</option>
+<option value="Verified">Verified</option>
+<option value="Loaded">Loaded</option>
+<option value="In Transit">In Transit</option>
+<option value="Flagged">Flagged / Re-weigh</option>
+</select>
+</div>
+<div class="flex items-center gap-2 text-on-surface-variant text-xs">
+<span>Rows Displayed: <strong class="text-on-surface font-tabular-metric-sm font-bold bg-white/80 px-2 py-0.5 rounded-full border border-white/80 shadow-inner" id="rowCountDisplay">8 Active</strong></span>
+<button class="px-2.5 py-1 rounded-full text-primary hover:bg-primary/10 text-xs font-bold transition-all" onclick="resetFilters()" type="button">Reset</button>
+</div>
+</div>
+</section>
+<!-- Spreadsheet Work Area: High-Density Interactive Ledger inside Frosted Glass Panel -->
+<section class="p-space-lg pt-1 flex-1 flex flex-col">
+<div class="w-full glass-card rounded-2xl shadow-lg overflow-hidden flex flex-col border border-white/90">
+<div class="overflow-x-auto max-h-[600px] relative" id="tableContainer">
+<table class="w-full text-left border-collapse select-none" id="loadingTable">
+<!-- Table Sticky Header in Brand Crimson Glass Tone -->
+<thead class="sticky top-0 z-20 bg-gradient-to-r from-[#6b0007] to-[#8f1717] text-white shadow-md text-[11px] font-bold uppercase tracking-wider">
+<tr class="h-10">
+<th class="w-10 px-2.5 text-center">
+<input class="rounded cursor-pointer accent-tertiary-fixed-dim ring-1 ring-white/30" id="selectAllCheckbox" type="checkbox"/>
+</th>
+<th class="w-12 px-2 text-center text-white/80">#</th>
+<th class="w-32 px-3">Loading ID</th>
+<th class="w-28 px-2">Date / Time</th>
+<th class="w-28 px-2">PO Ref #</th>
+<th class="w-48 px-3">Consignee (Buyer)</th>
+<th class="w-44 px-3">Variety / Grade</th>
+<th class="w-48 px-3">Sourcing Mill</th>
+<th class="w-36 px-3">Truck / Trailer</th>
+<th class="w-28 px-3 text-right">Loaded (QTL)</th>
+<th class="w-28 px-3 text-right">Rate / QTL</th>
+<th class="w-32 px-3 text-right">Purchase Val</th>
+<th class="w-36 px-3">Driver / Phone</th>
+<th class="w-28 px-2 text-center">Status</th>
+<th class="w-20 px-2 text-center sticky right-0 bg-[#8f1717] z-30 shadow-l">Action</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-rose-900/10 text-on-surface font-body-sm text-xs font-normal bg-white/40" id="gridTableBody"><!-- Row 1 -->
+<tr class="h-10 hover:bg-white/90 transition-colors group glass-row" data-id="LD-2026-0891">
+<td class="text-center px-2.5">
+<input class="row-checkbox rounded cursor-pointer accent-primary" type="checkbox"/>
+</td>
+<td class="text-center font-tabular-metric-sm text-on-surface-variant font-medium">01</td>
+<td class="px-3 font-tabular-metric-sm font-bold text-primary flex items-center gap-1 pt-2.5">
+<span>LD-2026-0891</span>
+<button class="w-5 h-5 rounded-full hover:bg-primary/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" title="Copy ID">
+<span class="material-symbols-outlined text-[13px] text-tertiary">content_copy</span>
+</button>
+</td>
+<td class="px-2 font-tabular-metric-sm text-on-surface-variant font-medium">24 Nov, 11:30</td>
+<td class="px-2">
+<span class="font-tabular-metric-sm font-bold text-primary hover:underline cursor-pointer">#KK-1048</span>
+</td>
+<td class="px-3 font-semibold truncate max-w-[180px]" title="Tirupati Agro Foods Pvt Ltd">Tirupati Agro Foods</td>
+<td class="px-3 truncate max-w-[160px]">
+<span class="inline-block px-2.5 py-0.5 rounded-full bg-white/80 border border-white/90 text-on-surface font-medium text-[11px] shadow-sm">1121 Basmati Steam</span>
+</td>
+<td class="px-3 truncate max-w-[170px] text-on-surface-variant font-medium">Shri Ram Rice Mill</td>
+<td class="px-3 font-tabular-metric-sm font-bold text-on-surface">MH-31-CB-4492</td>
+<td class="px-3 text-right font-tabular-metric-md text-tabular-metric-md font-bold text-on-surface rounded-lg focus-within:bg-amber-50 focus-within:ring-2 focus-within:ring-amber-400 cursor-text transition-all" contenteditable="true" data-type="qty" onblur="recalcRow(this)">280.00</td>
+<td class="px-3 text-right font-tabular-metric-sm text-on-surface rounded-lg focus-within:bg-amber-50 focus-within:ring-2 focus-within:ring-amber-400 cursor-text transition-all" contenteditable="true" data-type="rate" onblur="recalcRow(this)">₹3,550</td>
+<td class="px-3 text-right font-tabular-metric-md text-tabular-metric-md font-bold text-primary" data-type="total">₹9,94,000</td>
+<td class="px-3 text-on-surface-variant truncate max-w-[130px]" title="Ramesh Yadav +91 98221 44102">Ramesh (+91 98221)</td>
+<td class="px-2 text-center">
+<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-secondary-fixed text-on-secondary-fixed shadow-sm">Verified</span>
+</td>
+<td class="px-2 text-center sticky right-0 bg-white/90 backdrop-blur-md group-hover:bg-white transition-colors">
+<div class="flex items-center justify-center gap-1">
+<button class="w-6 h-6 rounded-full bg-white/70 hover:bg-primary hover:text-white text-on-surface-variant flex items-center justify-center border border-white/80 shadow-sm transition-all glass-btn" onclick="viewSlip('LD-2026-0891')" title="View Weighbridge Slip" type="button">
+<span class="material-symbols-outlined text-[14px]">receipt_long</span>
+</button>
+<button class="w-6 h-6 rounded-full bg-white/70 hover:bg-error hover:text-white text-on-surface-variant flex items-center justify-center border border-white/80 shadow-sm transition-all glass-btn" onclick="deleteRow(this)" title="Delete Row" type="button">
+<span class="material-symbols-outlined text-[14px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="h-10 hover:bg-white/90 transition-colors group bg-amber-50/50 glass-row" data-id="LD-2026-0892">
+<td class="text-center px-2.5">
+<input checked="" class="row-checkbox rounded cursor-pointer accent-primary" type="checkbox"/>
+</td>
+<td class="text-center font-tabular-metric-sm text-on-surface-variant font-medium">02</td>
+<td class="px-3 font-tabular-metric-sm font-bold text-primary flex items-center gap-1 pt-2.5">
+<span>LD-2026-0892</span>
+<button class="w-5 h-5 rounded-full hover:bg-primary/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-[13px] text-tertiary">content_copy</span>
+</button>
+</td>
+<td class="px-2 font-tabular-metric-sm text-on-surface-variant font-medium">24 Nov, 10:45</td>
+<td class="px-2">
+<span class="font-tabular-metric-sm font-bold text-primary hover:underline cursor-pointer">#KK-1049</span>
+</td>
+<td class="px-3 font-semibold truncate max-w-[180px]" title="Mahalakshmi Grain Traders">Mahalakshmi Traders</td>
+<td class="px-3 truncate max-w-[160px]">
+<span class="inline-block px-2.5 py-0.5 rounded-full bg-white/80 border border-white/90 text-on-surface font-medium text-[11px] shadow-sm">HMT Kolam</span>
+</td>
+<td class="px-3 truncate max-w-[170px] text-on-surface-variant font-medium">Gondia Agro Industries</td>
+<td class="px-3 font-tabular-metric-sm font-bold text-on-surface">CG-04-E-8821</td>
+<td class="px-3 text-right font-tabular-metric-md text-tabular-metric-md font-bold text-on-surface bg-tertiary-fixed/40 cursor-text ring-2 ring-tertiary rounded-xl shadow-inner" contenteditable="true" data-type="qty" onblur="recalcRow(this)">190.00</td>
+<td class="px-3 text-right font-tabular-metric-sm text-on-surface rounded-lg focus-within:bg-amber-50 focus-within:ring-2 focus-within:ring-amber-400 cursor-text transition-all" contenteditable="true" data-type="rate" onblur="recalcRow(this)">₹3,820</td>
+<td class="px-3 text-right font-tabular-metric-md text-tabular-metric-md font-bold text-primary" data-type="total">₹7,25,800</td>
+<td class="px-3 text-on-surface-variant truncate max-w-[130px]" title="Satish Gurjar +91 94251 11094">Satish (+91 94251)</td>
+<td class="px-2 text-center">
+<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-tertiary-fixed text-on-tertiary shadow-sm">Loaded</span>
+</td>
+<td class="px-2 text-center sticky right-0 bg-white/90 backdrop-blur-md group-hover:bg-white transition-colors">
+<div class="flex items-center justify-center gap-1">
+<button class="w-6 h-6 rounded-full bg-white/70 hover:bg-primary hover:text-white text-on-surface-variant flex items-center justify-center border border-white/80 shadow-sm transition-all glass-btn" onclick="viewSlip('LD-2026-0892')" title="View Weighbridge Slip" type="button">
+<span class="material-symbols-outlined text-[14px]">receipt_long</span>
+</button>
+<button class="w-6 h-6 rounded-full bg-white/70 hover:bg-error hover:text-white text-on-surface-variant flex items-center justify-center border border-white/80 shadow-sm transition-all glass-btn" onclick="deleteRow(this)" title="Delete Row" type="button">
+<span class="material-symbols-outlined text-[14px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="h-10 hover:bg-white/90 transition-colors group glass-row" data-id="LD-2026-0893">
+<td class="text-center px-2.5">
+<input class="row-checkbox rounded cursor-pointer accent-primary" type="checkbox"/>
+</td>
+<td class="text-center font-tabular-metric-sm text-on-surface-variant font-medium">03</td>
+<td class="px-3 font-tabular-metric-sm font-bold text-primary flex items-center gap-1 pt-2.5">
+<span>LD-2026-0893</span>
+<button class="w-5 h-5 rounded-full hover:bg-primary/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-[13px] text-tertiary">content_copy</span>
+</button>
+</td>
+<td class="px-2 font-tabular-metric-sm text-on-surface-variant font-medium">24 Nov, 10:15</td>
+<td class="px-2">
+<span class="font-tabular-metric-sm font-bold text-primary hover:underline cursor-pointer">#KK-1051</span>
+</td>
+<td class="px-3 font-semibold truncate max-w-[180px]" title="ABC Grain Exports LLC">ABC Grain Exports</td>
+<td class="px-3 truncate max-w-[160px]">
+<span class="inline-block px-2.5 py-0.5 rounded-full bg-white/80 border border-white/90 text-on-surface font-medium text-[11px] shadow-sm">PR-14 Parboiled</span>
+</td>
+<td class="px-3 truncate max-w-[170px] text-on-surface-variant font-medium">Vardhman Solvex</td>
+<td class="px-3 font-tabular-metric-sm font-bold text-on-surface">KA-01-AB-1234</td>
+<td class="px-3 text-right font-tabular-metric-md text-tabular-metric-md font-bold text-on-surface rounded-lg focus-within:bg-amber-50 focus-within:ring-2 focus-within:ring-amber-400 cursor-text transition-all" contenteditable="true" data-type="qty" onblur="recalcRow(this)">320.00</td>
+<td class="px-3 text-right font-tabular-metric-sm text-on-surface rounded-lg focus-within:bg-amber-50 focus-within:ring-2 focus-within:ring-amber-400 cursor-text transition-all" contenteditable="true" data-type="rate" onblur="recalcRow(this)">₹2,950</td>
+<td class="px-3 text-right font-tabular-metric-md text-tabular-metric-md font-bold text-primary" data-type="total">₹9,44,000</td>
+<td class="px-3 text-on-surface-variant truncate max-w-[130px]" title="Karan Veer Singh +91 97112 00412">Karan (+91 97112)</td>
+<td class="px-2 text-center">
+<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-primary-fixed-dim text-on-secondary-fixed shadow-sm">In Transit</span>
+</td>
+<td class="px-2 text-center sticky right-0 bg-white/90 backdrop-blur-md group-hover:bg-white transition-colors">
+<div class="flex items-center justify-center gap-1">
+<button class="w-6 h-6 rounded-full bg-white/70 hover:bg-primary hover:text-white text-on-surface-variant flex items-center justify-center border border-white/80 shadow-sm transition-all glass-btn" onclick="viewSlip('LD-2026-0893')" title="View Weighbridge Slip" type="button">
+<span class="material-symbols-outlined text-[14px]">receipt_long</span>
+</button>
+<button class="w-6 h-6 rounded-full bg-white/70 hover:bg-error hover:text-white text-on-surface-variant flex items-center justify-center border border-white/80 shadow-sm transition-all glass-btn" onclick="deleteRow(this)" title="Delete Row" type="button">
+<span class="material-symbols-outlined text-[14px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="h-10 hover:bg-white/90 transition-colors group glass-row" data-id="LD-2026-0894">
+<td class="text-center px-2.5">
+<input class="row-checkbox rounded cursor-pointer accent-primary" type="checkbox"/>
+</td>
+<td class="text-center font-tabular-metric-sm text-on-surface-variant font-medium">04</td>
+<td class="px-3 font-tabular-metric-sm font-bold text-primary flex items-center gap-1 pt-2.5">
+<span>LD-2026-0894</span>
+<button class="w-5 h-5 rounded-full hover:bg-primary/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-[13px] text-tertiary">content_copy</span>
+</button>
+</td>
+<td class="px-2 font-tabular-metric-sm text-on-surface-variant font-medium">24 Nov, 09:50</td>
+<td class="px-2">
+<span class="font-tabular-metric-sm font-bold text-primary hover:underline cursor-pointer">#KK-1052</span>
+</td>
+<td class="px-3 font-semibold truncate max-w-[180px]" title="Om Prakash Rice Mill Pvt">Om Prakash Corp</td>
+<td class="px-3 truncate max-w-[160px]">
+<span class="inline-block px-2.5 py-0.5 rounded-full bg-white/80 border border-white/90 text-on-surface font-medium text-[11px] shadow-sm">Sharbati Golden Sella</span>
+</td>
+<td class="px-3 truncate max-w-[170px] text-on-surface-variant font-medium">Shri Ram Rice Mill</td>
+<td class="px-3 font-tabular-metric-sm font-bold text-on-surface">MP-09-HH-5612</td>
+<td class="px-3 text-right font-tabular-metric-md text-tabular-metric-md font-bold text-on-surface rounded-lg focus-within:bg-amber-50 focus-within:ring-2 focus-within:ring-amber-400 cursor-text transition-all" contenteditable="true" data-type="qty" onblur="recalcRow(this)">140.00</td>
+<td class="px-3 text-right font-tabular-metric-sm text-on-surface rounded-lg focus-within:bg-amber-50 focus-within:ring-2 focus-within:ring-amber-400 cursor-text transition-all" contenteditable="true" data-type="rate" onblur="recalcRow(this)">₹3,600</td>
+<td class="px-3 text-right font-tabular-metric-md text-tabular-metric-md font-bold text-primary" data-type="total">₹5,04,000</td>
+<td class="px-3 text-on-surface-variant truncate max-w-[130px]" title="Deepak Sharma +91 99230 48192">Deepak (+91 99230)</td>
+<td class="px-2 text-center">
+<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-secondary-fixed text-on-secondary-fixed shadow-sm">Verified</span>
+</td>
+<td class="px-2 text-center sticky right-0 bg-white/90 backdrop-blur-md group-hover:bg-white transition-colors">
+<div class="flex items-center justify-center gap-1">
+<button class="w-6 h-6 rounded-full bg-white/70 hover:bg-primary hover:text-white text-on-surface-variant flex items-center justify-center border border-white/80 shadow-sm transition-all glass-btn" onclick="viewSlip('LD-2026-0894')" title="View Weighbridge Slip" type="button">
+<span class="material-symbols-outlined text-[14px]">receipt_long</span>
+</button>
+<button class="w-6 h-6 rounded-full bg-white/70 hover:bg-error hover:text-white text-on-surface-variant flex items-center justify-center border border-white/80 shadow-sm transition-all glass-btn" onclick="deleteRow(this)" title="Delete Row" type="button">
+<span class="material-symbols-outlined text-[14px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 5 (Flagged) -->
+<tr class="h-10 hover:bg-rose-50/80 transition-colors group bg-error-container/25 glass-row" data-id="LD-2026-0895">
+<td class="text-center px-2.5">
+<input class="row-checkbox rounded cursor-pointer accent-error" type="checkbox"/>
+</td>
+<td class="text-center font-tabular-metric-sm text-on-surface-variant font-medium">05</td>
+<td class="px-3 font-tabular-metric-sm font-bold text-error flex items-center gap-1 pt-2.5">
+<span>LD-2026-0895</span>
+<span class="material-symbols-outlined text-[15px] text-error cursor-pointer">warning</span>
+</td>
+<td class="px-2 font-tabular-metric-sm text-on-surface-variant font-medium">24 Nov, 09:20</td>
+<td class="px-2">
+<span class="font-tabular-metric-sm font-bold text-primary hover:underline cursor-pointer">#KK-1055</span>
+</td>
+<td class="px-3 font-semibold truncate max-w-[180px]" title="Kuber Rice Syndicate">Kuber Syndicate</td>
+<td class="px-3 truncate max-w-[160px]">
+<span class="inline-block px-2.5 py-0.5 rounded-full bg-white/80 border border-white/90 text-on-surface font-medium text-[11px] shadow-sm">Wada Kolam Special</span>
+</td>
+<td class="px-3 truncate max-w-[170px] text-on-surface-variant font-medium">Balaji Modern Foods</td>
+<td class="px-3 font-tabular-metric-sm font-bold text-error">MH-40-A-9018</td>
+<td class="px-3 text-right font-tabular-metric-md text-tabular-metric-md font-bold text-error rounded-lg focus-within:bg-amber-50 focus-within:ring-2 focus-within:ring-error cursor-text transition-all" contenteditable="true" data-type="qty" onblur="recalcRow(this)">70.00</td>
+<td class="px-3 text-right font-tabular-metric-sm text-on-surface rounded-lg focus-within:bg-amber-50 focus-within:ring-2 focus-within:ring-amber-400 cursor-text transition-all" contenteditable="true" data-type="rate" onblur="recalcRow(this)">₹4,100</td>
+<td class="px-3 text-right font-tabular-metric-md text-tabular-metric-md font-bold text-primary" data-type="total">₹2,87,000</td>
+<td class="px-3 text-on-surface-variant truncate max-w-[130px]" title="Vikram Pawar +91 98810 50012">Vikram (+91 98810)</td>
+<td class="px-2 text-center">
+<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-error-container text-on-error-container shadow-sm border border-error/20">Flagged</span>
+</td>
+<td class="px-2 text-center sticky right-0 bg-white/90 backdrop-blur-md group-hover:bg-white transition-colors">
+<div class="flex items-center justify-center gap-1">
+<button class="w-6 h-6 rounded-full bg-white/70 hover:bg-primary hover:text-white text-on-surface-variant flex items-center justify-center border border-white/80 shadow-sm transition-all glass-btn" onclick="viewSlip('LD-2026-0895')" title="View Weighbridge Slip" type="button">
+<span class="material-symbols-outlined text-[14px]">receipt_long</span>
+</button>
+<button class="w-6 h-6 rounded-full bg-white/70 hover:bg-error hover:text-white text-on-surface-variant flex items-center justify-center border border-white/80 shadow-sm transition-all glass-btn" onclick="deleteRow(this)" title="Delete Row" type="button">
+<span class="material-symbols-outlined text-[14px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 6 -->
+<tr class="h-10 hover:bg-white/90 transition-colors group glass-row" data-id="LD-2026-0896">
+<td class="text-center px-2.5">
+<input class="row-checkbox rounded cursor-pointer accent-primary" type="checkbox"/>
+</td>
+<td class="text-center font-tabular-metric-sm text-on-surface-variant font-medium">06</td>
+<td class="px-3 font-tabular-metric-sm font-bold text-primary flex items-center gap-1 pt-2.5">
+<span>LD-2026-0896</span>
+<button class="w-5 h-5 rounded-full hover:bg-primary/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-[13px] text-tertiary">content_copy</span>
+</button>
+</td>
+<td class="px-2 font-tabular-metric-sm text-on-surface-variant font-medium">24 Nov, 08:45</td>
+<td class="px-2">
+<span class="font-tabular-metric-sm font-bold text-primary hover:underline cursor-pointer">#KK-1056</span>
+</td>
+<td class="px-3 font-semibold truncate max-w-[180px]" title="Krishna Agro Enterprises">Krishna Enterprises</td>
+<td class="px-3 truncate max-w-[160px]">
+<span class="inline-block px-2.5 py-0.5 rounded-full bg-white/80 border border-white/90 text-on-surface font-medium text-[11px] shadow-sm">1121 Basmati Steam</span>
+</td>
+<td class="px-3 truncate max-w-[170px] text-on-surface-variant font-medium">Shri Ram Rice Mill</td>
+<td class="px-3 font-tabular-metric-sm font-bold text-on-surface">CG-07-L-3341</td>
+<td class="px-3 text-right font-tabular-metric-md text-tabular-metric-md font-bold text-on-surface rounded-lg focus-within:bg-amber-50 focus-within:ring-2 focus-within:ring-amber-400 cursor-text transition-all" contenteditable="true" data-type="qty" onblur="recalcRow(this)">110.00</td>
+<td class="px-3 text-right font-tabular-metric-sm text-on-surface rounded-lg focus-within:bg-amber-50 focus-within:ring-2 focus-within:ring-amber-400 cursor-text transition-all" contenteditable="true" data-type="rate" onblur="recalcRow(this)">₹3,540</td>
+<td class="px-3 text-right font-tabular-metric-md text-tabular-metric-md font-bold text-primary" data-type="total">₹3,89,400</td>
+<td class="px-3 text-on-surface-variant truncate max-w-[130px]" title="Munna Lal +91 93012 33490">Munna (+91 93012)</td>
+<td class="px-2 text-center">
+<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-secondary-fixed text-on-secondary-fixed shadow-sm">Verified</span>
+</td>
+<td class="px-2 text-center sticky right-0 bg-white/90 backdrop-blur-md group-hover:bg-white transition-colors">
+<div class="flex items-center justify-center gap-1">
+<button class="w-6 h-6 rounded-full bg-white/70 hover:bg-primary hover:text-white text-on-surface-variant flex items-center justify-center border border-white/80 shadow-sm transition-all glass-btn" onclick="viewSlip('LD-2026-0896')" title="View Weighbridge Slip" type="button">
+<span class="material-symbols-outlined text-[14px]">receipt_long</span>
+</button>
+<button class="w-6 h-6 rounded-full bg-white/70 hover:bg-error hover:text-white text-on-surface-variant flex items-center justify-center border border-white/80 shadow-sm transition-all glass-btn" onclick="deleteRow(this)" title="Delete Row" type="button">
+<span class="material-symbols-outlined text-[14px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 7 -->
+<tr class="h-10 hover:bg-white/90 transition-colors group glass-row" data-id="LD-2026-0897">
+<td class="text-center px-2.5">
+<input class="row-checkbox rounded cursor-pointer accent-primary" type="checkbox"/>
+</td>
+<td class="text-center font-tabular-metric-sm text-on-surface-variant font-medium">07</td>
+<td class="px-3 font-tabular-metric-sm font-bold text-primary flex items-center gap-1 pt-2.5">
+<span>LD-2026-0897</span>
+<button class="w-5 h-5 rounded-full hover:bg-primary/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-[13px] text-tertiary">content_copy</span>
+</button>
+</td>
+<td class="px-2 font-tabular-metric-sm text-on-surface-variant font-medium">24 Nov, 08:10</td>
+<td class="px-2">
+<span class="font-tabular-metric-sm font-bold text-primary hover:underline cursor-pointer">#KK-1058</span>
+</td>
+<td class="px-3 font-semibold truncate max-w-[180px]" title="South Asian Commodity Corp">South Asian Corp</td>
+<td class="px-3 truncate max-w-[160px]">
+<span class="inline-block px-2.5 py-0.5 rounded-full bg-white/80 border border-white/90 text-on-surface font-medium text-[11px] shadow-sm">PR-14 Parboiled</span>
+</td>
+<td class="px-3 truncate max-w-[170px] text-on-surface-variant font-medium">Vardhman Solvex</td>
+<td class="px-3 font-tabular-metric-sm font-bold text-on-surface">KA-25-C-7719</td>
+<td class="px-3 text-right font-tabular-metric-md text-tabular-metric-md font-bold text-on-surface rounded-lg focus-within:bg-amber-50 focus-within:ring-2 focus-within:ring-amber-400 cursor-text transition-all" contenteditable="true" data-type="qty" onblur="recalcRow(this)">50.00</td>
+<td class="px-3 text-right font-tabular-metric-sm text-on-surface rounded-lg focus-within:bg-amber-50 focus-within:ring-2 focus-within:ring-amber-400 cursor-text transition-all" contenteditable="true" data-type="rate" onblur="recalcRow(this)">₹2,980</td>
+<td class="px-3 text-right font-tabular-metric-md text-tabular-metric-md font-bold text-primary" data-type="total">₹1,49,000</td>
+<td class="px-3 text-on-surface-variant truncate max-w-[130px]" title="Harish Nayak +91 97410 88231">Harish (+91 97410)</td>
+<td class="px-2 text-center">
+<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-tertiary-fixed text-on-tertiary shadow-sm">Loaded</span>
+</td>
+<td class="px-2 text-center sticky right-0 bg-white/90 backdrop-blur-md group-hover:bg-white transition-colors">
+<div class="flex items-center justify-center gap-1">
+<button class="w-6 h-6 rounded-full bg-white/70 hover:bg-primary hover:text-white text-on-surface-variant flex items-center justify-center border border-white/80 shadow-sm transition-all glass-btn" onclick="viewSlip('LD-2026-0897')" title="View Weighbridge Slip" type="button">
+<span class="material-symbols-outlined text-[14px]">receipt_long</span>
+</button>
+<button class="w-6 h-6 rounded-full bg-white/70 hover:bg-error hover:text-white text-on-surface-variant flex items-center justify-center border border-white/80 shadow-sm transition-all glass-btn" onclick="deleteRow(this)" title="Delete Row" type="button">
+<span class="material-symbols-outlined text-[14px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 8 -->
+<tr class="h-10 hover:bg-white/90 transition-colors group glass-row" data-id="LD-2026-0898">
+<td class="text-center px-2.5">
+<input class="row-checkbox rounded cursor-pointer accent-primary" type="checkbox"/>
+</td>
+<td class="text-center font-tabular-metric-sm text-on-surface-variant font-medium">08</td>
+<td class="px-3 font-tabular-metric-sm font-bold text-primary flex items-center gap-1 pt-2.5">
+<span>LD-2026-0898</span>
+<button class="w-5 h-5 rounded-full hover:bg-primary/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-[13px] text-tertiary">content_copy</span>
+</button>
+</td>
+<td class="px-2 font-tabular-metric-sm text-on-surface-variant font-medium">24 Nov, 07:30</td>
+<td class="px-2">
+<span class="font-tabular-metric-sm font-bold text-primary hover:underline cursor-pointer">#KK-1060</span>
+</td>
+<td class="px-3 font-semibold truncate max-w-[180px]" title="Venkateshwara Rice Mart">Venkateshwara Mart</td>
+<td class="px-3 truncate max-w-[160px]">
+<span class="inline-block px-2.5 py-0.5 rounded-full bg-white/80 border border-white/90 text-on-surface font-medium text-[11px] shadow-sm">HMT Kolam</span>
+</td>
+<td class="px-3 truncate max-w-[170px] text-on-surface-variant font-medium">Gondia Agro Industries</td>
+<td class="px-3 font-tabular-metric-sm font-bold text-on-surface">MH-31-AP-9901</td>
+<td class="px-3 text-right font-tabular-metric-md text-tabular-metric-md font-bold text-on-surface rounded-lg focus-within:bg-amber-50 focus-within:ring-2 focus-within:ring-amber-400 cursor-text transition-all" contenteditable="true" data-type="qty" onblur="recalcRow(this)">20.00</td>
+<td class="px-3 text-right font-tabular-metric-sm text-on-surface rounded-lg focus-within:bg-amber-50 focus-within:ring-2 focus-within:ring-amber-400 cursor-text transition-all" contenteditable="true" data-type="rate" onblur="recalcRow(this)">₹3,800</td>
+<td class="px-3 text-right font-tabular-metric-md text-tabular-metric-md font-bold text-primary" data-type="total">₹76,000</td>
+<td class="px-3 text-on-surface-variant truncate max-w-[130px]" title="Anwar Qureshi +91 98233 11200">Anwar (+91 98233)</td>
+<td class="px-2 text-center">
+<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-secondary-fixed text-on-secondary-fixed shadow-sm">Verified</span>
+</td>
+<td class="px-2 text-center sticky right-0 bg-white/90 backdrop-blur-md group-hover:bg-white transition-colors">
+<div class="flex items-center justify-center gap-1">
+<button class="w-6 h-6 rounded-full bg-white/70 hover:bg-primary hover:text-white text-on-surface-variant flex items-center justify-center border border-white/80 shadow-sm transition-all glass-btn" onclick="viewSlip('LD-2026-0898')" title="View Weighbridge Slip" type="button">
+<span class="material-symbols-outlined text-[14px]">receipt_long</span>
+</button>
+<button class="w-6 h-6 rounded-full bg-white/70 hover:bg-error hover:text-white text-on-surface-variant flex items-center justify-center border border-white/80 shadow-sm transition-all glass-btn" onclick="deleteRow(this)" title="Delete Row" type="button">
+<span class="material-symbols-outlined text-[14px]">delete</span>
+</button>
+</div>
+</td>
+</tr></tbody>
+<!-- Sticky Totals Footer in Subtle Frosted Glass -->
+<tfoot class="sticky bottom-0 z-20 bg-white/90 backdrop-blur-xl text-on-surface font-label-md text-xs font-bold border-t border-rose-900/10 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
+<tr class="h-11">
+<td class="px-4 text-on-surface uppercase tracking-wider text-[11px]" colspan="8">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-primary">functions</span>
+<span>Aggregated Operational Subtotal (Visible 8 Records):</span>
+</div>
+<span class="text-on-surface-variant uppercase font-medium text-[11px]">Currency: INR (₹) Tabular</span>
+</div>
+</td>
+<td class="px-3 text-right text-on-surface-variant font-label-sm uppercase text-[10px]">Total QTL:</td>
+<td class="px-3 text-right font-tabular-metric-lg text-lg font-bold text-on-surface bg-white/60 rounded-xl" id="footerTotalQtl">1,180.00</td>
+<td class="px-3 text-right text-on-surface-variant font-label-sm uppercase text-[10px]">Avg Rate: ₹3,550</td>
+<td class="px-3 text-right font-tabular-metric-lg text-lg font-bold text-primary bg-white/60 rounded-xl" id="footerTotalVal">₹41,89,000</td>
+<td class="px-3 text-center text-on-surface-variant font-label-sm" colspan="2">Balance Ready</td>
+<td class="px-2 sticky right-0 bg-white/90"></td>
+</tr>
+</tfoot>
+</table>
+</div>
+<!-- Quick Navigation & Keyboard Helper Bar in Glassmorphic Finish -->
+<div class="bg-white/60 backdrop-blur-md px-4 py-2 flex flex-wrap items-center justify-between gap-3 text-on-surface-variant text-xs border-t border-white/80">
+<div class="flex flex-wrap items-center gap-4">
+<div class="flex items-center gap-1.5">
+<kbd class="px-2 py-0.5 rounded-full bg-white text-on-surface font-semibold shadow-sm border border-black/5 text-[11px]">Tab</kbd>
+<span class="text-outline/50">/</span>
+<kbd class="px-2 py-0.5 rounded-full bg-white text-on-surface font-semibold shadow-sm border border-black/5 text-[11px]">Enter</kbd>
+<span class="ml-1 text-[11px]">Navigate Cells</span>
+</div>
+<div class="flex items-center gap-1.5">
+<kbd class="px-2 py-0.5 rounded-full bg-white text-on-surface font-semibold shadow-sm border border-black/5 text-[11px]">Ctrl + V</kbd>
+<span class="ml-1 text-[11px]">Paste Multi-Row</span>
+</div>
+<div class="flex items-center gap-1.5">
+<kbd class="px-2 py-0.5 rounded-full bg-white text-on-surface font-semibold shadow-sm border border-black/5 text-[11px]">Esc</kbd>
+<span class="ml-1 text-[11px]">Cancel Edit</span>
+</div>
+<div class="flex items-center gap-1.5">
+<kbd class="px-2 py-0.5 rounded-full bg-white text-on-surface font-semibold shadow-sm border border-black/5 text-[11px]">Alt + N</kbd>
+<span class="ml-1 text-[11px]">Add Quick Entry</span>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<span class="font-tabular-metric-sm text-[11px] font-medium bg-white/80 px-2.5 py-0.5 rounded-full border border-white/80 shadow-sm">Batch: #BATCH-KK-2026-NOV24</span>
+<div class="flex items-center gap-1.5">
+<button class="w-7 h-7 rounded-full bg-white hover:bg-surface-container text-on-surface flex items-center justify-center shadow-sm border border-white/80 transition-all" type="button">
+<span class="material-symbols-outlined text-[15px]">chevron_left</span>
+</button>
+<span class="text-xs px-2 text-on-surface font-semibold">Page 1 of 18</span>
+<button class="w-7 h-7 rounded-full bg-white hover:bg-surface-container text-on-surface flex items-center justify-center shadow-sm border border-white/80 transition-all" type="button">
+<span class="material-symbols-outlined text-[15px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Excel Multi-Row Paste / TSV Parser Glass Modal -->
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md hidden transition-all" id="pasteModal">
+<div class="glass-card w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden flex flex-col mx-4 max-h-[90vh] border border-white/90">
+<!-- Modal Header -->
+<div class="px-6 py-4 bg-gradient-to-r from-primary to-primary-container text-white flex items-center justify-between shadow-sm">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px] text-tertiary-fixed-dim">table_chart_view</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-base text-white font-bold">Bulk Entry: Paste from Excel / Google Sheets</h3>
+<p class="text-xs text-white/80 font-medium">Copy cells in spreadsheet format [Tab-separated values] and paste directly below</p>
+</div>
+</div>
+<button class="w-7 h-7 rounded-full text-white/80 hover:text-white hover:bg-white/20 flex items-center justify-center transition-colors" id="btnClosePasteModal" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<!-- Modal Body -->
+<div class="p-6 flex flex-col gap-4 overflow-y-auto">
+<div class="glass-card-subtle p-3 rounded-xl text-xs text-on-surface-variant flex items-center gap-3 border border-white/80">
+<span class="material-symbols-outlined text-primary text-[20px]">info</span>
+<span>Column Order Expected: <strong>[PO#] [Buyer] [Product] [Mill] [Vehicle] [QTL] [Rate/QTL] [Driver]</strong></span>
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="text-xs text-on-surface font-bold">Raw TSV Clipboard Data:</label>
+<textarea class="w-full p-3 bg-white/70 rounded-xl text-on-surface text-xs focus:outline-none ring-1 ring-outline/20 focus:ring-2 focus:ring-primary font-mono shadow-inner border border-white/80 backdrop-blur-sm" id="tsvInput" placeholder="Paste data here... (e.g. PO-1070       Riddhi Siddhi   1121 Steam      Shri Ram        MH-31-B-1002    180.00  3550    Raju 98221)" rows="6"></textarea>
+</div>
+<!-- Real-time Parsed Preview Box -->
+<div class="flex flex-col gap-1.5">
+<div class="flex items-center justify-between">
+<span class="text-xs text-on-surface font-bold">Live Parsing Preview (<span class="font-bold text-primary" id="parsedRowCount">0</span> rows detected)</span>
+<button class="text-primary text-xs hover:underline font-semibold" onclick="loadSampleTsv()" type="button">Insert Sample Test Data</button>
+</div>
+<div class="bg-white/60 rounded-xl p-3 max-h-36 overflow-x-auto text-xs font-mono text-on-surface border border-white/80 shadow-inner">
+<div class="text-on-surface-variant italic" id="tsvPreviewContainer">No data pasted yet. Paste tabular rows from your Excel sheet.</div>
+</div>
+</div>
+</div>
+<!-- Modal Footer -->
+<div class="px-6 py-3.5 bg-white/70 backdrop-blur-md flex items-center justify-between border-t border-white/80">
+<div class="flex items-center gap-1.5 text-on-surface-variant text-xs">
+<span class="material-symbols-outlined text-[16px] text-tertiary">check_circle</span>
+<span>Automatic tare weight balance calculation applied on insert</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="px-4 py-1.5 rounded-full bg-white hover:bg-surface-container text-on-surface text-xs font-semibold border border-white/80 shadow-sm transition-all" id="btnCancelPaste" type="button">Cancel</button>
+<button class="px-5 py-1.5 rounded-full bg-gradient-to-r from-primary to-primary-container text-white text-xs font-bold flex items-center gap-1.5 glass-btn hover:brightness-110 shadow-md shadow-primary/20 transition-all" id="btnApplyPaste" type="button">
+<span class="material-symbols-outlined text-[16px]">upload_file</span>
+<span>Import &amp; Append Rows</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Weighment Slip Quick Inspection Glass Modal -->
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md hidden transition-all" id="slipModal">
+<div class="glass-card w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col mx-4 border border-white/90">
+<div class="px-6 py-4 bg-gradient-to-r from-primary to-primary-container text-white flex items-center justify-between">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px] text-tertiary-fixed-dim">scale</span>
+</div>
+<h3 class="font-headline-sm text-base text-white font-bold">Weighbridge Electronic Slip</h3>
+</div>
+<button class="w-7 h-7 rounded-full text-white/80 hover:text-white hover:bg-white/20 flex items-center justify-center" onclick="closeSlipModal()" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<div class="p-6 flex flex-col gap-4 bg-white/40">
+<div class="glass-card p-4 rounded-xl flex flex-col gap-3 border-l-4 border-l-primary">
+<div class="flex items-center justify-between pb-2 border-b border-rose-900/10">
+<div>
+<h4 class="font-headline-sm text-sm text-on-surface font-bold" id="slipTitle">Slip ID: LD-2026-0891</h4>
+<span class="text-xs text-on-surface-variant">Weighbridge #02 (North Dock Mill Gate)</span>
+</div>
+<span class="text-[10px] px-2.5 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed font-bold uppercase tracking-wider shadow-sm">CERTIFIED</span>
+</div>
+<div class="grid grid-cols-2 gap-3 text-xs font-tabular-metric-sm">
+<div>
+<span class="text-on-surface-variant text-[10px] uppercase font-semibold block">Gross Truck Weight</span>
+<strong class="text-on-surface text-base font-bold">42,500 KG</strong>
+</div>
+<div>
+<span class="text-on-surface-variant text-[10px] uppercase font-semibold block">Tare Empty Weight</span>
+<strong class="text-on-surface text-base font-bold">14,500 KG</strong>
+</div>
+<div>
+<span class="text-on-surface-variant text-[10px] uppercase font-semibold block">Net Grain Weight</span>
+<strong class="text-primary text-base font-bold">28,000 KG (280 QTL)</strong>
+</div>
+<div>
+<span class="text-on-surface-variant text-[10px] uppercase font-semibold block">Moisture Analyzer</span>
+<strong class="text-on-surface text-base font-bold">12.4% (Grade A)</strong>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between text-xs text-on-surface-variant px-1 font-medium">
+<span>Weighbridge In-charge: <strong class="text-on-surface">D. Sharma (ID #8821)</strong></span>
+<span>Time: <strong class="text-on-surface">24 Nov 2026, 11:28 IST</strong></span>
+</div>
+</div>
+<div class="px-6 py-3 bg-white/70 backdrop-blur-md flex items-center justify-between border-t border-white/80">
+<button class="px-4 py-1.5 rounded-full bg-white hover:bg-surface-container text-on-surface text-xs font-semibold flex items-center gap-1.5 shadow-sm border border-white/80 transition-all" type="button">
+<span class="material-symbols-outlined text-[16px]">print</span>
+<span>Print Slip</span>
+</button>
+<button class="px-5 py-1.5 rounded-full bg-primary text-white hover:bg-primary-container text-xs font-bold transition-all shadow-sm" onclick="closeSlipModal()" type="button">Close</button>
+</div>
+</div>
+</div>
+<script>
+  let currentRows = 8;
+
+  function recalcRow(cell) {
+    const row = cell.closest('tr');
+    if (!row) return;
+
+    const qtyCell = row.querySelector('[data-type="qty"]');
+    const rateCell = row.querySelector('[data-type="rate"]');
+    const totalCell = row.querySelector('[data-type="total"]');
+
+    if (!qtyCell || !rateCell || !totalCell) return;
+
+    let qty = parseFloat(qtyCell.innerText.replace(/[^0-9.]/g, '')) || 0;
+    let rate = parseFloat(rateCell.innerText.replace(/[^0-9.]/g, '')) || 0;
+
+    const calculatedTotal = qty * rate;
+
+    qtyCell.innerText = qty.toFixed(2);
+    rateCell.innerText = '₹' + rate.toLocaleString('en-IN');
+    totalCell.innerText = '₹' + calculatedTotal.toLocaleString('en-IN');
+
+    updateFooterTotals();
+  }
+
+  function updateFooterTotals() {
+    let sumQty = 0;
+    let sumVal = 0;
+
+    document.querySelectorAll('#gridTableBody tr').forEach(row => {
+      if (row.style.display !== 'none') {
+        const qty = parseFloat(row.querySelector('[data-type="qty"]')?.innerText.replace(/[^0-9.]/g, '') || 0);
+        const val = parseFloat(row.querySelector('[data-type="total"]')?.innerText.replace(/[^0-9.]/g, '') || 0);
+        sumQty += qty;
+        sumVal += val;
+      }
+    });
+
+    const footerQty = document.getElementById('footerTotalQtl');
+    const footerVal = document.getElementById('footerTotalVal');
+    if (footerQty) footerQty.innerText = sumQty.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (footerVal) footerVal.innerText = '₹' + sumVal.toLocaleString('en-IN');
+  }
+
+  function deleteRow(btn) {
+    const row = btn.closest('tr');
+    if (row && confirm('Are you sure you want to remove this loading entry?')) {
+      row.remove();
+      updateRowCount();
+      updateFooterTotals();
+    }
+  }
+
+  function updateRowCount() {
+    const visibleCount = Array.from(document.querySelectorAll('#gridTableBody tr')).filter(r => r.style.display !== 'none').length;
+    const rowCountDisplay = document.getElementById('rowCountDisplay');
+    if (rowCountDisplay) {
+      rowCountDisplay.innerText = `${visibleCount} Active`;
+    }
+  }
+
+  function addNewSingleRow() {
+    currentRows++;
+    const padNum = String(890 + currentRows).padStart(4, '0');
+    const tbody = document.getElementById('gridTableBody');
+    if (!tbody) return;
+
+    const tr = document.createElement('tr');
+    tr.className = 'h-10 hover:bg-white/70 transition-colors group bg-amber-50/30';
+    tr.setAttribute('data-id', `LD-2026-${padNum}`);
+    tr.innerHTML = `
+      <td class="text-center px-2.5">
+        <input type="checkbox" class="row-checkbox rounded cursor-pointer accent-primary" />
+      </td>
+      <td class="text-center font-tabular-metric-sm text-on-surface-variant font-medium">${String(currentRows).padStart(2, '0')}</td>
+      <td class="px-3 font-tabular-metric-sm font-bold text-primary flex items-center gap-1 pt-2.5">
+        <span>LD-2026-${padNum}</span>
+        <button class="w-5 h-5 rounded-full hover:bg-primary/10 flex items-center justify-center">
+          <span class="material-symbols-outlined text-[13px] text-tertiary">content_copy</span>
+        </button>
+      </td>
+      <td class="px-2 font-tabular-metric-sm text-on-surface-variant font-medium">24 Nov, Just now</td>
+      <td class="px-2">
+        <span class="font-tabular-metric-sm font-bold text-primary hover:underline cursor-pointer">#KK-1065</span>
+      </td>
+      <td class="px-3 font-semibold truncate max-w-[180px]">New Consignee</td>
+      <td class="px-3 truncate max-w-[160px]">
+        <span class="inline-block px-2.5 py-0.5 rounded-full bg-white/80 border border-white/90 text-on-surface font-medium text-[11px] shadow-sm">1121 Basmati Steam</span>
+      </td>
+      <td class="px-3 truncate max-w-[170px] text-on-surface-variant font-medium">Shri Ram Rice Mill</td>
+      <td class="px-3 font-tabular-metric-sm font-bold text-on-surface">MH-31-XX-0000</td>
+      <td class="px-3 text-right font-tabular-metric-md text-tabular-metric-md font-bold text-on-surface bg-tertiary-fixed/30 ring-2 ring-tertiary rounded-xl cursor-text" contenteditable="true" data-type="qty" onblur="recalcRow(this)">100.00</td>
+      <td class="px-3 text-right font-tabular-metric-sm text-on-surface rounded-lg focus-within:bg-amber-50 focus-within:ring-2 focus-within:ring-amber-400 cursor-text" contenteditable="true" data-type="rate" onblur="recalcRow(this)">₹3,500</td>
+      <td class="px-3 text-right font-tabular-metric-md text-tabular-metric-md font-bold text-primary" data-type="total">₹3,50,000</td>
+      <td class="px-3 text-on-surface-variant truncate max-w-[130px]">New Driver (+91 98...)</td>
+      <td class="px-2 text-center">
+        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-tertiary-fixed text-on-tertiary shadow-sm">Loaded</span>
+      </td>
+      <td class="px-2 text-center sticky right-0 bg-white/90 backdrop-blur-md group-hover:bg-white transition-colors">
+        <div class="flex items-center justify-center gap-1">
+          <button type="button" class="w-6 h-6 rounded-full bg-white/70 hover:bg-primary hover:text-white text-on-surface-variant flex items-center justify-center border border-white/80 shadow-sm transition-all" onclick="viewSlip('LD-2026-${padNum}')">
+            <span class="material-symbols-outlined text-[14px]">receipt_long</span>
+          </button>
+          <button type="button" class="w-6 h-6 rounded-full bg-white/70 hover:bg-error hover:text-white text-on-surface-variant flex items-center justify-center border border-white/80 shadow-sm transition-all" onclick="deleteRow(this)">
+            <span class="material-symbols-outlined text-[14px]">delete</span>
+          </button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+    updateRowCount();
+    updateFooterTotals();
+
+    const container = document.getElementById('tableContainer');
+    if (container) container.scrollTop = container.scrollHeight;
+  }
+
+  function applyFilters() {
+    const searchVal = document.getElementById('gridSearchInput')?.value.toLowerCase() || '';
+    const industryVal = document.getElementById('filterIndustry')?.value.toLowerCase() || '';
+    const productVal = document.getElementById('filterProduct')?.value.toLowerCase() || '';
+    const statusVal = document.getElementById('filterStatus')?.value.toLowerCase() || '';
+
+    const rows = document.querySelectorAll('#gridTableBody tr');
+    rows.forEach(row => {
+      const text = row.innerText.toLowerCase();
+      const matchesSearch = !searchVal || text.includes(searchVal);
+      const matchesIndustry = !industryVal || text.includes(industryVal);
+      const matchesProduct = !productVal || text.includes(productVal);
+      const matchesStatus = !statusVal || text.includes(statusVal);
+
+      if (matchesSearch && matchesIndustry && matchesProduct && matchesStatus) {
+        row.style.display = '';
+      } else {
+        row.style.display = 'none';
+      }
+    });
+
+    updateRowCount();
+    updateFooterTotals();
+  }
+
+  function resetFilters() {
+    if (document.getElementById('gridSearchInput')) document.getElementById('gridSearchInput').value = '';
+    if (document.getElementById('filterIndustry')) document.getElementById('filterIndustry').value = '';
+    if (document.getElementById('filterProduct')) document.getElementById('filterProduct').value = '';
+    if (document.getElementById('filterStatus')) document.getElementById('filterStatus').value = '';
+    applyFilters();
+  }
+
+  function viewSlip(loadingId) {
+    const slipModal = document.getElementById('slipModal');
+    const slipTitle = document.getElementById('slipTitle');
+    if (slipTitle) slipTitle.innerText = `Slip ID: ${loadingId}`;
+    if (slipModal) slipModal.classList.remove('hidden');
+  }
+
+  function closeSlipModal() {
+    const slipModal = document.getElementById('slipModal');
+    if (slipModal) slipModal.classList.add('hidden');
+  }
+
+  const pasteModal = document.getElementById('pasteModal');
+  const btnOpenPasteModal = document.getElementById('btnOpenPasteModal');
+  const btnClosePasteModal = document.getElementById('btnClosePasteModal');
+  const btnCancelPaste = document.getElementById('btnCancelPaste');
+  const tsvInput = document.getElementById('tsvInput');
+  const tsvPreviewContainer = document.getElementById('tsvPreviewContainer');
+  const parsedRowCount = document.getElementById('parsedRowCount');
+
+  if (btnOpenPasteModal) {
+    btnOpenPasteModal.addEventListener('click', () => {
+      pasteModal?.classList.remove('hidden');
+      tsvInput?.focus();
+    });
+  }
+
+  function closeModal() {
+    pasteModal?.classList.add('hidden');
+  }
+
+  if (btnClosePasteModal) btnClosePasteModal.addEventListener('click', closeModal);
+  if (btnCancelPaste) btnCancelPaste.addEventListener('click', closeModal);
+
+  if (tsvInput) {
+    tsvInput.addEventListener('input', () => {
+      const text = tsvInput.value.trim();
+      if (!text) {
+        tsvPreviewContainer.innerHTML = '<span class="italic text-on-surface-variant">No data pasted yet.</span>';
+        parsedRowCount.innerText = '0';
+        return;
+      }
+
+      const lines = text.split('\n').filter(l => l.trim().length > 0);
+      parsedRowCount.innerText = lines.length;
+
+      let html = '<div class="space-y-1">';
+      lines.slice(0, 5).forEach((line, idx) => {
+        const parts = line.split('\t');
+        html += `<div class="p-1.5 rounded-lg bg-white/70 flex gap-2 border border-white/60"><span>[Row ${idx + 1}]:</span> <span class="font-bold text-primary">${parts[0] || 'PO'}</span> | <span>${parts[1] || 'Buyer'}</span> | <span>${parts[4] || 'Truck'}</span> | <span class="font-bold">${parts[5] || '0'} QTL</span></div>`;
+      });
+      if (lines.length > 5) {
+        html += `<div class="text-tertiary-container font-semibold pt-1">+ ${lines.length - 5} additional rows...</div>`;
+      }
+      html += '</div>';
+      tsvPreviewContainer.innerHTML = html;
+    });
+  }
+
+  function loadSampleTsv() {
+    if (tsvInput) {
+      tsvInput.value =
+`#KK-1071\tPatel Brothers Exports\t1121 Basmati Steam\tShri Ram Rice Mill\tGJ-01-AX-9912\t250.00\t3580\tBhavin +91 98251\n#KK-1072\tGolden Grain Hub\tHMT Kolam\tGondia Agro Industries\tMH-35-K-4421\t180.00\t3810\tManoj +91 94228`;
+      tsvInput.dispatchEvent(new Event('input'));
+    }
+  }
+
+  const btnApplyPaste = document.getElementById('btnApplyPaste');
+  if (btnApplyPaste) {
+    btnApplyPaste.addEventListener('click', () => {
+      const text = tsvInput?.value.trim();
+      if (!text) {
+        alert('Please paste spreadsheet lines first');
+        return;
+      }
+      const lines = text.split('\n').filter(l => l.trim().length > 0);
+      lines.forEach(line => {
+        const parts = line.split('\t');
+        currentRows++;
+        const padNum = String(890 + currentRows).padStart(4, '0');
+        const po = parts[0] || `#KK-${1060 + currentRows}`;
+        const buyer = parts[1] || 'Excel Imported Consignee';
+        const product = parts[2] || '1121 Basmati Steam';
+        const mill = parts[3] || 'Shri Ram Rice Mill';
+        const truck = parts[4] || 'MH-00-XX-0000';
+        const qty = parseFloat(parts[5]) || 150;
+        const rate = parseFloat(parts[6]) || 3500;
+        const driver = parts[7] || 'Driver Contact';
+        const val = qty * rate;
+
+        const tbody = document.getElementById('gridTableBody');
+        const tr = document.createElement('tr');
+        tr.className = 'h-10 hover:bg-white/70 transition-colors group bg-secondary-fixed/25';
+        tr.setAttribute('data-id', `LD-2026-${padNum}`);
+        tr.innerHTML = `
+          <td class="text-center px-2.5">
+            <input type="checkbox" class="row-checkbox rounded cursor-pointer accent-primary" />
+          </td>
+          <td class="text-center font-tabular-metric-sm text-on-surface-variant font-medium">${String(currentRows).padStart(2, '0')}</td>
+          <td class="px-3 font-tabular-metric-sm font-bold text-primary flex items-center gap-1 pt-2.5">
+            <span>LD-2026-${padNum}</span>
+          </td>
+          <td class="px-2 font-tabular-metric-sm text-on-surface-variant font-medium">24 Nov, Excel Import</td>
+          <td class="px-2">
+            <span class="font-tabular-metric-sm font-bold text-primary hover:underline cursor-pointer">${po}</span>
+          </td>
+          <td class="px-3 font-semibold truncate max-w-[180px]">${buyer}</td>
+          <td class="px-3 truncate max-w-[160px]">
+            <span class="inline-block px-2.5 py-0.5 rounded-full bg-white/80 border border-white/90 text-on-surface font-medium text-[11px] shadow-sm">${product}</span>
+          </td>
+          <td class="px-3 truncate max-w-[170px] text-on-surface-variant font-medium">${mill}</td>
+          <td class="px-3 font-tabular-metric-sm font-bold text-on-surface">${truck}</td>
+          <td class="px-3 text-right font-tabular-metric-md text-tabular-metric-md font-bold text-on-surface rounded-lg focus-within:bg-amber-50 cursor-text" contenteditable="true" data-type="qty" onblur="recalcRow(this)">${qty.toFixed(2)}</td>
+          <td class="px-3 text-right font-tabular-metric-sm text-on-surface rounded-lg focus-within:bg-amber-50 cursor-text" contenteditable="true" data-type="rate" onblur="recalcRow(this)">₹${rate.toLocaleString('en-IN')}</td>
+          <td class="px-3 text-right font-tabular-metric-md text-tabular-metric-md font-bold text-primary" data-type="total">₹${val.toLocaleString('en-IN')}</td>
+          <td class="px-3 text-on-surface-variant truncate max-w-[130px]">${driver}</td>
+          <td class="px-2 text-center">
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-secondary-fixed text-on-secondary-fixed shadow-sm">Verified</span>
+          </td>
+          <td class="px-2 text-center sticky right-0 bg-white/90 backdrop-blur-md group-hover:bg-white transition-colors">
+            <div class="flex items-center justify-center gap-1">
+              <button type="button" class="w-6 h-6 rounded-full bg-white/70 hover:bg-primary hover:text-white text-on-surface-variant flex items-center justify-center border border-white/80 shadow-sm transition-all" onclick="viewSlip('LD-2026-${padNum}')">
+                <span class="material-symbols-outlined text-[14px]">receipt_long</span>
+              </button>
+              <button type="button" class="w-6 h-6 rounded-full bg-white/70 hover:bg-error hover:text-white text-on-surface-variant flex items-center justify-center border border-white/80 shadow-sm transition-all" onclick="deleteRow(this)">
+                <span class="material-symbols-outlined text-[14px]">delete</span>
+              </button>
+            </div>
+          </td>
+        `;
+        tbody?.appendChild(tr);
+      });
+
+      closeModal();
+      if (tsvInput) tsvInput.value = '';
+      updateRowCount();
+      updateFooterTotals();
+    });
+  }
+
+  function exportSampleExcel() {
+    alert('Export manifest generated: KesharKali_LoadingRegister_24Nov2026.xlsx (Simulated Download)');
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.altKey && e.key.toLowerCase() === 'n') {
+      e.preventDefault();
+      addNewSingleRow();
+    }
+  });
+
+  document.getElementById('gridSearchInput')?.addEventListener('input', applyFilters);
+  document.getElementById('filterIndustry')?.addEventListener('change', applyFilters);
+  document.getElementById('filterProduct')?.addEventListener('change', applyFilters);
+  document.getElementById('filterStatus')?.addEventListener('change', applyFilters);
+  document.getElementById('btnAddNewRow')?.addEventListener('click', addNewSingleRow);
+
+  const selectAll = document.getElementById('selectAllCheckbox');
+  if (selectAll) {
+    selectAll.addEventListener('change', () => {
+      document.querySelectorAll('.row-checkbox').forEach(cb => {
+        cb.checked = selectAll.checked;
+      });
+    });
+  }
+</script>
+</div>
+</main>
+</div>
+</body></html>
