@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Scale, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { api } from '../api';
 
-export default function StockAdjustments() {
+export default function StockAdjustments({ setActivePage, onSuccess }) {
   const [products, setProducts] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [submitting, setSubmitting] = useState(false);
@@ -42,6 +42,7 @@ export default function StockAdjustments() {
       setErrorMsg(null);
       const res = await api.stock.adjust(form);
       setSuccessMsg(`Stock Adjustment recorded in audit ledger! Ref: ${res.result.adjustmentNumber || 'ADJ'}. Difference: ${res.result.difference > 0 ? '+' : ''}${res.result.difference} QTL.`);
+      if (onSuccess) onSuccess();
       setForm({
         ...form,
         physicalStock: '',
@@ -56,8 +57,8 @@ export default function StockAdjustments() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-4">
-      <div className="bg-white rounded-lg border border-[#E8E2DC] p-4 shadow-xs">
-        <div className="flex items-center justify-between pb-3 border-b border-[#E8E2DC]">
+      <div className="glass-panel rounded-2xl p-6 shadow-sm">
+        <div className="flex items-center justify-between pb-3 border-b border-[#E8E2DC]/80">
           <div>
             <h1 className="text-base font-bold text-[#252525] font-['Space_Grotesk'] flex items-center gap-2">
               <Scale size={18} className="text-[#8F1717]" />
@@ -67,6 +68,14 @@ export default function StockAdjustments() {
               Strictly non-destructive accounting: Never overwrites history; generates auditable adjustment transactions
             </p>
           </div>
+          {setActivePage && (
+            <button
+              onClick={() => setActivePage('ledger')}
+              className="text-xs font-semibold text-[#8F1717] hover:underline"
+            >
+              View Stock Ledger →
+            </button>
+          )}
         </div>
 
         {successMsg && (

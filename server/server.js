@@ -44,8 +44,13 @@ const whatsappRouter = require('./routes/whatsapp');
 const reportsRouter = require('./routes/reports');
 const dashboardRouter = require('./routes/dashboard');
 const auditLogsRouter = require('./routes/auditLogs');
+const documentsRouter = require('./routes/documents');
+const { router: integrationRouter } = require('./routes/integration');
+const { isFirebaseAdminConfigured, verifyFirebaseToken } = require('./firebase/admin');
 
 // Mount API routes
+app.use(verifyFirebaseToken);
+app.use('/api/integration', integrationRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/customers', authMiddleware, customersRouter);
 app.use('/api/industries', authMiddleware, industriesRouter);
@@ -60,6 +65,7 @@ app.use('/api/whatsapp', authMiddleware, whatsappRouter);
 app.use('/api/reports', authMiddleware, reportsRouter);
 app.use('/api/dashboard', authMiddleware, dashboardRouter);
 app.use('/api/audit-logs', authMiddleware, auditLogsRouter);
+app.use('/api/documents', authMiddleware, documentsRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -70,6 +76,23 @@ app.get('/api/health', (req, res) => {
         systemTime: new Date().toISOString()
     });
 });
+
+// Firebase status
+app.get('/api/firebase/status', (req, res) => {
+    res.json({
+        configured: isFirebaseAdminConfigured,
+        projectId: process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID || null,
+        mode: isFirebaseAdminConfigured ? 'cloud' : 'offline-sqlite'
+    });
+});
+
+// Serve uploaded documents (bills, weighbridge slips, etc.)
+const fs = require('fs');
+const uploadsDir = path.resolve(__dirname, '../uploads');
+const billsDir = path.join(uploadsDir, 'bills');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+if (!fs.existsSync(billsDir)) fs.mkdirSync(billsDir, { recursive: true });
+app.use('/uploads', express.static(uploadsDir));
 
 // Serve static frontend build if present
 const clientDist = path.resolve(__dirname, '../dist');
@@ -103,6 +126,13 @@ if (require.main === module) {
         console.log(`Precision in Every Grain`);
         console.log(`Server listening on http://localhost:${PORT}`);
         console.log(`=======================================================`);
+
+        try {
+            const { startAppAListener } = require('./services/appAListener');
+            startAppAListener();
+        } catch (e) {
+            console.warn('[App A Listener] Could not start listener on boot:', e.message);
+        }
     });
 }
 

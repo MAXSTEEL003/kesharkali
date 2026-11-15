@@ -52,8 +52,16 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
 
   if (error) {
     return (
-      <div className="bg-red-50 border-l-4 border-[#8F1717] p-4 text-sm text-red-700">
-        Error loading dashboard: {error}
+      <div className="glass-card bg-red-50/80 border-l-4 border-[#8F1717] p-4 text-sm text-red-700 rounded-lg flex items-center justify-between shadow-xs">
+        <div>
+          <strong className="font-semibold">Unable to load dashboard:</strong> {error}
+        </div>
+        <button
+          onClick={loadData}
+          className="px-3 py-1 bg-[#8F1717] text-white text-xs font-semibold rounded hover:bg-[#771212] transition-colors shadow-xs"
+        >
+          Retry
+        </button>
       </div>
     );
   }
@@ -63,11 +71,11 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
   return (
     <div className="space-y-6">
       {/* Top Banner with Quick Actions Strip */}
-      <div className="bg-white rounded-lg border border-[#E8E2DC] p-4 shadow-xs flex flex-wrap items-center justify-between gap-4">
+      <div className="glass-panel rounded-2xl p-5 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-lg font-bold text-[#252525] font-['Space_Grotesk'] flex items-center gap-2">
             Operational Command Center
-            <span className="text-xs bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded-full">
+            <span className="text-xs bg-emerald-500/15 text-emerald-800 border border-emerald-500/30 font-semibold px-2.5 py-0.5 rounded-full shadow-xs">
               Live Reconciled
             </span>
           </h1>
@@ -76,19 +84,19 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2.5">
           <button 
             onClick={() => onOpenQuickAction('po')}
-            className="flex items-center gap-1.5 text-xs font-semibold bg-[#8F1717] text-white px-3 py-1.5 rounded hover:bg-[#771212] transition-colors shadow-xs"
+            className="flex items-center gap-1.5 text-xs font-semibold bg-gradient-to-r from-[#8F1717] to-[#771212] hover:from-[#771212] hover:to-[#5E1010] text-white px-3.5 py-2 rounded-xl shadow-[0_0_12px_rgba(143,23,23,0.3)] hover:shadow-[0_0_18px_rgba(143,23,23,0.5)] border border-[#C69A3B]/40 transition-all"
             title="Record incoming customer purchase order received by Keshar Kali"
           >
-            <Inbox size={14} />
+            <Inbox size={14} className="text-[#C69A3B]" />
             <span>Receive PO</span>
           </button>
 
           <button 
             onClick={() => onOpenQuickAction('loading')}
-            className="flex items-center gap-1.5 text-xs font-semibold bg-[#5E1010] text-white px-3 py-1.5 rounded hover:bg-[#480c0c] transition-colors shadow-xs"
+            className="flex items-center gap-1.5 text-xs font-semibold bg-gradient-to-r from-[#5E1010] to-[#480c0c] hover:from-[#480c0c] hover:to-[#380909] text-white px-3.5 py-2 rounded-xl shadow-[0_0_12px_rgba(94,16,16,0.3)] hover:shadow-[0_0_18px_rgba(94,16,16,0.5)] border border-white/20 transition-all"
           >
             <Truck size={14} />
             <span>Add Loading</span>
@@ -96,7 +104,7 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
 
           <button 
             onClick={() => onOpenQuickAction('dispatch')}
-            className="flex items-center gap-1.5 text-xs font-semibold bg-[#C69A3B] text-[#5E1010] px-3 py-1.5 rounded hover:bg-[#b08730] transition-colors shadow-xs"
+            className="flex items-center gap-1.5 text-xs font-bold bg-gradient-to-r from-[#C69A3B] to-[#b08730] hover:from-[#b08730] hover:to-[#997324] text-[#5E1010] px-3.5 py-2 rounded-xl shadow-[0_0_12px_rgba(198,154,59,0.35)] hover:shadow-[0_0_20px_rgba(198,154,59,0.6)] border border-[#C69A3B]/60 transition-all"
           >
             <Send size={14} />
             <span>Confirm Dispatch</span>
@@ -104,7 +112,7 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
 
           <button 
             onClick={() => setActivePage('reports-loading')}
-            className="flex items-center gap-1.5 text-xs font-semibold bg-white border border-[#E8E2DC] text-[#252525] px-3 py-1.5 rounded hover:bg-gray-50 transition-colors shadow-xs"
+            className="flex items-center gap-1.5 text-xs font-semibold bg-white/70 backdrop-blur-md border border-[#E8E2DC] text-[#252525] px-3.5 py-2 rounded-xl hover:bg-white transition-all shadow-xs"
           >
             <FileSpreadsheet size={14} className="text-emerald-700" />
             <span>Excel Exports</span>
@@ -158,27 +166,19 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
       </div>
 
       {/* Row 2: Stock Position & Valuation Bar */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <StatCard 
-          label="Total Physical Stock" 
+          label="Total Warehouse Stock" 
           value={`${metrics.totalPhysicalStock.toLocaleString('en-IN')} QTL`} 
-          subtext="Audited Warehouse Inventory"
+          subtext="Audited Physical Inventory" 
           icon={Warehouse} 
           color="red"
           onClick={() => setActivePage('stock-dashboard')}
         />
         <StatCard 
-          label="Reserved Stock" 
-          value={`${metrics.totalReservedStock.toLocaleString('en-IN')} QTL`} 
-          subtext="Customer Order Commitments"
-          icon={Scale} 
-          color="burgundy"
-          onClick={() => setActivePage('stock-dashboard')}
-        />
-        <StatCard 
           label="Available For Sale" 
-          value={`${metrics.totalAvailableStock.toLocaleString('en-IN')} QTL`} 
-          subtext="Physical - Reserved"
+          value={`${metrics.totalPhysicalStock.toLocaleString('en-IN')} QTL`} 
+          subtext="Ready for Customer Dispatch" 
           icon={CheckCircle2} 
           color="green"
           onClick={() => setActivePage('stock-dashboard')}
@@ -195,7 +195,7 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
 
       {/* Low Stock Alerts (if any) */}
       {lowStockProducts && lowStockProducts.length > 0 && (
-        <div className="bg-amber-50 border-l-4 border-amber-500 p-3.5 rounded-r-lg shadow-xs flex items-center justify-between">
+        <div className="bg-amber-500/10 border border-amber-500/40 p-4 rounded-2xl shadow-[0_0_16px_rgba(245,158,11,0.2)] backdrop-blur-md flex items-center justify-between">
           <div className="flex items-center gap-3">
             <AlertTriangle className="text-amber-600 shrink-0" size={20} />
             <div>
@@ -208,7 +208,7 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
           </div>
           <button 
             onClick={() => setActivePage('stock-inward')}
-            className="text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded transition-colors shadow-xs shrink-0"
+            className="text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-2 rounded-xl transition-all shadow-xs shrink-0"
           >
             Inward Replenishment
           </button>
@@ -218,8 +218,8 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
       {/* Row 3: Actionable Operational Lists */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Unallocated / Pending POs */}
-        <div className="bg-white rounded-lg border border-[#E8E2DC] shadow-xs overflow-hidden flex flex-col">
-          <div className="bg-[#FAF9F6] border-b border-[#E8E2DC] px-4 py-3 flex items-center justify-between">
+        <div className="glass-panel rounded-2xl shadow-xs overflow-hidden flex flex-col">
+          <div className="bg-white/60 backdrop-blur-md border-b border-[#E8E2DC]/80 px-4 py-3 flex items-center justify-between">
             <h3 className="text-xs font-bold uppercase tracking-wider text-[#8F1717] flex items-center gap-2">
               <ShoppingCart size={15} />
               Pending PO Allocations
@@ -239,7 +239,7 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
             ) : (
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="bg-gray-50 text-[#777777] border-b border-[#E8E2DC]">
+                  <tr className="bg-white/40 text-[#777777] border-b border-[#E8E2DC]">
                     <th className="py-2 px-3 text-left">PO #</th>
                     <th className="py-2 px-3 text-left">Buyer</th>
                     <th className="py-2 px-3 text-right">Ordered QTL</th>
@@ -249,7 +249,7 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
                 </thead>
                 <tbody className="divide-y divide-[#E8E2DC]">
                   {pendingTasks.unallocatedPOs.map(po => (
-                    <tr key={po.id} className="hover:bg-amber-50/30">
+                    <tr key={po.id} className="hover:bg-amber-50/40">
                       <td className="py-2.5 px-3 font-semibold text-[#8F1717]">{po.po_number}</td>
                       <td className="py-2.5 px-3 text-[#252525]">{po.customer_name}</td>
                       <td className="py-2.5 px-3 text-right font-mono font-bold">{po.ordered_quantity}</td>
@@ -261,7 +261,7 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
                       <td className="py-2.5 px-3 text-center">
                         <button
                           onClick={() => setActivePage('purchase-orders')}
-                          className="px-2 py-1 rounded bg-[#8F1717] text-white text-[10px] font-semibold hover:bg-[#771212]"
+                          className="px-2.5 py-1 rounded-lg bg-[#8F1717] text-white text-[10px] font-semibold hover:bg-[#771212] shadow-xs"
                         >
                           Allocate
                         </button>
@@ -275,8 +275,8 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
         </div>
 
         {/* Loadings Pending Dispatch */}
-        <div className="bg-white rounded-lg border border-[#E8E2DC] shadow-xs overflow-hidden flex flex-col">
-          <div className="bg-[#FAF9F6] border-b border-[#E8E2DC] px-4 py-3 flex items-center justify-between">
+        <div className="glass-panel rounded-2xl shadow-xs overflow-hidden flex flex-col">
+          <div className="bg-white/60 backdrop-blur-md border-b border-[#E8E2DC]/80 px-4 py-3 flex items-center justify-between">
             <h3 className="text-xs font-bold uppercase tracking-wider text-[#5E1010] flex items-center gap-2">
               <Truck size={15} />
               Loadings Ready for Dispatch
@@ -336,7 +336,7 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
       {/* Row 4: Industry Distribution & Stock Distribution */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Industry Sourcing Distribution */}
-        <div className="bg-white rounded-lg border border-[#E8E2DC] p-4 shadow-xs">
+        <div className="glass-panel rounded-2xl p-5 shadow-xs">
           <h3 className="text-xs font-bold uppercase tracking-wider text-[#8F1717] mb-3 flex items-center justify-between">
             <span>Industry Sourcing Breakdown (Strictly Internal)</span>
             <span className="text-[10px] text-gray-500 font-normal">Actual loaded volume</span>
@@ -351,9 +351,9 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
                     <span className="font-semibold text-[#252525]">{ind.industry_name}</span>
                     <span className="font-mono font-bold text-[#8F1717]">{ind.total_loaded_qtl} QTL</span>
                   </div>
-                  <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-2 w-full bg-gray-100/70 rounded-full overflow-hidden">
                     <div 
-                      className="h-full bg-[#8F1717] rounded-full transition-all duration-300"
+                      className="h-full bg-gradient-to-r from-[#8F1717] to-[#C69A3B] rounded-full transition-all duration-300"
                       style={{ width: `${pct}%` }}
                     ></div>
                   </div>
@@ -364,30 +364,22 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
         </div>
 
         {/* Product Stock Distribution */}
-        <div className="bg-white rounded-lg border border-[#E8E2DC] p-4 shadow-xs">
+        <div className="glass-panel rounded-2xl p-5 shadow-xs">
           <h3 className="text-xs font-bold uppercase tracking-wider text-[#8F1717] mb-3 flex items-center justify-between">
             <span>Product Inventory Levels</span>
-            <span className="text-[10px] text-gray-500 font-normal">Physical vs Reserved</span>
+            <span className="text-[10px] text-gray-500 font-normal">Audited Stock</span>
           </h3>
           <div className="space-y-3">
             {productDistribution.map((p, idx) => (
-              <div key={idx} className="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0 text-xs">
+              <div key={idx} className="flex items-center justify-between py-1.5 border-b border-gray-100/80 last:border-0 text-xs">
                 <div>
                   <div className="font-semibold text-[#252525]">{p.name}</div>
                   <div className="text-[10px] text-[#777777]">{p.code}</div>
                 </div>
                 <div className="flex items-center gap-4 text-right">
                   <div>
-                    <div className="font-mono font-bold text-[#252525]">{p.physicalStock} QTL</div>
-                    <div className="text-[10px] text-gray-400">Physical</div>
-                  </div>
-                  <div>
-                    <div className="font-mono font-bold text-amber-700">{p.reservedStock} QTL</div>
-                    <div className="text-[10px] text-gray-400">Reserved</div>
-                  </div>
-                  <div>
-                    <div className="font-mono font-bold text-emerald-700">{p.availableStock} QTL</div>
-                    <div className="text-[10px] text-gray-400">Available</div>
+                    <div className="font-mono font-bold text-emerald-700 text-sm">{p.physicalStock} QTL</div>
+                    <div className="text-[10px] text-gray-400">In Stock</div>
                   </div>
                 </div>
               </div>
@@ -397,7 +389,7 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
       </div>
 
       {/* Row 5: Recent Chronological Audit Log */}
-      <div className="bg-white rounded-lg border border-[#E8E2DC] p-4 shadow-xs">
+      <div className="glass-panel rounded-2xl p-5 shadow-xs">
         <h3 className="text-xs font-bold uppercase tracking-wider text-[#777777] mb-3 flex items-center justify-between">
           <span>Recent Operational Log</span>
           <button onClick={() => setActivePage('settings')} className="text-xs text-[#8F1717] hover:underline font-semibold">
@@ -406,9 +398,9 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
         </h3>
         <div className="space-y-2">
           {recentActivities.slice(0, 5).map((log, idx) => (
-            <div key={idx} className="flex items-center justify-between text-xs py-1.5 border-b border-gray-100 last:border-0">
+            <div key={idx} className="flex items-center justify-between text-xs py-1.5 border-b border-gray-100/80 last:border-0">
               <div className="flex items-center gap-2">
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-gray-100 text-gray-700">
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-white/80 border border-gray-200 text-gray-700">
                   {log.action}
                 </span>
                 <span className="font-medium text-[#252525]">{log.entity_type} {log.entity_id}</span>

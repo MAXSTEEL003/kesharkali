@@ -1,0 +1,30 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "stock_ledger",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "product_id", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "dispatches",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "po_id", "order": "ASCENDING" },
+        { "fieldPath": "dispatch_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "loading_entries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "po_id", "order": "ASCENDING" },
+        { "fieldPath": "loading_date", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
+

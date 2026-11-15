@@ -97,8 +97,8 @@ router.get('/', (req, res) => {
             name: p.productName,
             code: p.productCode,
             physicalStock: p.physicalBalance,
-            availableStock: p.availableQuantity,
-            reservedStock: p.reservedQuantity
+            availableStock: p.physicalBalance,
+            reservedStock: 0
         }));
 
         // 7. Recent operational activity (Audit logs)
@@ -142,8 +142,8 @@ router.get('/', (req, res) => {
                 pendingDispatch,
                 overallPendingFulfillment,
                 totalPhysicalStock: valuation.grandTotalStock,
-                totalReservedStock: summary.reduce((s, r) => s + r.reservedQuantity, 0),
-                totalAvailableStock: summary.reduce((s, r) => s + r.availableQuantity, 0),
+                totalReservedStock: 0,
+                totalAvailableStock: valuation.grandTotalStock,
                 totalStockValue: valuation.grandTotalValue,
                 totalOrderValue: Number(poStats.total_order_value)
             },

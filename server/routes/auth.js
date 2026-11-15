@@ -14,19 +14,26 @@ function authMiddleware(req, res, next) {
 
     // Support dev role header for seamless user switching
     const roleOverride = req.headers['x-user-role'];
+    const supplierIdHeader = req.headers['x-supplier-id'];
     if (roleOverride) {
+        let supId = supplierIdHeader ? parseInt(supplierIdHeader, 10) : (roleOverride === 'Supplier' ? 1 : null);
         req.user = {
-            id: roleOverride === 'Admin' ? 1 : 2,
+            id: roleOverride === 'Admin' ? 1 : roleOverride === 'Supplier' ? 3 : 2,
             username: roleOverride.toLowerCase(),
             role: roleOverride,
-            fullName: roleOverride === 'Admin' ? 'Rajendra Deshmukh (Admin)' : 'Vikram Shinde (Operator)'
+            supplierId: supId,
+            fullName: roleOverride === 'Admin' 
+                ? 'Rajendra Deshmukh (Admin)' 
+                : roleOverride === 'Supplier' 
+                ? 'Bhagwathi Rice and Agro Industries (Operations)' 
+                : 'Vikram Shinde (Operator)'
         };
         return next();
     }
 
     if (!token) {
         // Default to Admin session if not specified
-        req.user = { id: 1, username: 'admin', role: 'Admin', fullName: 'Rajendra Deshmukh (Admin)' };
+        req.user = { id: 1, username: 'admin', role: 'Admin', fullName: 'Rajendra Deshmukh (Admin)', supplierId: null };
         return next();
     }
 
@@ -47,7 +54,7 @@ router.post('/login', (req, res) => {
             return res.status(400).json({ error: 'Username and password are required' });
         }
 
-        const user = get('SELECT * FROM users WHERE username = ? AND active = 1', [username]);
+        const user = get('SELECT * FROM users WHERE (username = ? OR email = ?) AND active = 1', [username.trim(), username.trim()]);
         if (!user) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
@@ -58,7 +65,7 @@ router.post('/login', (req, res) => {
         }
 
         const token = jwt.sign(
-            { id: user.id, username: user.username, role: user.role, fullName: user.full_name },
+            { id: user.id, username: user.username, role: user.role, supplierId: user.supplier_id, fullName: user.full_name },
             JWT_SECRET,
             { expiresIn: '7d' }
         );
@@ -70,6 +77,7 @@ router.post('/login', (req, res) => {
                 username: user.username,
                 fullName: user.full_name,
                 role: user.role,
+                supplierId: user.supplier_id,
                 email: user.email,
                 phone: user.phone
             }

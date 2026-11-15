@@ -97,7 +97,7 @@ export default function CustomerNotifications() {
                 <th className="text-left">PO Number</th>
                 <th className="text-left">Dispatch ID</th>
                 <th className="text-right">Quantity QTL</th>
-                <th className="text-center">Vehicle</th>
+                <th className="text-center">Vehicle & Driver</th>
                 <th className="text-center">Status</th>
                 <th className="text-center">Retries</th>
                 <th className="text-center w-28">Actions</th>
@@ -120,7 +120,10 @@ export default function CustomerNotifications() {
                     <td className="font-semibold text-[#8F1717]">{log.po_number}</td>
                     <td className="font-mono text-emerald-800">{log.dispatch_number}</td>
                     <td className="text-right font-mono font-bold">{log.dispatch_quantity}</td>
-                    <td className="text-center font-mono text-xs">{log.vehicle_number}</td>
+                    <td className="text-center font-mono text-xs">
+                      <div className="font-semibold text-gray-800">{log.vehicle_number}</div>
+                      {log.driver_phone && <div className="text-[10px] text-gray-500 font-sans">{log.driver_phone}</div>}
+                    </td>
                     <td className="text-center">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                         log.status === 'Delivered' ? 'bg-emerald-100 text-emerald-800' :

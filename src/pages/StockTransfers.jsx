@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeftRight, CheckCircle2, Warehouse, Truck } from 'lucide-react';
 import { api } from '../api';
 
-export default function StockTransfers() {
+export default function StockTransfers({ setActivePage, onSuccess }) {
   const [products, setProducts] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [submitting, setSubmitting] = useState(false);
@@ -47,6 +47,7 @@ export default function StockTransfers() {
       setErrorMsg(null);
       const res = await api.stock.transfer(form);
       setSuccessMsg(`Inter-warehouse Transfer posted! Transfer Ref: ${res.result.transferNumber}. Transferred ${res.result.quantity} QTL from ${res.result.source} to ${res.result.destination}`);
+      if (onSuccess) onSuccess();
       setForm({
         date: new Date().toISOString().split('T')[0],
         productId: '',
@@ -65,8 +66,8 @@ export default function StockTransfers() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-4">
-      <div className="bg-white rounded-lg border border-[#E8E2DC] p-4 shadow-xs">
-        <div className="flex items-center justify-between pb-3 border-b border-[#E8E2DC]">
+      <div className="glass-panel rounded-2xl p-6 shadow-sm">
+        <div className="flex items-center justify-between pb-3 border-b border-[#E8E2DC]/80">
           <div>
             <h1 className="text-base font-bold text-[#252525] font-['Space_Grotesk'] flex items-center gap-2">
               <ArrowLeftRight size={18} className="text-[#8F1717]" />
@@ -76,6 +77,14 @@ export default function StockTransfers() {
               Atomic transfer between supplier godowns with dual-side transactional ledger entries
             </p>
           </div>
+          {setActivePage && (
+            <button
+              onClick={() => setActivePage('ledger')}
+              className="text-xs font-semibold text-[#8F1717] hover:underline"
+            >
+              View Stock Ledger →
+            </button>
+          )}
         </div>
 
         {successMsg && (

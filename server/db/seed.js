@@ -128,36 +128,29 @@ function seed() {
 
         // Loading entry for PO-2026-002
         const insertLoading = db.prepare(`
-            INSERT INTO loading_entries (loading_number, loading_date, po_id, allocation_id, industry_id, product_id, fulfillment_type, warehouse_id, loading_location, vehicle_number, loading_quantity, purchase_rate, loading_amount, loading_status, dispatch_status, remarks, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO loading_entries (loading_number, loading_date, po_id, allocation_id, industry_id, product_id, fulfillment_type, warehouse_id, loading_location, vehicle_number, driver_phone, loading_quantity, purchase_rate, loading_amount, loading_status, dispatch_status, remarks, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
-        insertLoading.run('LD-2026-001', '2026-11-05', 2, 5, 2, 2, 'Direct', null, 'Vaishnavi Agro Gondia Gate 1', 'MH-31-CB-9022', 30, 3150, 30 * 3150, 'Loaded', 'Dispatched', 'Direct dispatch from mill to buyer godown', 'Vikram Shinde');
-        insertLoading.run('LD-2026-002', '2026-11-06', 2, 4, 1, 2, 'Warehouse', 2, 'Balaji Modern Bhandara', 'MH-36-AA-4412', 25, 3100, 25 * 3100, 'Loaded', 'Pending', 'Inwarded to Railway Siding Godown', 'Vikram Shinde');
+        insertLoading.run('LD-2026-001', '2026-11-05', 2, 5, 2, 2, 'Direct', null, 'Vaishnavi Agro Gondia Gate 1', 'MH-31-CB-9022', '+91 98220 12345', 30, 3150, 30 * 3150, 'Loaded', 'Dispatched', 'Direct dispatch from mill to buyer godown', 'Vikram Shinde');
+        insertLoading.run('LD-2026-002', '2026-11-06', 2, 4, 1, 2, 'Warehouse', 2, 'Balaji Modern Bhandara', 'MH-36-AA-4412', '+91 94228 67890', 25, 3100, 25 * 3100, 'Loaded', 'Pending', 'Inwarded to Railway Siding Godown', 'Vikram Shinde');
 
         // Also create inward stock transaction for the warehouse loading LD-2026-002
         insertLedger.run('TXN-2026-0005', '2026-11-06', 2, 2, 'Purchase Inward', 'LD-2026-002', 'Industry A (Balaji Modern Rice Mill)', 'Railway Siding Godown', 25, 0, 3100, 77500, 325, 'Inwarded from LD-2026-002 for PO-2026-002 fulfillment');
 
         // Dispatch for LD-2026-001 (Direct dispatch 30 QTL)
         const insertDispatch = db.prepare(`
-            INSERT INTO dispatches (dispatch_number, loading_id, po_id, dispatch_date, dispatch_quantity, vehicle_number, source_type, warehouse_id, remarks, notification_status, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO dispatches (dispatch_number, loading_id, po_id, dispatch_date, dispatch_quantity, vehicle_number, driver_phone, source_type, warehouse_id, remarks, notification_status, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
-        insertDispatch.run('DSP-2026-001', 1, 2, '2026-11-05', 30, 'MH-31-CB-9022', 'Direct', null, 'Dispatched direct from mill to Mahavir Provisions Gondia', 'Sent', 'Vikram Shinde');
+        insertDispatch.run('DSP-2026-001', 1, 2, '2026-11-05', 30, 'MH-31-CB-9022', '+91 98220 12345', 'Direct', null, 'Dispatched direct from mill to Mahavir Provisions Gondia', 'Sent', 'Vikram Shinde');
 
         // WhatsApp notification record for DSP-2026-001
         const insertWA = db.prepare(`
             INSERT INTO whatsapp_notifications (idempotency_key, dispatch_id, po_id, customer_id, recipient_phone, template_name, message_body, wa_message_id, status)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
-        const waMsgBody = `Hello Bhavin Shah,\n\nYour order has been dispatched.\n\nOrder: PO-2026-002\nProduct: Keshar Kali 5 kgs\nVehicle: MH-31-CB-9022\nQuantity Dispatched: 30 QTL\nTotal Dispatched: 30 QTL\nRemaining Quantity: 45 QTL\n\nThank you for your business.\nKeshar Kali — Precision in Every Grain`;
+        const waMsgBody = `Hello Bhavin Shah,\n\nYour order has been dispatched.\n\nProduct: Keshar Kali 5 kgs\nVehicle: MH-31-CB-9022\nDriver Phone: +91 98220 12345\nQuantity Dispatched: 30 QTL\nRemaining Quantity: 45 QTL\n\nThank you for your business.\nKeshar Kali — Precision in Every Grain`;
         insertWA.run('dsp_1', 1, 2, 2, '919422144556', 'order_dispatched', waMsgBody, 'wam_live_001928374', 'Delivered');
-
-        // Stock Reservation for PO-2026-001 (Reserve 50 QTL from Central Godown buffer)
-        const insertRes = db.prepare(`
-            INSERT INTO stock_reservations (po_id, product_id, warehouse_id, reserved_quantity, released_quantity, status)
-            VALUES (?, ?, ?, ?, ?, ?)
-        `);
-        insertRes.run(1, 1, 1, 50, 0, 'Active');
 
         // Audit Log entry
         const insertAudit = db.prepare(`

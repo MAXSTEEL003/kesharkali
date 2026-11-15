@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { FileText, Download, Filter, Search, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { api, downloadBlob } from '../api';
 
-export default function StockLedger() {
+export default function StockLedger({ setActiveTab, onNewInward, onNewOutward }) {
   const [ledger, setLedger] = useState([]);
   const [products, setProducts] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
@@ -53,8 +53,8 @@ export default function StockLedger() {
   return (
     <div className="space-y-4">
       {/* Header & Export Toolbar */}
-      <div className="bg-white rounded-lg border border-[#E8E2DC] p-4 shadow-xs">
-        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#E8E2DC]">
+      <div className="glass-panel rounded-2xl p-5 shadow-xs">
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#E8E2DC]/80">
           <div>
             <h1 className="text-base font-bold text-[#252525] font-['Space_Grotesk'] flex items-center gap-2">
               <FileText size={18} className="text-[#8F1717]" />
@@ -65,13 +65,37 @@ export default function StockLedger() {
             </p>
           </div>
 
-          <button
-            onClick={handleExportExcel}
-            className="flex items-center gap-1.5 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white px-3.5 py-1.5 rounded transition-colors shadow-xs"
-          >
-            <Download size={14} />
-            <span>Export Genuine Excel (.xlsx)</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {(onNewInward || setActiveTab) && (
+              <button
+                type="button"
+                onClick={() => onNewInward ? onNewInward() : setActiveTab('inward')}
+                className="flex items-center gap-1.5 text-xs font-semibold bg-gradient-to-r from-[#8F1717] to-[#771212] hover:from-[#771212] hover:to-[#5E1010] text-white px-3.5 py-1.5 rounded-xl border border-[#C69A3B]/40 shadow-[0_0_12px_rgba(143,23,23,0.3)] hover:shadow-[0_0_18px_rgba(143,23,23,0.5)] transition-all"
+              >
+                <ArrowDownLeft size={14} className="text-[#C69A3B]" />
+                <span>+ Stock Inward</span>
+              </button>
+            )}
+
+            {(onNewOutward || setActiveTab) && (
+              <button
+                type="button"
+                onClick={() => onNewOutward ? onNewOutward() : setActiveTab('outward')}
+                className="flex items-center gap-1.5 text-xs font-semibold bg-gradient-to-r from-[#5E1010] to-[#480c0c] hover:from-[#480c0c] hover:to-[#380909] text-white px-3.5 py-1.5 rounded-xl border border-white/20 shadow-[0_0_12px_rgba(94,16,16,0.3)] hover:shadow-[0_0_18px_rgba(94,16,16,0.5)] transition-all"
+              >
+                <ArrowUpRight size={14} />
+                <span>- Stock Outward</span>
+              </button>
+            )}
+
+            <button
+              onClick={handleExportExcel}
+              className="flex items-center gap-1.5 text-xs font-semibold bg-gradient-to-r from-emerald-700 to-emerald-800 hover:from-emerald-800 hover:to-emerald-900 text-white px-3.5 py-1.5 rounded-xl border border-emerald-400/40 shadow-[0_0_12px_rgba(16,185,129,0.3)] hover:shadow-[0_0_18px_rgba(16,185,129,0.5)] transition-all"
+            >
+              <Download size={14} />
+              <span>Export Genuine Excel (.xlsx)</span>
+            </button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -134,14 +158,13 @@ export default function StockLedger() {
       </div>
 
       {/* Traditional Accounting Ledger Grid */}
-      <div className="bg-white rounded-lg border border-[#E8E2DC] shadow-xs overflow-hidden">
+      <div className="glass-panel rounded-2xl shadow-xs overflow-hidden">
         <div className="overflow-x-auto max-h-[640px]">
           <table className="excel-grid">
             <thead>
               <tr>
                 <th className="w-10 text-center">#</th>
                 <th className="text-center">Date</th>
-                <th className="text-left">Txn Number</th>
                 <th className="text-left">Rice Product</th>
                 <th className="text-left">Transaction Type</th>
                 <th className="text-left">Ref Document</th>
@@ -156,7 +179,7 @@ export default function StockLedger() {
             <tbody>
               {ledger.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="text-center py-12 text-xs text-gray-400">
+                  <td colSpan={11} className="text-center py-12 text-xs text-gray-400">
                     No ledger entries found matching filters.
                   </td>
                 </tr>
@@ -169,7 +192,6 @@ export default function StockLedger() {
                     <tr key={row.id} className="hover:bg-amber-50/40">
                       <td className="text-center font-mono text-[11px] text-gray-400">{idx + 1}</td>
                       <td className="text-center text-xs font-mono">{row.date}</td>
-                      <td className="font-mono text-xs font-semibold text-[#8F1717]">{row.transaction_number}</td>
                       <td className="font-semibold text-[#252525]">{row.product_name}</td>
                       <td>
                         <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-800">

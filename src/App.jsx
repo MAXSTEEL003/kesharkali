@@ -4,13 +4,7 @@ import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import PurchaseOrders from './pages/PurchaseOrders';
 import IndustrySourcing from './pages/IndustrySourcing';
-import StockDashboard from './pages/StockDashboard';
-import StockLedger from './pages/StockLedger';
-import StockInward from './pages/StockInward';
-import StockOutward from './pages/StockOutward';
-import StockTransfers from './pages/StockTransfers';
-import StockAdjustments from './pages/StockAdjustments';
-import StockValuation from './pages/StockValuation';
+import StockManagement from './pages/StockManagement';
 import MasterLoadingRegister from './pages/MasterLoadingRegister';
 import DispatchManagement from './pages/DispatchManagement';
 import CustomerNotifications from './pages/CustomerNotifications';
@@ -20,10 +14,25 @@ import Industries from './pages/Industries';
 import Products from './pages/Products';
 import Warehouses from './pages/Warehouses';
 import Settings from './pages/Settings';
+import SupplierDashboard from './pages/SupplierDashboard';
+import { FirebaseAuthProvider } from './firebase/AuthContext';
 
 export default function App() {
   const [activePage, setActivePage] = useState('dashboard');
+  const [stockTab, setStockTab] = useState('ledger');
   const [quickActionTrigger, setQuickActionTrigger] = useState(null);
+
+  const handleNavigate = (page) => {
+    if (page === 'stock-management' || page === 'stock') {
+      setActivePage('stock-management');
+    } else if (page.startsWith('stock-')) {
+      const tab = page.replace('stock-', '');
+      setStockTab(tab === 'dashboard' ? 'overview' : tab);
+      setActivePage('stock-management');
+    } else {
+      setActivePage(page);
+    }
+  };
 
   const handleQuickAction = (action) => {
     setQuickActionTrigger({ action, timestamp: Date.now() });
@@ -39,25 +48,23 @@ export default function App() {
   const renderPage = () => {
     switch (activePage) {
       case 'dashboard':
-        return <Dashboard setActivePage={setActivePage} onOpenQuickAction={handleQuickAction} />;
+        return <Dashboard setActivePage={handleNavigate} onOpenQuickAction={handleQuickAction} />;
+      case 'supplier-dashboard':
+        return <SupplierDashboard />;
       case 'purchase-orders':
         return <PurchaseOrders onOpenQuickAction={handleQuickAction} quickActionTrigger={quickActionTrigger} />;
       case 'industry-sourcing':
         return <IndustrySourcing />;
+      case 'stock':
+      case 'stock-management':
       case 'stock-dashboard':
-        return <StockDashboard setActivePage={setActivePage} />;
       case 'stock-ledger':
-        return <StockLedger />;
       case 'stock-inward':
-        return <StockInward setActivePage={setActivePage} />;
       case 'stock-outward':
-        return <StockOutward setActivePage={setActivePage} />;
       case 'stock-transfers':
-        return <StockTransfers />;
       case 'stock-adjustments':
-        return <StockAdjustments />;
       case 'stock-valuation':
-        return <StockValuation />;
+        return <StockManagement initialTab={stockTab} />;
       case 'master-loading-register':
         return <MasterLoadingRegister onOpenQuickAction={handleQuickAction} quickActionTrigger={quickActionTrigger} />;
       case 'pending-loadings':
@@ -75,11 +82,10 @@ export default function App() {
       case 'customers':
         return <Customers />;
       case 'industries':
+      case 'warehouses':
         return <Industries />;
       case 'products':
         return <Products />;
-      case 'warehouses':
-        return <Warehouses />;
       case 'settings':
         return <Settings />;
       default:
@@ -88,13 +94,15 @@ export default function App() {
   };
 
   return (
-    <Layout
-      activePage={activePage}
-      setActivePage={setActivePage}
-      onOpenQuickAction={handleQuickAction}
-    >
-      {renderPage()}
-    </Layout>
+    <FirebaseAuthProvider>
+      <Layout
+        activePage={activePage}
+        setActivePage={handleNavigate}
+        onOpenQuickAction={handleQuickAction}
+      >
+        {renderPage()}
+      </Layout>
+    </FirebaseAuthProvider>
   );
 }
 

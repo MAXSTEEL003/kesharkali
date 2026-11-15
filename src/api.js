@@ -2,6 +2,7 @@
 // Centralized API client for Keshar Kali Operations Portal
 
 let currentRole = localStorage.getItem('kk_role') || 'Admin';
+let currentSupplierId = localStorage.getItem('kk_supplier_id') || '5';
 let authToken = localStorage.getItem('kk_token') || '';
 
 export function setRole(role) {
@@ -12,6 +13,20 @@ export function setRole(role) {
 
 export function getRole() {
   return currentRole;
+}
+
+export function setSupplierId(id) {
+  currentSupplierId = id ? String(id) : '';
+  if (id) {
+    localStorage.setItem('kk_supplier_id', String(id));
+  } else {
+    localStorage.removeItem('kk_supplier_id');
+  }
+  window.dispatchEvent(new Event('supplierChange'));
+}
+
+export function getSupplierId() {
+  return currentSupplierId;
 }
 
 export function setAuthToken(token) {
@@ -27,6 +42,7 @@ async function request(endpoint, options = {}) {
   const headers = {
     'Content-Type': 'application/json',
     'x-user-role': currentRole,
+    ...(currentSupplierId ? { 'x-supplier-id': String(currentSupplierId) } : {}),
     ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
     ...options.headers
   };
@@ -37,12 +53,19 @@ async function request(endpoint, options = {}) {
   });
 
   if (!response.ok) {
-    let errMessage = 'Network request failed';
+    let errMessage = `Request failed (HTTP ${response.status})`;
     try {
-      const errData = await response.json();
-      errMessage = errData.error || errMessage;
+      const rawText = await response.text();
+      try {
+        const errData = JSON.parse(rawText);
+        errMessage = errData.error || errData.message || errMessage;
+      } catch {
+        if (rawText && rawText.trim().length > 0) {
+          errMessage = rawText.slice(0, 300);
+        }
+      }
     } catch {
-      errMessage = await response.text() || errMessage;
+      // Stream read failed or unavailable
     }
     throw new Error(errMessage);
   }
@@ -83,7 +106,8 @@ export const api = {
     getAll: () => request('/api/industries'),
     getById: (id) => request(`/api/industries/${id}`),
     create: (data) => request('/api/industries', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id, data) => request(`/api/industries/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+    update: (id, data) => request(`/api/industries/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    setDefault: (id) => request(`/api/industries/${id}/set-default`, { method: 'POST' })
   },
 
   // Products
@@ -109,7 +133,16 @@ export const api = {
     getById: (id) => request(`/api/purchase-orders/${id}`),
     create: (data) => request('/api/purchase-orders', { method: 'POST', body: JSON.stringify(data) }),
     update: (id, data) => request(`/api/purchase-orders/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-    cancel: (id) => request(`/api/purchase-orders/${id}/cancel`, { method: 'POST' })
+    cancel: (id) => request(`/api/purchase-orders/${id}/cancel`, { method: 'POST' }),
+    uploadSubOrderBill: (poId, subOrderNo, data) => 
+      request(`/api/purchase-orders/${poId}/sub-orders/${encodeURIComponent(subOrderNo)}/bill`, {
+        method: 'POST',
+        body: JSON.stringify(data)
+      }),
+    deleteSubOrderBill: (poId, subOrderNo) =>
+      request(`/api/purchase-orders/${poId}/sub-orders/${encodeURIComponent(subOrderNo)}/bill`, {
+        method: 'DELETE'
+      })
   },
 
   // Industry Allocations
@@ -211,6 +244,22 @@ export const api = {
   // Audit Logs
   auditLogs: {
     getLogs: (limit = 50) => request(`/api/audit-logs?limit=${limit}`)
+  },
+
+  integration: {
+    syncAppA: () => request('/api/integration/sync-app-a', { method: 'POST' }),
+    getHealth: () => request('/api/integration/health'),
+    getLogs: () => request('/api/integration/sync-logs')
+  },
+
+  // Supplier Portal Specific Actions
+  supplier: {
+    acceptPO: (id, data = {}) => request(`/api/purchase-orders/${id}/supplier-accept`, { method: 'POST', body: JSON.stringify(data) }),
+    queryPO: (id, data) => request(`/api/purchase-orders/${id}/supplier-query`, { method: 'POST', body: JSON.stringify(data) }),
+    reschedulePO: (id, data) => request(`/api/purchase-orders/${id}/supplier-reschedule`, { method: 'POST', body: JSON.stringify(data) }),
+    getPOLedger: (id) => request(`/api/purchase-orders/${id}/ledger`),
+    getDocuments: (poId) => poId ? request(`/api/documents/po/${poId}`) : request('/api/documents'),
+    uploadDocument: (data) => request('/api/documents/upload', { method: 'POST', body: JSON.stringify(data) })
   }
 };
 

@@ -11,13 +11,11 @@ router.get('/', (req, res) => {
         const products = query('SELECT * FROM products WHERE active = 1 ORDER BY name ASC');
         const enriched = products.map(p => {
             const physical = getPhysicalStock(p.id);
-            const reserved = getReservedStock(p.id);
-            const available = getAvailableStock(p.id);
             return {
                 ...p,
                 physical_stock: physical,
-                reserved_stock: reserved,
-                available_stock: available,
+                reserved_stock: 0,
+                available_stock: physical,
                 is_low_stock: physical <= p.min_stock_threshold
             };
         });
@@ -34,15 +32,13 @@ router.get('/:id', (req, res) => {
         if (!product) return res.status(404).json({ error: 'Product not found' });
 
         const physical = getPhysicalStock(product.id);
-        const reserved = getReservedStock(product.id);
-        const available = getAvailableStock(product.id);
 
         res.json({
             product: {
                 ...product,
                 physical_stock: physical,
-                reserved_stock: reserved,
-                available_stock: available
+                reserved_stock: 0,
+                available_stock: physical
             }
         });
     } catch (err) {

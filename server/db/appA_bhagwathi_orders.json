@@ -1,0 +1,764 @@
+[
+  {
+    "poNumber": "TC-3411",
+    "originalOrderId": "TC-3411",
+    "date": "3-Nov-2026",
+    "status": "Awaiting Settlement",
+    "buyerName": "PRINCE TRADING CO & 1 other",
+    "productName": "MADURAM",
+    "totalQuantity": 31.2,
+    "rate": 12000,
+    "destination": "Multiple Destinations",
+    "notes": "Imported from App A deployed order TC-3411. Supplier: Bhagwati Rice and Agro Industries",
+    "subOrderNo": null,
+    "billNo": null,
+    "subOrders": [
+      {
+        "subOrderNo": "N/A",
+        "buyerName": "PRINCE TRADING CO",
+        "productName": "MADURAM",
+        "orderedQuantity": 18.2,
+        "rate": 12000,
+        "amount": 218400,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "N/A",
+        "buyerName": "MASTER TRADING CO",
+        "productName": "MADURAM",
+        "orderedQuantity": 13,
+        "rate": 12000,
+        "amount": 156000,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      }
+    ]
+  },
+  {
+    "poNumber": "TC-5693",
+    "originalOrderId": "TC-5693",
+    "date": "3-Nov-2026",
+    "status": "Approved",
+    "buyerName": "MUDIT AGRO FOODS & 4 others",
+    "productName": "KESHAR KALI",
+    "totalQuantity": 187,
+    "rate": 10700,
+    "destination": "Multiple Destinations",
+    "notes": "Imported from App A deployed order TC-5693. Supplier: Bhagwati Rice and Agro Industries",
+    "subOrderNo": "BRI-0003, BRI-0004, BRI-0005, BRI-0006, BRI-0007",
+    "billNo": null,
+    "subOrders": [
+      {
+        "subOrderNo": "BRI-0003",
+        "buyerName": "MUDIT AGRO FOODS",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 18,
+        "rate": 10700,
+        "amount": 192600,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0004",
+        "buyerName": "P.V.N ENTERPRISES",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 36,
+        "rate": 10700,
+        "amount": 385200,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0005",
+        "buyerName": "NICE RICE TRADERS",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 36,
+        "rate": 10700,
+        "amount": 385200,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0006",
+        "buyerName": "S.R TRADERS",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 37,
+        "rate": 10700,
+        "amount": 395900,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0007",
+        "buyerName": "SLNM TRADING CO",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 60,
+        "rate": 10700,
+        "amount": 642000,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      }
+    ]
+  },
+  {
+    "poNumber": "TC-5SBJFW",
+    "originalOrderId": "TC-5SBJFW",
+    "date": "13-Nov-2026",
+    "status": "Awaiting Settlement",
+    "buyerName": "HIRA TRADER",
+    "productName": "MADURAM",
+    "totalQuantity": 52,
+    "rate": 12000,
+    "destination": "Multiple Destinations",
+    "notes": "Imported from App A deployed order TC-5SBJFW. Supplier: Bhagwati Rice and Agro Industries",
+    "subOrderNo": "BRI-0043",
+    "billNo": null,
+    "subOrders": [
+      {
+        "subOrderNo": "BRI-0043",
+        "buyerName": "HIRA TRADER",
+        "productName": "MADURAM",
+        "orderedQuantity": 52,
+        "rate": 12000,
+        "amount": 624000,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      }
+    ]
+  },
+  {
+    "poNumber": "TC-5YY7U6",
+    "originalOrderId": "TC-5YY7U6",
+    "date": "9-Nov-2026",
+    "status": "Awaiting Settlement",
+    "buyerName": "SRI LAKSHMI NARAYANA TRADERS (NT PET)",
+    "productName": "KESHAR KALI",
+    "totalQuantity": 300,
+    "rate": 9999,
+    "destination": "Multiple Destinations",
+    "notes": "Imported from App A deployed order TC-5YY7U6. Supplier: Bhagwati Rice and Agro Industries",
+    "subOrderNo": "BRI-0020",
+    "billNo": null,
+    "subOrders": [
+      {
+        "subOrderNo": "BRI-0020",
+        "buyerName": "SRI LAKSHMI NARAYANA TRADERS (NT PET)",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 300,
+        "rate": 9999,
+        "amount": 2999700,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      }
+    ]
+  },
+  {
+    "poNumber": "TC-7A6A7N",
+    "originalOrderId": "TC-7A6A7N",
+    "date": "9-Nov-2026",
+    "status": "Awaiting Settlement",
+    "buyerName": "RAJA TRADERS & 9 others",
+    "productName": "KESHAR KALI",
+    "totalQuantity": 309,
+    "rate": 9999,
+    "destination": "Multiple Destinations",
+    "notes": "Imported from App A deployed order TC-7A6A7N. Supplier: Bhagwati Rice and Agro Industries",
+    "subOrderNo": "BRI-0026, BRI-0027, BRI-0028, BRI-0029, BRI-0030, BRI-0031, BRI-0032, BRI-0033, BRI-0034, BRI-0035",
+    "billNo": null,
+    "subOrders": [
+      {
+        "subOrderNo": "BRI-0026",
+        "buyerName": "RAJA TRADERS",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 30,
+        "rate": 9999,
+        "amount": 299970,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0027",
+        "buyerName": "SRI SAI RAM TRADERS",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 24,
+        "rate": 9999,
+        "amount": 239976,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0028",
+        "buyerName": "MASTAN DISTRIBUTOR",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 24,
+        "rate": 9999,
+        "amount": 239976,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0029",
+        "buyerName": "SRI LAKSHMI PROVISION STORE",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 30,
+        "rate": 9999,
+        "amount": 299970,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0030",
+        "buyerName": "SIDRA TRADING CO",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 30,
+        "rate": 9999,
+        "amount": 299970,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0031",
+        "buyerName": "RAGHU TRADING CO",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 30,
+        "rate": 9999,
+        "amount": 299970,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0032",
+        "buyerName": "SRI UMASHANKAR TRADERS BANGLORE",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 30,
+        "rate": 9999,
+        "amount": 299970,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0033",
+        "buyerName": "MUDIT AGRO FOODS",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 21,
+        "rate": 9999,
+        "amount": 209979,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0034",
+        "buyerName": "SREE SHIVAKUMAR GENRAL STORE (NT PET)",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 30,
+        "rate": 9999,
+        "amount": 299970,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0035",
+        "buyerName": "HANUMAN TRADING COMPANY",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 60,
+        "rate": 9999,
+        "amount": 599940,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      }
+    ]
+  },
+  {
+    "poNumber": "TC-93NNYQ",
+    "originalOrderId": "TC-93NNYQ",
+    "date": "9-Nov-2026",
+    "status": "Awaiting Settlement",
+    "buyerName": "NIZAMUDDIN ENTERPRISES",
+    "productName": "KESHAR KALI",
+    "totalQuantity": 300,
+    "rate": 9999,
+    "destination": "Multiple Destinations",
+    "notes": "Imported from App A deployed order TC-93NNYQ. Supplier: Bhagwati Rice and Agro Industries",
+    "subOrderNo": "BRI-0021",
+    "billNo": null,
+    "subOrders": [
+      {
+        "subOrderNo": "BRI-0021",
+        "buyerName": "NIZAMUDDIN ENTERPRISES",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 300,
+        "rate": 9999,
+        "amount": 2999700,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      }
+    ]
+  },
+  {
+    "poNumber": "TC-BGDUHB",
+    "originalOrderId": "TC-BGDUHB",
+    "date": "6-Nov-2026",
+    "status": "Awaiting Settlement",
+    "buyerName": "RAGHURAM ENTERPRISES",
+    "productName": "KESHAR KALI",
+    "totalQuantity": 600,
+    "rate": 9949,
+    "destination": "Multiple Destinations",
+    "notes": "Imported from App A deployed order TC-BGDUHB. Supplier: Bhagwati Rice and Agro Industries",
+    "subOrderNo": "BRI-0018",
+    "billNo": null,
+    "subOrders": [
+      {
+        "subOrderNo": "BRI-0018",
+        "buyerName": "RAGHURAM ENTERPRISES",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 600,
+        "rate": 9949,
+        "amount": 5969400,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      }
+    ]
+  },
+  {
+    "poNumber": "TC-CWCZMW",
+    "originalOrderId": "TC-CWCZMW",
+    "date": "9-Nov-2026",
+    "status": "Awaiting Settlement",
+    "buyerName": "SRI VIDYAMARKETING",
+    "productName": "KESHAR KALI",
+    "totalQuantity": 300,
+    "rate": 9999,
+    "destination": "Multiple Destinations",
+    "notes": "Imported from App A deployed order TC-CWCZMW. Supplier: Bhagwati Rice and Agro Industries",
+    "subOrderNo": "BRI-0019",
+    "billNo": null,
+    "subOrders": [
+      {
+        "subOrderNo": "BRI-0019",
+        "buyerName": "SRI VIDYAMARKETING",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 300,
+        "rate": 9999,
+        "amount": 2999700,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      }
+    ]
+  },
+  {
+    "poNumber": "TC-DCPDX8",
+    "originalOrderId": "TC-DCPDX8",
+    "date": "13-Nov-2026",
+    "status": "Awaiting Settlement",
+    "buyerName": "NAVABHARATH TRADERS & 2 others",
+    "productName": "KESHAR KALI",
+    "totalQuantity": 108,
+    "rate": 9999,
+    "destination": "Multiple Destinations",
+    "notes": "Imported from App A deployed order TC-DCPDX8. Supplier: Bhagwati Rice and Agro Industries",
+    "subOrderNo": "BRI-0051, BRI-0052, BRI-0053, BRI-0054",
+    "billNo": null,
+    "subOrders": [
+      {
+        "subOrderNo": "BRI-0051",
+        "buyerName": "NAVABHARATH TRADERS",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 24,
+        "rate": 9999,
+        "amount": 239976,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0052",
+        "buyerName": "SHREYAS ENTERPRISES",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 30,
+        "rate": 9999,
+        "amount": 299970,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0053",
+        "buyerName": "SHREYAS ENTERPRISES",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 30,
+        "rate": 9999,
+        "amount": 299970,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0054",
+        "buyerName": "MOTI TRADERS",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 24,
+        "rate": 9999,
+        "amount": 239976,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      }
+    ]
+  },
+  {
+    "poNumber": "TC-EF7RTC",
+    "originalOrderId": "TC-EF7RTC",
+    "date": "4-Nov-2026",
+    "status": "Awaiting Settlement",
+    "buyerName": "MOOKAMBIKA TRADING CO",
+    "productName": "KESHAR KALI",
+    "totalQuantity": 300,
+    "rate": 10500,
+    "destination": "Multiple Destinations",
+    "notes": "Imported from App A deployed order TC-EF7RTC. Supplier: Bhagwati Rice and Agro Industries",
+    "subOrderNo": "BRI-0015, BRI-0016",
+    "billNo": null,
+    "subOrders": [
+      {
+        "subOrderNo": "BRI-0015",
+        "buyerName": "MOOKAMBIKA TRADING CO",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 250,
+        "rate": 10500,
+        "amount": 2625000,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0016",
+        "buyerName": "MOOKAMBIKA TRADING CO",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 50,
+        "rate": 10500,
+        "amount": 525000,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      }
+    ]
+  },
+  {
+    "poNumber": "TC-KZRC5W",
+    "originalOrderId": "TC-KZRC5W",
+    "date": "13-Nov-2026",
+    "status": "Awaiting Settlement",
+    "buyerName": "ADAM TRADERS & 2 others",
+    "productName": "KESHAR KALI",
+    "totalQuantity": 120,
+    "rate": 9999,
+    "destination": "Multiple Destinations",
+    "notes": "Imported from App A deployed order TC-KZRC5W. Supplier: Bhagwati Rice and Agro Industries",
+    "subOrderNo": "BRI-0046, BRI-0045, BRI-0044",
+    "billNo": null,
+    "subOrders": [
+      {
+        "subOrderNo": "BRI-0046",
+        "buyerName": "ADAM TRADERS",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 30,
+        "rate": 9999,
+        "amount": 299970,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0045",
+        "buyerName": "GEM ENTERPRISES",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 30,
+        "rate": 9999,
+        "amount": 299970,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0044",
+        "buyerName": "MAQSOOD ENTERPRISES",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 60,
+        "rate": 9999,
+        "amount": 599940,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      }
+    ]
+  },
+  {
+    "poNumber": "TC-NGB8MK",
+    "originalOrderId": "TC-NGB8MK",
+    "date": "13-Nov-2026",
+    "status": "Awaiting Settlement",
+    "buyerName": "PEEKAY TRADING COMPANY & 1 other",
+    "productName": "KESHAR KALI",
+    "totalQuantity": 600,
+    "rate": 9949,
+    "destination": "Multiple Destinations",
+    "notes": "Imported from App A deployed order TC-NGB8MK. Supplier: Bhagwati Rice and Agro Industries",
+    "subOrderNo": "BRI-0049, BRI-0050",
+    "billNo": null,
+    "subOrders": [
+      {
+        "subOrderNo": "BRI-0049",
+        "buyerName": "PEEKAY TRADING COMPANY",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 300,
+        "rate": 9949,
+        "amount": 2984700,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0050",
+        "buyerName": "ESCO WHOLESALE MARKET LLP",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 300,
+        "rate": 9949,
+        "amount": 2984700,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      }
+    ]
+  },
+  {
+    "poNumber": "TC-NRAGEK",
+    "originalOrderId": "TC-NRAGEK",
+    "date": "13-Nov-2026",
+    "status": "Awaiting Settlement",
+    "buyerName": "DHANYALAKSHMI TRADERS & 1 other",
+    "productName": "KESHAR KALI",
+    "totalQuantity": 250,
+    "rate": 9999,
+    "destination": "Multiple Destinations",
+    "notes": "Imported from App A deployed order TC-NRAGEK. Supplier: Bhagwati Rice and Agro Industries",
+    "subOrderNo": "BRI-0047, BRI-0048",
+    "billNo": null,
+    "subOrders": [
+      {
+        "subOrderNo": "BRI-0047",
+        "buyerName": "DHANYALAKSHMI TRADERS",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 125,
+        "rate": 9999,
+        "amount": 1249875,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0048",
+        "buyerName": "BALAJI ENTERPRISES (KOLAR)",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 125,
+        "rate": 9999,
+        "amount": 1249875,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      }
+    ]
+  },
+  {
+    "poNumber": "TC-RMT8NT",
+    "originalOrderId": "TC-RMT8NT",
+    "date": "11-Nov-2026",
+    "status": "Awaiting Settlement",
+    "buyerName": "NAAMMS TRADERS",
+    "productName": "KESHAR KALI",
+    "totalQuantity": 300,
+    "rate": 10000,
+    "destination": "Multiple Destinations",
+    "notes": "Imported from App A deployed order TC-RMT8NT. Supplier: Bhagwati Rice and Agro Industries",
+    "subOrderNo": "BRI-0042",
+    "billNo": null,
+    "subOrders": [
+      {
+        "subOrderNo": "BRI-0042",
+        "buyerName": "NAAMMS TRADERS",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 300,
+        "rate": 10000,
+        "amount": 3000000,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      }
+    ]
+  },
+  {
+    "poNumber": "TC-WQCJR9",
+    "originalOrderId": "TC-WQCJR9",
+    "date": "9-Nov-2026",
+    "status": "Awaiting Settlement",
+    "buyerName": "T P L ENTERPRISES & 3 others",
+    "productName": "KESHAR KALI",
+    "totalQuantity": 360,
+    "rate": 9999,
+    "destination": "Multiple Destinations",
+    "notes": "Imported from App A deployed order TC-WQCJR9. Supplier: Bhagwati Rice and Agro Industries",
+    "subOrderNo": "BRI-0025, BRI-0024, BRI-0023, BRI-0022",
+    "billNo": null,
+    "subOrders": [
+      {
+        "subOrderNo": "BRI-0025",
+        "buyerName": "T P L ENTERPRISES",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 70,
+        "rate": 9999,
+        "amount": 699930,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0024",
+        "buyerName": "J.K.V TRADING COMPANY",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 70,
+        "rate": 9999,
+        "amount": 699930,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0023",
+        "buyerName": "SRI RAMA TRADERS",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 70,
+        "rate": 9999,
+        "amount": 699930,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0022",
+        "buyerName": "M.A TRADERS",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 150,
+        "rate": 9999,
+        "amount": 1499850,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      }
+    ]
+  },
+  {
+    "poNumber": "TC-XKKJKZ",
+    "originalOrderId": "TC-XKKJKZ",
+    "date": "9-Nov-2026",
+    "status": "Awaiting Settlement",
+    "buyerName": "IDEAL & CO & 3 others",
+    "productName": "KESHAR KALI",
+    "totalQuantity": 273,
+    "rate": 9999,
+    "destination": "Multiple Destinations",
+    "notes": "Imported from App A deployed order TC-XKKJKZ. Supplier: Bhagwati Rice and Agro Industries",
+    "subOrderNo": "BRI-0040, BRI-0039, BRI-0038, BRI-0037, BRI-0036, BRI-0041",
+    "billNo": null,
+    "subOrders": [
+      {
+        "subOrderNo": "BRI-0040",
+        "buyerName": "IDEAL & CO",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 45,
+        "rate": 9999,
+        "amount": 449955,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0039",
+        "buyerName": "IDEAL & CO",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 45,
+        "rate": 9999,
+        "amount": 449955,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0038",
+        "buyerName": "IDEAL & CO",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 45,
+        "rate": 9999,
+        "amount": 449955,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0037",
+        "buyerName": "Sri Channappa Setty Traders",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 18,
+        "rate": 9999,
+        "amount": 179982,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0036",
+        "buyerName": "AMAR TRADERS",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 60,
+        "rate": 9999,
+        "amount": 599940,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      },
+      {
+        "subOrderNo": "BRI-0041",
+        "buyerName": "KAVERI TRADERS",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 60,
+        "rate": 9999,
+        "amount": 599940,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      }
+    ]
+  }
+]

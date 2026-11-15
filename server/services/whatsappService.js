@@ -37,6 +37,7 @@ async function sendDispatchNotification(dispatchId, externalDb = null) {
             d.dispatch_date,
             d.dispatch_quantity,
             d.vehicle_number,
+            d.driver_phone,
             po.id as po_id,
             po.po_number,
             po.ordered_quantity,
@@ -84,11 +85,12 @@ async function sendDispatchNotification(dispatchId, externalDb = null) {
     const greetingName = dispatch.contact_person || dispatch.customer_name;
     const isCompleted = remainingQty === 0;
 
-    // Compose template conforming to Part 10 requirements
-    let messageBody = `Hello ${greetingName},\n\nYour order has been dispatched.\n\nOrder: ${dispatch.po_number}\nProduct: ${dispatch.product_name}\nVehicle: ${dispatch.vehicle_number}\nQuantity Dispatched: ${dispatch.dispatch_quantity} ${dispatch.product_unit}\nTotal Dispatched: ${totalDispatched} ${dispatch.product_unit}\nRemaining Quantity: ${remainingQty} ${dispatch.product_unit}`;
+    // Compose template: Order number and Total Dispatches removed; Driver Phone added
+    const driverPhone = dispatch.driver_phone || 'N/A';
+    let messageBody = `Hello ${greetingName},\n\nYour order has been dispatched.\n\nProduct: ${dispatch.product_name}\nVehicle: ${dispatch.vehicle_number}\nDriver Phone: ${driverPhone}\nQuantity Dispatched: ${dispatch.dispatch_quantity} ${dispatch.product_unit}\nRemaining Quantity: ${remainingQty} ${dispatch.product_unit}`;
 
     if (isCompleted) {
-        messageBody += `\n\nYour order ${dispatch.po_number} is now 100% fulfilled!`;
+        messageBody += `\n\nYour order is now 100% fulfilled!`;
     }
 
     messageBody += `\n\nThank you for your business.\nKeshar Kali — Precision in Every Grain`;

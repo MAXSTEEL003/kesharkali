@@ -10,24 +10,28 @@ router.get('/', (req, res) => {
         const customers = query(`
             SELECT 
                 c.*,
-                COALESCE(po_stats.total_orders, 0) as total_orders,
-                COALESCE(po_stats.total_ordered_qtl, 0) as total_ordered_qtl,
+                COALESCE(sub_stats.total_orders, 0) as total_orders,
+                COALESCE(sub_stats.total_sub_orders, 0) as total_sub_orders,
+                COALESCE(sub_stats.total_ordered_qtl, 0) as total_ordered_qtl,
+                COALESCE(sub_stats.total_loaded_qtl, 0) as total_loaded_qtl,
                 COALESCE(dsp_stats.total_dispatched_qtl, 0) as total_dispatched_qtl,
-                MAX(0, COALESCE(po_stats.total_ordered_qtl, 0) - COALESCE(dsp_stats.total_dispatched_qtl, 0)) as pending_qtl
+                MAX(0, COALESCE(sub_stats.total_ordered_qtl, 0) - COALESCE(sub_stats.total_loaded_qtl, 0)) as pending_qtl
             FROM customers c
             LEFT JOIN (
                 SELECT 
-                    customer_id,
-                    COUNT(id) as total_orders,
-                    SUM(ordered_quantity) as total_ordered_qtl
-                FROM purchase_orders
-                WHERE status != 'Cancelled'
-                GROUP BY customer_id
-            ) po_stats ON c.id = po_stats.customer_id
+                    COALESCE(pso.customer_id, cust_match.id) as resolved_customer_id,
+                    COUNT(DISTINCT pso.po_id) as total_orders,
+                    COUNT(pso.id) as total_sub_orders,
+                    ROUND(SUM(pso.ordered_quantity), 2) as total_ordered_qtl,
+                    ROUND(SUM(COALESCE(pso.loaded_quantity, 0)), 2) as total_loaded_qtl
+                FROM po_sub_orders pso
+                LEFT JOIN customers cust_match ON pso.buyer_name = cust_match.name
+                GROUP BY resolved_customer_id
+            ) sub_stats ON c.id = sub_stats.resolved_customer_id
             LEFT JOIN (
                 SELECT 
                     po.customer_id,
-                    SUM(d.dispatch_quantity) as total_dispatched_qtl
+                    ROUND(SUM(d.dispatch_quantity), 2) as total_dispatched_qtl
                 FROM dispatches d
                 JOIN purchase_orders po ON d.po_id = po.id
                 GROUP BY po.customer_id
@@ -49,9 +53,24 @@ router.get('/:id', (req, res) => {
             return res.status(404).json({ error: 'Customer not found' });
         }
 
+        // Customer's constituent sub-orders across all POs
+        const subOrders = query(`
+            SELECT 
+                pso.*,
+                po.po_number,
+                po.po_date,
+                po.customer_selling_rate,
+                po.status as master_po_status,
+                MAX(0, pso.ordered_quantity - COALESCE(pso.loaded_quantity, 0)) as remaining_quantity
+            FROM po_sub_orders pso
+            JOIN purchase_orders po ON pso.po_id = po.id
+            WHERE pso.customer_id = ? OR pso.buyer_name = ?
+            ORDER BY po.po_date DESC, pso.sub_order_no ASC
+        `, [customer.id, customer.name]);
+
         // Customer's PO history
         const purchaseOrders = query(`
-            SELECT 
+            SELECT DISTINCT
                 po.id,
                 po.po_number,
                 po.po_date,
@@ -66,10 +85,11 @@ router.get('/:id', (req, res) => {
             FROM purchase_orders po
             JOIN products p ON po.product_id = p.id
             LEFT JOIN dispatches d ON po.id = d.po_id
-            WHERE po.customer_id = ?
+            LEFT JOIN po_sub_orders pso ON po.id = pso.po_id
+            WHERE po.customer_id = ? OR pso.customer_id = ? OR pso.buyer_name = ?
             GROUP BY po.id
             ORDER BY po.po_date DESC
-        `, [customer.id]);
+        `, [customer.id, customer.id, customer.name]);
 
         // Customer's dispatch history (Strictly no industry names)
         const dispatches = query(`
@@ -85,12 +105,14 @@ router.get('/:id', (req, res) => {
             FROM dispatches d
             JOIN purchase_orders po ON d.po_id = po.id
             JOIN products p ON po.product_id = p.id
-            WHERE po.customer_id = ?
+            LEFT JOIN po_sub_orders pso ON po.id = pso.po_id
+            WHERE po.customer_id = ? OR pso.customer_id = ? OR pso.buyer_name = ?
             ORDER BY d.dispatch_date DESC
-        `, [customer.id]);
+        `, [customer.id, customer.id, customer.name]);
 
         res.json({
             customer,
+            subOrders,
             purchaseOrders,
             dispatches
         });

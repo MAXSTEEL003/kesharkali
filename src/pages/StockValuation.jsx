@@ -64,7 +64,6 @@ export default function StockValuation() {
                 <th className="text-left">Brand</th>
                 <th className="text-left">Variety</th>
                 <th className="text-right">Physical Balance</th>
-                <th className="text-right">Reserved Stock</th>
                 <th className="text-right">Available Stock</th>
                 <th className="text-right">Weighted Avg Purchase Rate</th>
                 <th className="text-right bg-[#700f0f]">Total Stock Valuation (₹)</th>
@@ -79,7 +78,6 @@ export default function StockValuation() {
                   <td>{p.brand}</td>
                   <td className="text-xs text-gray-500">{p.variety}</td>
                   <td className="text-right font-mono font-bold text-[#8F1717]">{p.physicalStock}</td>
-                  <td className="text-right font-mono text-amber-700">{p.reservedStock}</td>
                   <td className="text-right font-mono font-bold text-emerald-700">{p.availableStock}</td>
                   <td className="text-right font-mono font-semibold">₹{p.avgPurchaseRate.toFixed(2)}</td>
                   <td className="text-right font-mono font-bold text-emerald-800 bg-amber-50/30">

@@ -35,7 +35,7 @@ router.get('/', (req, res) => {
                 GROUP BY industry_id
             ) load_stats ON i.id = load_stats.industry_id
             WHERE i.active = 1
-            ORDER BY i.name ASC
+            ORDER BY i.is_default DESC, i.name ASC
         `);
         res.json({ industries });
     } catch (err) {
@@ -90,18 +90,47 @@ router.get('/:id', (req, res) => {
     }
 });
 
-// Create Industry
+// Create Industry / Mill / Godown
 router.post('/', (req, res) => {
     try {
-        const { name, location, contact_person, phone, available_products, default_purchase_rate, notes } = req.body;
+        const {
+            name,
+            location,
+            contact_person,
+            phone,
+            available_products,
+            default_purchase_rate,
+            notes,
+            is_default,
+            capacity_qtl,
+            facility_type
+        } = req.body;
         if (!name || !location) {
             return res.status(400).json({ error: 'Name and location are required' });
         }
 
+        const isDef = is_default ? 1 : 0;
+        if (isDef === 1) {
+            run('UPDATE industries SET is_default = 0');
+        }
+
         const stmt = run(`
-            INSERT INTO industries (name, location, contact_person, phone, available_products, default_purchase_rate, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        `, [name, location, contact_person || '', phone || '', available_products || '', default_purchase_rate || 0, notes || '']);
+            INSERT INTO industries (
+                name, location, contact_person, phone, available_products,
+                default_purchase_rate, notes, is_default, capacity_qtl, facility_type
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+            name,
+            location,
+            contact_person || '',
+            phone || '',
+            available_products || '',
+            Number(default_purchase_rate) || 0,
+            notes || '',
+            isDef,
+            Number(capacity_qtl) || 15000,
+            facility_type || 'Rice Mill & Godown'
+        ]);
 
         logAction('Industry', stmt.lastInsertRowid, 'CREATE', req.user?.username || 'Staff', { name, location });
         res.status(201).json({ id: stmt.lastInsertRowid, message: 'Industry created successfully' });
@@ -110,18 +139,77 @@ router.post('/', (req, res) => {
     }
 });
 
-// Update Industry
+// Update Industry / Mill / Godown
 router.put('/:id', (req, res) => {
     try {
-        const { name, location, contact_person, phone, available_products, default_purchase_rate, notes, active } = req.body;
+        const {
+            name,
+            location,
+            contact_person,
+            phone,
+            available_products,
+            default_purchase_rate,
+            notes,
+            active,
+            is_default,
+            capacity_qtl,
+            facility_type
+        } = req.body;
+
+        const isDef = is_default ? 1 : 0;
+        if (isDef === 1) {
+            run('UPDATE industries SET is_default = 0 WHERE id != ?', [req.params.id]);
+        }
+
         run(`
             UPDATE industries
-            SET name = ?, location = ?, contact_person = ?, phone = ?, available_products = ?, default_purchase_rate = ?, notes = ?, active = COALESCE(?, active), updated_at = CURRENT_TIMESTAMP
+            SET name = ?,
+                location = ?,
+                contact_person = ?,
+                phone = ?,
+                available_products = ?,
+                default_purchase_rate = ?,
+                notes = ?,
+                is_default = COALESCE(?, is_default),
+                capacity_qtl = COALESCE(?, capacity_qtl),
+                facility_type = COALESCE(?, facility_type),
+                active = COALESCE(?, active),
+                updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
-        `, [name, location, contact_person, phone, available_products, default_purchase_rate, notes, active, req.params.id]);
+        `, [
+            name,
+            location,
+            contact_person,
+            phone,
+            available_products,
+            Number(default_purchase_rate) || 0,
+            notes,
+            is_default !== undefined ? isDef : null,
+            capacity_qtl !== undefined ? Number(capacity_qtl) : null,
+            facility_type || null,
+            active,
+            req.params.id
+        ]);
 
         logAction('Industry', req.params.id, 'UPDATE', req.user?.username || 'Staff', req.body);
         res.json({ message: 'Industry updated successfully' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Set Preferred Default Industry
+router.post('/:id/set-default', (req, res) => {
+    try {
+        const { id } = req.params;
+        const ind = get('SELECT id, name FROM industries WHERE id = ?', [id]);
+        if (!ind) return res.status(404).json({ error: 'Industry not found' });
+
+        run('UPDATE industries SET is_default = 0');
+        run('UPDATE industries SET is_default = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [id]);
+
+        logAction('Industry', id, 'SET_DEFAULT', req.user?.username || 'Staff', { name: ind.name });
+        res.json({ success: true, message: `${ind.name} set as preferred default industry.` });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

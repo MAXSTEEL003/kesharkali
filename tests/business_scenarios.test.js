@@ -129,14 +129,12 @@ async function runTests() {
     assert.strictEqual(getPhysicalStock(1), 600, 'Physical stock must equal 600 QTL');
     console.log(` PASSED: Stock inward & replenishment verified. Running balance: 600 QTL\n`);
 
-    // Scenario 9 & 10: Stock Reservation & Available Stock
-    console.log('Test 9 & 10: Stock Reservation Formula: Available = Physical - Reserved');
-    const resResult = reserveStock(poId, 1, 1, 100);
-    assert.strictEqual(resResult.reservedQuantity, 100, 'Reserved 100 QTL for PO');
-    assert.strictEqual(getPhysicalStock(1), 600, 'CRITICAL: Stock reservation must NOT reduce physical stock! Physical remains 600 QTL');
-    assert.strictEqual(getReservedStock(1), 100, 'Reserved stock is 100 QTL');
-    assert.strictEqual(getAvailableStock(1), 500, 'Available stock = 600 - 100 = 500 QTL');
-    console.log(` PASSED: Reservation created. Physical: 600 QTL, Reserved: 100 QTL, Available: 500 QTL\n`);
+    // Scenario 9 & 10: Available Stock & Physical Inventory (Direct 1:1 tracking without reservations)
+    console.log('Test 9 & 10: Inventory Tracking: Available Stock equals Physical Stock');
+    assert.strictEqual(getPhysicalStock(1), 600, 'Physical remains 600 QTL');
+    assert.strictEqual(getReservedStock(1), 0, 'Reserved stock is 0 QTL (Reservation system decommissioned)');
+    assert.strictEqual(getAvailableStock(1), 600, 'Available stock = Physical stock = 600 QTL');
+    console.log(` PASSED: Direct inventory verified. Physical: 600 QTL, Available: 600 QTL\n`);
 
     // Scenario 5, 6, 11 & 12: Warehouse vs Direct Sourcing Loading & Dispatches
     console.log('Test 3, 5, 6, 11 & 12: Loading entries (Warehouse vs Direct) and Partial Dispatches');
@@ -195,8 +193,8 @@ async function runTests() {
     // Dispatch 1: Partial dispatch from Industry A (20 QTL out of 40 QTL) from Warehouse
     console.log('Test 4, 5 & 11: Partial dispatch from Warehouse (20 QTL) & Warehouse stock deduction');
     const dsp1 = run(`
-        INSERT INTO dispatches (dispatch_number, loading_id, po_id, dispatch_date, dispatch_quantity, vehicle_number, source_type, warehouse_id)
-        VALUES ('DSP-TEST-001', ?, ?, '2026-11-07', 20, 'MH-31-AA-1111', 'Warehouse', 1)
+        INSERT INTO dispatches (dispatch_number, loading_id, po_id, dispatch_date, dispatch_quantity, vehicle_number, driver_phone, source_type, warehouse_id)
+        VALUES ('DSP-TEST-001', ?, ?, '2026-11-07', 20, 'MH-31-AA-1111', '+91 98765 43210', 'Warehouse', 1)
     `, [loadA.lastInsertRowid, poId]);
     
     // Deduct physical stock & release matching reservation
@@ -211,12 +209,10 @@ async function runTests() {
         rate: 2850,
         remarks: 'Customer dispatch DSP-TEST-001'
     });
-    releaseReservation(poId, 1, 20);
 
     assert.strictEqual(getPhysicalStock(1), 645, 'Physical stock deducted by 20 QTL (665 - 20 = 645 QTL)');
-    assert.strictEqual(getReservedStock(1), 80, 'Reserved stock reduced by 20 QTL (100 - 20 = 80 QTL)');
-    assert.strictEqual(getAvailableStock(1), 565, 'Available stock = 645 - 80 = 565 QTL');
-    console.log(` PASSED: Partial dispatch 1 completed. Physical: 645 QTL, Reserved: 80 QTL\n`);
+    assert.strictEqual(getAvailableStock(1), 645, 'Available stock = 645 QTL');
+    console.log(` PASSED: Partial dispatch 1 completed. Physical: 645 QTL, Available: 645 QTL\n`);
 
     // Dispatch 2: Remaining 20 QTL from Industry A from Warehouse
     const dsp2 = run(`
@@ -279,6 +275,10 @@ async function runTests() {
     assert.strictEqual(waResult.status, 'Delivered', 'Notification generated and delivered');
     assert.strictEqual(waResult.messageBody.includes('ABC Traders') || waResult.messageBody.includes('Anand Agrawal'), true, 'Customer name included');
     assert.strictEqual(waResult.messageBody.includes('Keshar Kali'), true, 'Product name included');
+    assert.strictEqual(waResult.messageBody.includes('Vehicle: MH-31-AA-1111'), true, 'Vehicle number included');
+    assert.strictEqual(waResult.messageBody.includes('Driver Phone: +91 98765 43210'), true, 'Driver Phone included');
+    assert.strictEqual(waResult.messageBody.includes('Order:'), false, 'CONFIDENTIAL/CLEAN: Order number must NOT be in notification');
+    assert.strictEqual(waResult.messageBody.includes('Total Dispatched:'), false, 'Total Dispatched must NOT be in notification');
     
     // Privacy assertions: Must NEVER contain internal industry names or purchase rates
     assert.strictEqual(waResult.messageBody.includes('Industry A'), false, 'CONFIDENTIAL: Industry A must NEVER be mentioned');

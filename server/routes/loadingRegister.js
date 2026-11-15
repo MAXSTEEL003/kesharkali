@@ -5,6 +5,7 @@ const { query, get, run, transaction } = require('../db');
 const { recordInward } = require('../services/stockService');
 const { derivePOStatus } = require('./purchaseOrders');
 const { logAction } = require('../services/auditService');
+const { pushReverseUpdateToOrdersPortal } = require('./integration');
 
 function generateLoadingNumber() {
     const year = new Date().getFullYear();
@@ -45,7 +46,10 @@ router.get('/', (req, res) => {
                 po.customer_selling_rate,
                 po.ordered_quantity as po_ordered_quantity,
                 c.id as customer_id,
-                c.name as customer_name,
+                COALESCE(pso.buyer_name, c.name) as customer_name,
+                pso.buyer_name as sub_buyer_name,
+                pso.ordered_quantity as sub_ordered_quantity,
+                pso.loaded_quantity as sub_loaded_quantity,
                 i.name as industry_name,
                 i.location as industry_location,
                 p.name as product_name,
@@ -59,6 +63,7 @@ router.get('/', (req, res) => {
             JOIN customers c ON po.customer_id = c.id
             JOIN industries i ON le.industry_id = i.id
             JOIN products p ON le.product_id = p.id
+            LEFT JOIN po_sub_orders pso ON (le.sub_order_id = pso.id OR (le.po_id = pso.po_id AND le.sub_order_no = pso.sub_order_no))
             LEFT JOIN warehouses w ON le.warehouse_id = w.id
             LEFT JOIN (
                 SELECT 
@@ -71,6 +76,10 @@ router.get('/', (req, res) => {
         `;
 
         const params = [];
+        if (req.user && req.user.role === 'Supplier' && req.user.supplierId) {
+            sql += ' AND le.industry_id = ?';
+            params.push(req.user.supplierId);
+        }
         if (startDate) {
             sql += ' AND le.loading_date >= ?';
             params.push(startDate);
@@ -178,6 +187,8 @@ router.post('/', (req, res) => {
     try {
         const {
             po_id,
+            sub_order_no,
+            sub_order_id,
             allocation_id,
             industry_id,
             product_id,
@@ -186,6 +197,7 @@ router.post('/', (req, res) => {
             warehouse_id,
             loading_location,
             vehicle_number,
+            driver_phone,
             loading_quantity,
             purchase_rate,
             remarks
@@ -204,6 +216,37 @@ router.post('/', (req, res) => {
 
         const prodId = product_id || po.product_id;
         const loadQty = Number(loading_quantity);
+
+        // Find constituent sub-order if specified
+        let subOrder = null;
+        if (sub_order_id) {
+            subOrder = get('SELECT * FROM po_sub_orders WHERE id = ?', [sub_order_id]);
+        } else if (sub_order_no) {
+            subOrder = get('SELECT * FROM po_sub_orders WHERE po_id = ? AND sub_order_no = ?', [po_id, sub_order_no]);
+        }
+
+        // Sub-order overload check: prevent loading more than the sub-order ordered quantity
+        if (subOrder) {
+            const subAlreadyLoaded = Number(subOrder.loaded_quantity || 0);
+            const subOrderedQty = Number(subOrder.ordered_quantity || 0);
+            if (subAlreadyLoaded + loadQty > subOrderedQty && (!req.user || req.user.role !== 'Admin')) {
+                return res.status(400).json({
+                    error: `Overloading not permitted: Sub-Order ${subOrder.sub_order_no} (${subOrder.buyer_name}) has ordered ${subOrderedQty} QTL. Already loaded: ${subAlreadyLoaded} QTL. Adding ${loadQty} QTL exceeds sub-order quantity by ${(subAlreadyLoaded + loadQty - subOrderedQty).toFixed(2)} QTL.`
+                });
+            }
+        }
+
+        // Overload prevention check: prevent loading quantity exceeding PO ordered quantity
+        const existingLoadedRow = get("SELECT COALESCE(SUM(loading_quantity), 0) as total FROM loading_entries WHERE po_id = ? AND loading_status != 'Cancelled'", [po_id]);
+        const currentlyLoaded = Number(existingLoadedRow?.total || 0);
+        const orderQty = Number(po.ordered_quantity);
+
+        if (currentlyLoaded + loadQty > orderQty && (!req.user || req.user.role !== 'Admin')) {
+            return res.status(400).json({
+                error: `Overloading not permitted: Order quantity is ${orderQty} QTL. Current loaded is ${currentlyLoaded} QTL. Adding ${loadQty} QTL exceeds total by ${(currentlyLoaded + loadQty - orderQty)} QTL. Admin approval required.`
+            });
+        }
+
         const rate = Number(purchase_rate);
         const amount = Number((loadQty * rate).toFixed(2));
         const loadingNumber = generateLoadingNumber();
@@ -214,18 +257,20 @@ router.post('/', (req, res) => {
         transaction((db) => {
             const stmt = db.prepare(`
                 INSERT INTO loading_entries (
-                    loading_number, loading_date, po_id, allocation_id,
+                    loading_number, loading_date, po_id, sub_order_no, sub_order_id, allocation_id,
                     industry_id, product_id, fulfillment_type, warehouse_id,
-                    loading_location, vehicle_number, loading_quantity,
+                    loading_location, vehicle_number, driver_phone, loading_quantity,
                     purchase_rate, loading_amount, loading_status, dispatch_status,
                     remarks, created_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Loaded', 'Pending', ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Loaded', 'Pending', ?, ?)
             `);
 
             const result = stmt.run(
                 loadingNumber,
                 date,
                 po_id,
+                subOrder?.sub_order_no || sub_order_no || null,
+                subOrder?.id || sub_order_id || null,
                 allocation_id || null,
                 industry_id,
                 prodId,
@@ -233,6 +278,7 @@ router.post('/', (req, res) => {
                 fulfillment_type === 'Warehouse' ? warehouse_id : null,
                 loading_location || '',
                 vehicle_number.toUpperCase().trim(),
+                driver_phone || null,
                 loadQty,
                 rate,
                 amount,
@@ -240,6 +286,29 @@ router.post('/', (req, res) => {
                 req.user?.fullName || 'Staff'
             );
             newLoadingId = result.lastInsertRowid;
+
+            // Update sub-order loaded quantity and status
+            if (subOrder) {
+                const newSubLoaded = Number(subOrder.loaded_quantity || 0) + loadQty;
+                const newSubStatus = newSubLoaded >= Number(subOrder.ordered_quantity) ? 'Loaded' : 'Partially Loaded';
+                db.prepare('UPDATE po_sub_orders SET loaded_quantity = ?, status = ? WHERE id = ?').run(newSubLoaded, newSubStatus, subOrder.id);
+
+                // Update sub_orders_json on purchase_orders
+                const currentPO = db.prepare('SELECT sub_orders_json FROM purchase_orders WHERE id = ?').get(po_id);
+                if (currentPO?.sub_orders_json) {
+                    try {
+                        const subs = JSON.parse(currentPO.sub_orders_json);
+                        for (const s of subs) {
+                            if ((s.subOrderNo && s.subOrderNo === subOrder.sub_order_no) || (s.sub_order_no && s.sub_order_no === subOrder.sub_order_no)) {
+                                s.loaded_quantity = newSubLoaded;
+                                s.loadedQuantity = newSubLoaded;
+                                s.status = newSubStatus;
+                            }
+                        }
+                        db.prepare('UPDATE purchase_orders SET sub_orders_json = ? WHERE id = ?').run(JSON.stringify(subs), po_id);
+                    } catch (_) {}
+                }
+            }
 
             // Scenario 1: Industry sends rice to supplier's warehouse
             if (fulfillment_type === 'Warehouse') {
@@ -273,7 +342,45 @@ router.post('/', (req, res) => {
             // Update derived PO status
             const newStatus = derivePOStatus(po_id);
             db.prepare('UPDATE purchase_orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(newStatus, po_id);
+
+            // Record in PO Ledger
+            db.prepare(`
+                INSERT INTO po_ledger (po_id, po_number, event_type, title, description, actor, metadata)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            `).run(
+                po.id,
+                po.po_number,
+                'LOADING_ENTRY',
+                `Loading Recorded (${loadingNumber})`,
+                `Vehicle ${vehicle_number.toUpperCase().trim()} loaded with ${loadQty} QTL. Location: ${loading_location || 'Mill'}.`,
+                req.user?.fullName || 'Supplier Staff',
+                JSON.stringify({ loadingId: newLoadingId, vehicleNumber: vehicle_number, quantity: loadQty })
+            );
         });
+
+        // Push reverse update to Orders Webapp (App A)
+        if (po.original_order_id) {
+            pushReverseUpdateToOrdersPortal({
+                orderId: po.original_order_id,
+                poNumber: po.po_number,
+                eventType: 'LOADING_ADDED',
+                eventPayload: {
+                    loadingId: `load_${newLoadingId}`,
+                    poNumber: po.po_number,
+                    loadingDate: date,
+                    loadingLocation: loading_location || '',
+                    product: prodId,
+                    plannedQuantity: orderQty,
+                    actualLoadedQuantity: loadQty,
+                    remainingQuantity: Math.max(0, orderQty - (currentlyLoaded + loadQty)),
+                    vehicleNumber: vehicle_number.toUpperCase().trim(),
+                    driverPhone: driver_phone,
+                    loadingStatus: 'Loaded',
+                    remarks
+                },
+                actor: req.user?.fullName || 'Supplier Staff'
+            }).catch(() => {});
+        }
 
         logAction('LoadingEntry', newLoadingId, 'CREATE', req.user?.username || 'Staff', { loadingNumber, loadQty, vehicle_number, fulfillment_type });
 
@@ -292,6 +399,7 @@ router.put('/:id', (req, res) => {
     try {
         const {
             vehicle_number,
+            driver_phone,
             loading_location,
             remarks,
             loading_status
@@ -300,12 +408,13 @@ router.put('/:id', (req, res) => {
         run(`
             UPDATE loading_entries
             SET vehicle_number = COALESCE(?, vehicle_number),
+                driver_phone = COALESCE(?, driver_phone),
                 loading_location = COALESCE(?, loading_location),
                 remarks = COALESCE(?, remarks),
                 loading_status = COALESCE(?, loading_status),
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
-        `, [vehicle_number ? vehicle_number.toUpperCase().trim() : null, loading_location, remarks, loading_status, req.params.id]);
+        `, [vehicle_number ? vehicle_number.toUpperCase().trim() : null, driver_phone, loading_location, remarks, loading_status, req.params.id]);
 
         logAction('LoadingEntry', req.params.id, 'UPDATE_CELL', req.user?.username || 'Staff', req.body);
         res.json({ message: 'Loading entry updated successfully' });
@@ -394,6 +503,31 @@ router.delete('/:id', (req, res) => {
             }
 
             db.prepare('DELETE FROM loading_entries WHERE id = ?').run(loading.id);
+
+            // Revert sub-order loaded quantity if this loading was tied to a sub-order
+            if (loading.sub_order_id || loading.sub_order_no) {
+                const subToRevert = db.prepare('SELECT * FROM po_sub_orders WHERE id = ? OR (po_id = ? AND sub_order_no = ?)').get(loading.sub_order_id || 0, loading.po_id, loading.sub_order_no || '');
+                if (subToRevert) {
+                    const revertedQty = Math.max(0, Number(subToRevert.loaded_quantity || 0) - Number(loading.loading_quantity));
+                    const revertedStatus = revertedQty >= Number(subToRevert.ordered_quantity) ? 'Loaded' : (revertedQty > 0 ? 'Partially Loaded' : 'Approved');
+                    db.prepare('UPDATE po_sub_orders SET loaded_quantity = ?, status = ? WHERE id = ?').run(revertedQty, revertedStatus, subToRevert.id);
+
+                    const poRow = db.prepare('SELECT sub_orders_json FROM purchase_orders WHERE id = ?').get(loading.po_id);
+                    if (poRow?.sub_orders_json) {
+                        try {
+                            const subs = JSON.parse(poRow.sub_orders_json);
+                            for (const s of subs) {
+                                if ((s.subOrderNo && s.subOrderNo === subToRevert.sub_order_no) || (s.sub_order_no && s.sub_order_no === subToRevert.sub_order_no)) {
+                                    s.loaded_quantity = revertedQty;
+                                    s.loadedQuantity = revertedQty;
+                                    s.status = revertedStatus;
+                                }
+                            }
+                            db.prepare('UPDATE purchase_orders SET sub_orders_json = ? WHERE id = ?').run(JSON.stringify(subs), loading.po_id);
+                        } catch (_) {}
+                    }
+                }
+            }
 
             // Recalculate derived PO status
             const newStatus = derivePOStatus(loading.po_id);

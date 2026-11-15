@@ -17,7 +17,8 @@ router.get('/logs', (req, res) => {
                 c.contact_person,
                 d.dispatch_number,
                 d.dispatch_quantity,
-                d.vehicle_number
+                d.vehicle_number,
+                d.driver_phone
             FROM whatsapp_notifications wn
             JOIN purchase_orders po ON wn.po_id = po.id
             JOIN customers c ON wn.customer_id = c.id

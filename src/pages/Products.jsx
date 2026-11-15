@@ -93,7 +93,6 @@ export default function Products() {
                 <th className="text-right">Benchmark Selling Rate</th>
                 <th className="text-right">Min Threshold</th>
                 <th className="text-right">Physical Stock</th>
-                <th className="text-right">Reserved Stock</th>
                 <th className="text-right bg-[#700f0f]">Available Stock</th>
                 <th className="text-center">Status</th>
               </tr>
@@ -110,7 +109,6 @@ export default function Products() {
                   <td className="text-right font-mono font-bold">₹{p.standard_selling_rate}</td>
                   <td className="text-right font-mono text-gray-500">{p.min_stock_threshold} QTL</td>
                   <td className="text-right font-mono font-bold text-[#8F1717]">{p.physical_stock}</td>
-                  <td className="text-right font-mono text-amber-700">{p.reserved_stock}</td>
                   <td className="text-right font-mono font-bold text-emerald-700 bg-amber-50/30">
                     {p.available_stock} QTL
                   </td>

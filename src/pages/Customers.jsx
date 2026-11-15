@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Users, Plus, Phone, MessageSquare, Building2, Eye, FileText, CheckCircle2 } from 'lucide-react';
 import Modal from '../components/Modal';
 import { api } from '../api';
+import { formatDateDMY } from '../utils/date';
 
 export default function Customers() {
   const [customers, setCustomers] = useState([]);
@@ -158,10 +159,76 @@ export default function Customers() {
           maxWidth="max-w-4xl"
         >
           <div className="space-y-4 text-xs">
+            {/* Constituent Sub-Orders / Delivery Allocations */}
+            {customerDetails.subOrders && customerDetails.subOrders.length > 0 && (
+              <div className="bg-white p-3.5 rounded-lg border border-[#E8E2DC]">
+                <h4 className="font-bold text-[#8F1717] uppercase tracking-wider mb-2 flex items-center justify-between">
+                  <span>Constituent Sub-Orders & Consignee Allocations</span>
+                  <span className="font-mono text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                    {customerDetails.subOrders.length} Sub-Order{customerDetails.subOrders.length > 1 ? 's' : ''}
+                  </span>
+                </h4>
+                <div className="overflow-x-auto">
+                  <table className="excel-grid">
+                    <thead>
+                      <tr>
+                        <th className="text-left">Sub-Order #</th>
+                        <th className="text-left">Master PO #</th>
+                        <th className="text-center">Date</th>
+                        <th className="text-left">Rice Product</th>
+                        <th className="text-right">Ordered QTL</th>
+                        <th className="text-right">Loaded QTL</th>
+                        <th className="text-right">Remaining QTL</th>
+                        <th className="text-right">Rate (₹/QTL)</th>
+                        <th className="text-right">Order Amount</th>
+                        <th className="text-center">Mill Bill</th>
+                        <th className="text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {customerDetails.subOrders.map(sub => (
+                        <tr key={sub.id}>
+                          <td className="font-mono font-bold text-blue-700 bg-blue-50/40">
+                            {sub.sub_order_no}
+                          </td>
+                          <td className="font-semibold text-[#8F1717] font-mono">{sub.po_number}</td>
+                          <td className="text-center font-mono text-xs">{formatDateDMY(sub.po_date)}</td>
+                          <td>{sub.product_name}</td>
+                          <td className="text-right font-mono font-bold">{Number(sub.ordered_quantity || 0).toFixed(2)}</td>
+                          <td className="text-right font-mono text-indigo-700 font-bold">{Number(sub.loaded_quantity || 0).toFixed(2)}</td>
+                          <td className="text-right font-mono text-amber-700 font-bold">{Number(sub.remaining_quantity || 0).toFixed(2)}</td>
+                          <td className="text-right font-mono">₹{Number(sub.rate || 0).toLocaleString('en-IN')}</td>
+                          <td className="text-right font-mono font-semibold">₹{Number(sub.amount || 0).toLocaleString('en-IN')}</td>
+                          <td className="text-center font-mono">
+                            {sub.bill_no ? (
+                              <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10px] font-bold">
+                                #{sub.bill_no}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400 text-[10px]">Pending Loading</span>
+                            )}
+                          </td>
+                          <td className="text-center">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                              sub.status === 'Loaded' ? 'bg-indigo-100 text-indigo-800' :
+                              sub.status === 'Partially Loaded' ? 'bg-blue-100 text-blue-800' :
+                              'bg-amber-100 text-amber-800'
+                            }`}>
+                              {sub.status || 'Approved'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {/* Purchase Orders by Buyer */}
             <div className="bg-white p-3.5 rounded-lg border border-[#E8E2DC]">
-              <h4 className="font-bold text-[#8F1717] uppercase tracking-wider mb-2 flex items-center justify-between">
-                <span>Contracted Purchase Orders</span>
+              <h4 className="font-bold text-gray-700 uppercase tracking-wider mb-2 flex items-center justify-between">
+                <span>Associated Master Purchase Orders</span>
                 <span className="font-mono">{customerDetails.purchaseOrders.length} Orders</span>
               </h4>
               <div className="overflow-x-auto">
@@ -182,7 +249,7 @@ export default function Customers() {
                     {customerDetails.purchaseOrders.map(po => (
                       <tr key={po.id}>
                         <td className="font-semibold text-[#8F1717]">{po.po_number}</td>
-                        <td className="text-center">{po.po_date}</td>
+                        <td className="text-center font-mono text-xs">{formatDateDMY(po.po_date)}</td>
                         <td>{po.product_name}</td>
                         <td className="text-right font-mono font-bold">{po.ordered_quantity}</td>
                         <td className="text-right font-mono">₹{po.customer_selling_rate}</td>
@@ -223,7 +290,7 @@ export default function Customers() {
                     {customerDetails.dispatches.map(d => (
                       <tr key={d.id}>
                         <td className="font-semibold text-emerald-800">{d.dispatch_number}</td>
-                        <td className="text-center">{d.dispatch_date}</td>
+                        <td className="text-center font-mono text-xs">{formatDateDMY(d.dispatch_date)}</td>
                         <td className="font-semibold">{d.po_number}</td>
                         <td>{d.product_name}</td>
                         <td className="text-right font-mono font-bold text-emerald-700">{d.dispatch_quantity} QTL</td>

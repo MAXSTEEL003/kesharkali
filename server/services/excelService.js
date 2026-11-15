@@ -497,9 +497,9 @@ async function generateStockLedgerExcel(ledgerRows, summaryRows) {
         views: [{ state: 'frozen', ySplit: 2 }]
     });
 
-    wsSummary.mergeCells('A1:H1');
+    wsSummary.mergeCells('A1:G1');
     const sTitle = wsSummary.getCell('A1');
-    sTitle.value = 'KESHAR KALI — INVENTORY POSITION & RESERVATION SUMMARY';
+    sTitle.value = 'KESHAR KALI — INVENTORY POSITION SUMMARY';
     sTitle.font = { name: 'Calibri', size: 14, bold: true, color: { argb: HEADER_FONT_COLOR } };
     sTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF5E1010' } };
     sTitle.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -511,7 +511,6 @@ async function generateStockLedgerExcel(ledgerRows, summaryRows) {
         'Brand Tier',
         'Unit',
         'Physical Balance (QTL)',
-        'Reserved Stock (QTL)',
         'Available Stock (QTL)',
         'Status'
     ];
@@ -523,7 +522,6 @@ async function generateStockLedgerExcel(ledgerRows, summaryRows) {
         { key: 'brand', width: 20 },
         { key: 'unit', width: 10, style: { alignment: { horizontal: 'center' } } },
         { key: 'physicalBalance', width: 22, style: { numFmt: '#,##0.00', font: { bold: true }, alignment: { horizontal: 'right' } } },
-        { key: 'reservedQuantity', width: 22, style: { numFmt: '#,##0.00', alignment: { horizontal: 'right' } } },
         { key: 'availableQuantity', width: 22, style: { numFmt: '#,##0.00', font: { bold: true }, alignment: { horizontal: 'right' } } },
         { key: 'status', width: 16, style: { alignment: { horizontal: 'center' } } }
     ];
@@ -535,13 +533,12 @@ async function generateStockLedgerExcel(ledgerRows, summaryRows) {
             brand: r.brand,
             unit: r.unit,
             physicalBalance: Number(r.physicalBalance) || 0,
-            reservedQuantity: Number(r.reservedQuantity) || 0,
             availableQuantity: Number(r.availableQuantity) || 0,
             status: r.isLowStock ? 'LOW STOCK' : 'NORMAL'
         });
     });
 
-    wsSummary.autoFilter = 'A2:H2';
+    wsSummary.autoFilter = 'A2:G2';
 
     return workbook.xlsx.writeBuffer();
 }

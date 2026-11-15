@@ -60,8 +60,8 @@ router.get('/dashboard', (req, res) => {
 
         res.json({
             totalPhysicalStock: valuation.grandTotalStock,
-            totalReservedStock: summary.reduce((s, r) => s + r.reservedQuantity, 0),
-            totalAvailableStock: summary.reduce((s, r) => s + r.availableQuantity, 0),
+            totalReservedStock: 0,
+            totalAvailableStock: valuation.grandTotalStock,
             stockReceivedThisMonth: Number(monthInwardRow.total),
             stockOutwardThisMonth: Number(monthOutwardRow.total),
             lowStockCount,
@@ -200,36 +200,14 @@ router.post('/outward', (req, res) => {
     }
 });
 
-// Reserve Stock for a Customer PO
+// Reserve Stock (Decommissioned: safe stub)
 router.post('/reserve', (req, res) => {
-    try {
-        const { poId, productId, warehouseId, quantity } = req.body;
-        if (!poId || !productId || !quantity) {
-            return res.status(400).json({ error: 'PO, product, and quantity are required' });
-        }
-
-        const result = reserveStock(Number(poId), Number(productId), warehouseId ? Number(warehouseId) : null, Number(quantity));
-        logAction('StockReservation', result.reservationId, 'RESERVE', req.user?.username || 'Staff', { poId, quantity });
-        res.status(201).json({ success: true, result, message: 'Stock reserved successfully for PO' });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+    res.json({ success: true, message: 'Stock reservation system is decommissioned' });
 });
 
-// Release Reservation
+// Release Reservation (Decommissioned: safe stub)
 router.post('/release-reservation', (req, res) => {
-    try {
-        const { poId, productId, quantity } = req.body;
-        if (!poId || !productId || !quantity) {
-            return res.status(400).json({ error: 'PO, product, and quantity are required' });
-        }
-
-        const result = releaseReservation(Number(poId), Number(productId), Number(quantity));
-        logAction('StockReservation', poId, 'RELEASE', req.user?.username || 'Staff', { quantity });
-        res.json({ success: true, result, message: 'Stock reservation released successfully' });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+    res.json({ success: true, message: 'Stock reservation system is decommissioned' });
 });
 
 // Inter-warehouse Stock Transfer

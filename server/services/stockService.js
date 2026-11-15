@@ -44,32 +44,17 @@ function getPhysicalStock(productId, warehouseId = null) {
 }
 
 /**
- * Get active reserved stock for a product
+ * Get active reserved stock for a product (Decommissioned: always 0)
  */
 function getReservedStock(productId, warehouseId = null) {
-    if (warehouseId) {
-        const row = get(`
-            SELECT COALESCE(SUM(reserved_quantity - released_quantity), 0) as reserved_stock
-            FROM stock_reservations
-            WHERE product_id = ? AND warehouse_id = ? AND status = 'Active'
-        `, [productId, warehouseId]);
-        return formatNumber(row?.reserved_stock || 0);
-    }
-    const row = get(`
-        SELECT COALESCE(SUM(reserved_quantity - released_quantity), 0) as reserved_stock
-        FROM stock_reservations
-        WHERE product_id = ? AND status = 'Active'
-    `, [productId]);
-    return formatNumber(row?.reserved_stock || 0);
+    return 0;
 }
 
 /**
- * Calculate Available Stock = Physical Stock - Reserved Stock
+ * Calculate Available Stock = Physical Stock (Direct 1:1 inventory accounting)
  */
 function getAvailableStock(productId, warehouseId = null) {
-    const physical = getPhysicalStock(productId, warehouseId);
-    const reserved = getReservedStock(productId, warehouseId);
-    return formatNumber(Math.max(0, physical - reserved));
+    return getPhysicalStock(productId, warehouseId);
 }
 
 /**
@@ -189,63 +174,17 @@ function recordOutward(data, externalDb = null) {
 }
 
 /**
- * Reserve stock for a PO without reducing physical stock
+ * Reserve stock for a PO (Decommissioned: no-op safe stub)
  */
 function reserveStock(poId, productId, warehouseId, quantity, externalDb = null) {
-    const execute = (db) => {
-        const available = getAvailableStock(productId, warehouseId);
-        if (available < quantity) {
-            throw new Error(`Cannot reserve ${quantity} QTL. Only ${available} QTL available in stock.`);
-        }
-
-        const stmt = db.prepare(`
-            INSERT INTO stock_reservations (po_id, product_id, warehouse_id, reserved_quantity, released_quantity, status)
-            VALUES (?, ?, ?, ?, 0, 'Active')
-        `);
-        const res = stmt.run(poId, productId, warehouseId, quantity);
-        return { reservationId: res.lastInsertRowid, poId, productId, reservedQuantity: quantity };
-    };
-
-    if (externalDb) {
-        return execute(externalDb);
-    }
-    return transaction(execute);
+    return { reservationId: null, poId, productId, reservedQuantity: 0 };
 }
 
 /**
- * Release / Consume reservation when dispatched
+ * Release / Consume reservation when dispatched (Decommissioned: no-op safe stub)
  */
 function releaseReservation(poId, productId, quantity, externalDb = null) {
-    const execute = (db) => {
-        const reservations = db.prepare(`
-            SELECT * FROM stock_reservations
-            WHERE po_id = ? AND product_id = ? AND status = 'Active'
-            ORDER BY id ASC
-        `).all(poId, productId);
-
-        let qtyToRelease = quantity;
-        for (const res of reservations) {
-            if (qtyToRelease <= 0) break;
-            const remainingReserved = res.reserved_quantity - res.released_quantity;
-            const releaseAmount = Math.min(qtyToRelease, remainingReserved);
-            const newReleased = res.released_quantity + releaseAmount;
-            const newStatus = newReleased >= res.reserved_quantity ? 'Fulfilled' : 'Active';
-
-            db.prepare(`
-                UPDATE stock_reservations
-                SET released_quantity = ?, status = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-            `).run(newReleased, newStatus, res.id);
-
-            qtyToRelease -= releaseAmount;
-        }
-        return { released: quantity - qtyToRelease };
-    };
-
-    if (externalDb) {
-        return execute(externalDb);
-    }
-    return transaction(execute);
+    return { released: 0 };
 }
 
 /**
@@ -401,8 +340,8 @@ function getStockValuation() {
 
     for (const prod of products) {
         const physical = getPhysicalStock(prod.id);
-        const reserved = getReservedStock(prod.id);
-        const available = formatNumber(Math.max(0, physical - reserved));
+        const reserved = 0;
+        const available = physical;
 
         // Calculate weighted average purchase rate from inward purchase transactions
         const inwardStats = get(`
@@ -453,8 +392,8 @@ function getStockSummary() {
     const products = query('SELECT * FROM products WHERE active = 1 ORDER BY name ASC');
     const summary = products.map(prod => {
         const physical = getPhysicalStock(prod.id);
-        const reserved = getReservedStock(prod.id);
-        const available = formatNumber(Math.max(0, physical - reserved));
+        const reserved = 0;
+        const available = physical;
 
         const opening = get(`
             SELECT COALESCE(SUM(inward_quantity), 0) as opening

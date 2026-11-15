@@ -16,6 +16,7 @@ import {
 import ExcelGrid from '../components/ExcelGrid';
 import Modal from '../components/Modal';
 import { api, downloadBlob } from '../api';
+import { formatDateDMY } from '../utils/date';
 
 export default function MasterLoadingRegister({ onOpenQuickAction, quickActionTrigger }) {
   const [loadingEntries, setLoadingEntries] = useState([]);
@@ -45,16 +46,38 @@ export default function MasterLoadingRegister({ onOpenQuickAction, quickActionTr
   useEffect(() => {
     if (quickActionTrigger?.action === 'loading') {
       setIsAddOpen(true);
+      if (quickActionTrigger.poId) {
+        const poId = String(quickActionTrigger.poId);
+        const subNo = quickActionTrigger.subOrderNo || '';
+        const po = purchaseOrders.find(p => String(p.id) === poId);
+        const sub = po?.sub_orders?.find(s => (s.sub_order_no || s.subOrderNo) === subNo);
+        const defaultInd = industries.find(i => i.is_default === 1) || industries[0];
+        const rem = sub 
+          ? Math.max(0, Number(sub.ordered_quantity || sub.orderedQuantity || 0) - Number(sub.loaded_quantity || sub.loadedQuantity || 0))
+          : (po ? Number(po.remaining_quantity || po.ordered_quantity || 0) : '');
+
+        setAddForm(prev => ({
+          ...prev,
+          po_id: poId,
+          sub_order_no: subNo,
+          industry_id: defaultInd ? defaultInd.id : prev.industry_id,
+          loading_quantity: rem ? Number(rem).toFixed(2) : prev.loading_quantity,
+          loading_location: sub?.delivery_location || po?.delivery_location || prev.loading_location,
+          purchase_rate: defaultInd?.default_purchase_rate || po?.customer_selling_rate || prev.purchase_rate
+        }));
+      }
     }
-  }, [quickActionTrigger]);
+  }, [quickActionTrigger, purchaseOrders, industries]);
   const [addForm, setAddForm] = useState({
     po_id: '',
+    sub_order_no: '',
     industry_id: '',
     loading_date: new Date().toISOString().split('T')[0],
-    fulfillment_type: 'Warehouse',
+    fulfillment_type: 'Direct',
     warehouse_id: '',
     loading_location: '',
     vehicle_number: '',
+    driver_phone: '',
     loading_quantity: '',
     purchase_rate: '',
     remarks: ''
@@ -160,6 +183,7 @@ export default function MasterLoadingRegister({ onOpenQuickAction, quickActionTr
         warehouse_id: '',
         loading_location: '',
         vehicle_number: '',
+        driver_phone: '',
         loading_quantity: '',
         purchase_rate: '',
         remarks: ''
@@ -191,9 +215,34 @@ export default function MasterLoadingRegister({ onOpenQuickAction, quickActionTr
   // Define columns for Excel-style Grid
   const columns = [
     { key: 'loading_number', label: 'Loading ID', width: '110px' },
-    { key: 'loading_date', label: 'Date', width: '95px', align: 'center' },
+    { key: 'loading_date', label: 'Date', width: '100px', align: 'center', render: (val) => <span className="font-mono text-xs">{formatDateDMY(val)}</span> },
     { key: 'po_number', label: 'PO #', width: '105px' },
-    { key: 'customer_name', label: 'Buyer / Customer', width: '160px' },
+    { 
+      key: 'sub_order_no', 
+      label: 'Sub-PO #', 
+      width: '105px', 
+      align: 'center',
+      render: (val) => val ? (
+        <span className="font-mono text-[11px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+          {val}
+        </span>
+      ) : (
+        <span className="text-gray-400 text-[10px]">—</span>
+      )
+    },
+    { 
+      key: 'customer_name', 
+      label: 'Buyer / Consignee', 
+      width: '160px',
+      render: (val, row) => (
+        <div>
+          <span className="font-semibold text-gray-900 block">{row.sub_buyer_name || val}</span>
+          {row.sub_order_no && row.sub_buyer_name && row.sub_buyer_name !== val && (
+            <span className="text-[10px] text-gray-500 block">Lead PO: {val}</span>
+          )}
+        </div>
+      )
+    },
     { key: 'product_name', label: 'Rice Product', width: '130px' },
     { key: 'industry_name', label: 'Industry (Rice Mill)', width: '180px' },
     { 
@@ -433,11 +482,16 @@ export default function MasterLoadingRegister({ onOpenQuickAction, quickActionTr
                 onChange={(e) => {
                   const poId = e.target.value;
                   const po = purchaseOrders.find(p => String(p.id) === String(poId));
-                  setAddForm({
-                    ...addForm,
+                  const defaultInd = industries.find(i => i.is_default === 1) || industries[0];
+                  setAddForm(prev => ({
+                    ...prev,
                     po_id: poId,
-                    loading_location: po?.delivery_location || addForm.loading_location
-                  });
+                    sub_order_no: '',
+                    industry_id: prev.industry_id || (defaultInd ? defaultInd.id : ''),
+                    purchase_rate: prev.purchase_rate || (defaultInd?.default_purchase_rate || po?.customer_selling_rate || 2800),
+                    loading_location: po?.delivery_location || prev.loading_location,
+                    loading_quantity: po ? (po.remaining_quantity || po.ordered_quantity || '') : ''
+                  }));
                 }}
                 className="w-full p-2 bg-white border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
               >
@@ -449,6 +503,53 @@ export default function MasterLoadingRegister({ onOpenQuickAction, quickActionTr
                 ))}
               </select>
             </div>
+
+            {/* Sub-Order Selector for Multi-Consignee / Partial Loading */}
+            {(() => {
+              const currentPo = purchaseOrders.find(p => String(p.id) === String(addForm.po_id));
+              const subList = currentPo?.sub_orders || [];
+              if (subList.length === 0) return null;
+              return (
+                <div className="col-span-1 sm:col-span-2 bg-blue-50/70 p-2.5 rounded-lg border border-blue-200">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-semibold text-blue-900">
+                      Select Sub-Order to Load (Supplier Choice)
+                    </label>
+                    <span className="text-[10px] text-blue-700 font-mono">
+                      Partial loading supported (e.g. load 10 QTL now, load remaining after 3 days)
+                    </span>
+                  </div>
+                  <select
+                    value={addForm.sub_order_no}
+                    onChange={(e) => {
+                      const subNo = e.target.value;
+                      const sub = subList.find(s => (s.sub_order_no || s.subOrderNo) === subNo);
+                      const rem = sub ? Math.max(0, Number(sub.ordered_quantity || sub.orderedQuantity || 0) - Number(sub.loaded_quantity || sub.loadedQuantity || 0)) : (currentPo?.remaining_quantity || currentPo?.ordered_quantity || '');
+                      setAddForm(prev => ({
+                        ...prev,
+                        sub_order_no: subNo,
+                        loading_quantity: rem ? Number(rem).toFixed(2) : prev.loading_quantity,
+                        loading_location: sub?.delivery_location || prev.loading_location
+                      }));
+                    }}
+                    className="w-full p-2 bg-white border border-blue-300 rounded font-mono text-xs focus:ring-1 focus:ring-blue-600 focus:outline-none"
+                  >
+                    <option value="">Entire PO (All Consignees / Unspecified)</option>
+                    {subList.map((sub, sIdx) => {
+                      const subNo = sub.sub_order_no || sub.subOrderNo || `Sub #${sIdx + 1}`;
+                      const ordQty = Number(sub.ordered_quantity || sub.orderedQuantity || 0);
+                      const ldQty = Number(sub.loaded_quantity || sub.loadedQuantity || 0);
+                      const remQty = Math.max(0, ordQty - ldQty);
+                      return (
+                        <option key={subNo} value={subNo}>
+                          {subNo} — {sub.buyer_name || sub.buyerName} | Ordered: {ordQty} QTL | Loaded: {ldQty} QTL | Pending: {remQty.toFixed(2)} QTL
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+              );
+            })()}
 
             <div>
               <label className="block font-semibold text-[#252525] mb-1">Sourcing Rice Mill / Industry *</label>
@@ -524,6 +625,17 @@ export default function MasterLoadingRegister({ onOpenQuickAction, quickActionTr
                 value={addForm.vehicle_number}
                 onChange={(e) => setAddForm({ ...addForm, vehicle_number: e.target.value })}
                 className="w-full p-2 bg-white border border-[#E8E2DC] rounded font-mono uppercase focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-[#252525] mb-1">Driver Phone Number</label>
+              <input
+                type="text"
+                placeholder="e.g. +91 98220 12345"
+                value={addForm.driver_phone}
+                onChange={(e) => setAddForm({ ...addForm, driver_phone: e.target.value })}
+                className="w-full p-2 bg-white border border-[#E8E2DC] rounded font-mono focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
               />
             </div>
 

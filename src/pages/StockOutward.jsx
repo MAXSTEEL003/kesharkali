@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowUpRight, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { api } from '../api';
 
-export default function StockOutward({ setActivePage }) {
+export default function StockOutward({ setActivePage, onSuccess }) {
   const [products, setProducts] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [submitting, setSubmitting] = useState(false);
@@ -45,6 +45,7 @@ export default function StockOutward({ setActivePage }) {
       setErrorMsg(null);
       const res = await api.stock.outward(form);
       setSuccessMsg(`Stock Outward successfully posted! Transaction: ${res.result.transactionNumber}. Remaining Balance: ${res.result.runningBalance} QTL`);
+      if (onSuccess) onSuccess();
       setForm({
         date: new Date().toISOString().split('T')[0],
         productId: '',
@@ -65,8 +66,8 @@ export default function StockOutward({ setActivePage }) {
 
   return (
     <div className="max-w-3xl mx-auto space-y-4">
-      <div className="bg-white rounded-lg border border-[#E8E2DC] p-4 shadow-xs">
-        <div className="flex items-center justify-between pb-3 border-b border-[#E8E2DC]">
+      <div className="glass-panel rounded-2xl p-6 shadow-sm">
+        <div className="flex items-center justify-between pb-3 border-b border-[#E8E2DC]/80">
           <div>
             <h1 className="text-base font-bold text-[#252525] font-['Space_Grotesk'] flex items-center gap-2">
               <ArrowUpRight size={18} className="text-[#5E1010]" />
@@ -85,9 +86,28 @@ export default function StockOutward({ setActivePage }) {
         </div>
 
         {successMsg && (
-          <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded text-xs flex items-center gap-2">
-            <CheckCircle2 size={16} />
-            {successMsg}
+          <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded text-xs flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 size={16} />
+              <span>{successMsg}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setActivePage && setActivePage('ledger')}
+                className="font-bold underline text-emerald-900 hover:text-black"
+              >
+                View in Ledger →
+              </button>
+              <span className="text-emerald-300">|</span>
+              <button
+                type="button"
+                onClick={() => setActivePage && setActivePage('inward')}
+                className="font-bold underline text-emerald-900 hover:text-black"
+              >
+                Post Inward Next →
+              </button>
+            </div>
           </div>
         )}
 
@@ -190,11 +210,11 @@ export default function StockOutward({ setActivePage }) {
             />
           </div>
 
-          <div className="pt-3 border-t border-[#E8E2DC] flex justify-end">
+          <div className="pt-3 border-t border-[#E8E2DC]/80 flex justify-end">
             <button
               type="submit"
               disabled={submitting}
-              className="px-6 py-2.5 font-semibold text-xs bg-[#5E1010] text-white rounded hover:bg-[#480c0c] transition-colors shadow-xs"
+              className="px-6 py-2.5 font-bold text-xs bg-gradient-to-r from-[#8F1717] to-[#771212] hover:from-[#771212] hover:to-[#5E1010] text-white rounded-xl shadow-[0_0_15px_rgba(143,23,23,0.35)] hover:shadow-[0_0_22px_rgba(143,23,23,0.55)] border border-[#C69A3B]/40 transition-all"
             >
               {submitting ? 'Verifying & Posting...' : 'Post Outward from Stock'}
             </button>

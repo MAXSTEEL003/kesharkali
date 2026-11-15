@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import Modal from '../components/Modal';
 import { api } from '../api';
+import { formatDateDMY } from '../utils/date';
 
 export default function DispatchManagement() {
   const [pendingLoadings, setPendingLoadings] = useState([]);
@@ -32,6 +33,7 @@ export default function DispatchManagement() {
     dispatch_date: new Date().toISOString().split('T')[0],
     dispatch_quantity: '',
     vehicle_number: '',
+    driver_phone: '',
     remarks: ''
   });
 
@@ -62,6 +64,7 @@ export default function DispatchManagement() {
       dispatch_date: new Date().toISOString().split('T')[0],
       dispatch_quantity: loadingItem.available_to_dispatch,
       vehicle_number: loadingItem.vehicle_number || '',
+      driver_phone: loadingItem.driver_phone || '',
       remarks: ''
     });
     setIsConfirmOpen(true);
@@ -78,6 +81,7 @@ export default function DispatchManagement() {
         dispatch_date: dispatchForm.dispatch_date,
         dispatch_quantity: dispatchForm.dispatch_quantity,
         vehicle_number: dispatchForm.vehicle_number,
+        driver_phone: dispatchForm.driver_phone,
         remarks: dispatchForm.remarks
       });
 
@@ -215,7 +219,7 @@ export default function DispatchManagement() {
                 <th className="text-left">Buyer / Customer</th>
                 <th className="text-left">Product</th>
                 <th className="text-right">Dispatched Quantity</th>
-                <th className="text-center">Vehicle Number</th>
+                <th className="text-center">Vehicle & Driver</th>
                 <th className="text-center">Source Type</th>
                 <th className="text-left">Warehouse Godown</th>
                 <th className="text-center">WhatsApp Alert</th>
@@ -234,12 +238,15 @@ export default function DispatchManagement() {
                   <tr key={dsp.id} className="hover:bg-amber-50/40">
                     <td className="text-center font-mono text-[11px] text-gray-400">{idx + 1}</td>
                     <td className="font-semibold text-emerald-800">{dsp.dispatch_number}</td>
-                    <td className="text-center text-xs font-mono">{dsp.dispatch_date}</td>
+                    <td className="text-center text-xs font-mono">{formatDateDMY(dsp.dispatch_date)}</td>
                     <td className="font-semibold text-[#8F1717]">{dsp.po_number}</td>
                     <td className="font-medium">{dsp.customer_name}</td>
                     <td>{dsp.product_name}</td>
                     <td className="text-right font-mono font-bold text-emerald-700">{dsp.dispatch_quantity} QTL</td>
-                    <td className="text-center font-mono font-semibold">{dsp.vehicle_number}</td>
+                    <td className="text-center font-mono">
+                      <div className="font-semibold text-gray-800">{dsp.vehicle_number}</div>
+                      {dsp.driver_phone && <div className="text-[10px] text-gray-500 font-sans">{dsp.driver_phone}</div>}
+                    </td>
                     <td className="text-center">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${dsp.source_type === 'Warehouse' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
                         {dsp.source_type}
@@ -315,7 +322,7 @@ export default function DispatchManagement() {
                 />
               </div>
 
-              <div className="sm:col-span-2">
+              <div>
                 <label className="block font-semibold text-[#252525] mb-1">Delivery Truck / Vehicle Number *</label>
                 <input
                   type="text"
@@ -324,6 +331,18 @@ export default function DispatchManagement() {
                   value={dispatchForm.vehicle_number}
                   onChange={(e) => setDispatchForm({ ...dispatchForm, vehicle_number: e.target.value })}
                   className="w-full p-2 bg-[#FAF9F6] border border-[#E8E2DC] rounded font-mono uppercase focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-[#252525] mb-1">Driver Phone Number *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. +91 98220 12345"
+                  value={dispatchForm.driver_phone}
+                  onChange={(e) => setDispatchForm({ ...dispatchForm, driver_phone: e.target.value })}
+                  className="w-full p-2 bg-[#FAF9F6] border border-[#E8E2DC] rounded font-mono focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
                 />
               </div>
             </div>

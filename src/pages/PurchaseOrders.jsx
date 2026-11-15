@@ -1,5 +1,5 @@
 // src/pages/PurchaseOrders.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Plus, 
   Search, 
@@ -16,7 +16,19 @@ import {
   Send,
   Building2,
   Calendar,
-  Inbox
+  Inbox,
+  Layers,
+  ArrowUpDown,
+  ChevronDown,
+  ChevronUp,
+  ChevronRight,
+  ExternalLink,
+  Users,
+  Upload,
+  FileText,
+  Image,
+  Download,
+  Check
 } from 'lucide-react';
 import Modal from '../components/Modal';
 import { api } from '../api';
@@ -30,10 +42,155 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Filters
+  // Filters & Sorting
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [buyerFilter, setBuyerFilter] = useState('');
+  const [sortOrder, setSortOrder] = useState('new-to-old');
+  const [pendingFilter, setPendingFilter] = useState('all'); // 'all' | 'pending-qtl' | 'fully-loaded'
+  const [expandedPOs, setExpandedPOs] = useState({});
+
+  // Helper: Format date as DD/MM/YYYY
+  const formatDateDMY = (dateVal) => {
+    if (!dateVal) return '—';
+    const s = String(dateVal).trim();
+    const isoMatch = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (isoMatch) {
+      const yyyy = isoMatch[1];
+      const mm = isoMatch[2].padStart(2, '0');
+      const dd = isoMatch[3].padStart(2, '0');
+      return `${dd}/${mm}/${yyyy}`;
+    }
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) {
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yyyy = d.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    }
+    return s;
+  };
+
+  const toggleExpandPO = (id) => {
+    setExpandedPOs(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const toggleExpandAll = () => {
+    const allExpanded = sortedPurchaseOrders.length > 0 && sortedPurchaseOrders.every(p => expandedPOs[p.id]);
+    if (allExpanded) {
+      setExpandedPOs({});
+    } else {
+      const next = {};
+      sortedPurchaseOrders.forEach(p => { next[p.id] = true; });
+      setExpandedPOs(next);
+    }
+  };
+
+  // Sub-Order Bill Upload & Preview Modals
+  const [billUploadModal, setBillUploadModal] = useState({
+    isOpen: false,
+    poId: null,
+    poNumber: '',
+    subOrderNo: '',
+    buyerName: '',
+    billNo: '',
+    fileData: '',
+    fileName: '',
+    mimeType: '',
+    fileSize: 0,
+    isUploading: false
+  });
+
+  const [billPreviewModal, setBillPreviewModal] = useState({
+    isOpen: false,
+    billUrl: '',
+    billNo: '',
+    fileName: '',
+    subOrderNo: '',
+    poNumber: '',
+    poId: null
+  });
+
+  const openUploadModal = (po, sub) => {
+    setBillUploadModal({
+      isOpen: true,
+      poId: po.id,
+      poNumber: po.po_number,
+      subOrderNo: sub.sub_order_no || sub.subOrderNo,
+      buyerName: sub.buyer_name || sub.buyerName || po.customer_name,
+      billNo: sub.bill_no || sub.billNo || '',
+      fileData: '',
+      fileName: '',
+      mimeType: '',
+      fileSize: 0,
+      isUploading: false
+    });
+  };
+
+  const handleBillFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 15 * 1024 * 1024) {
+      alert('File size exceeds 15MB. Please choose a smaller PDF or image.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setBillUploadModal(prev => ({
+        ...prev,
+        fileData: event.target.result,
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type || 'application/pdf'
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveSubOrderBill = async (e) => {
+    e.preventDefault();
+    if (!billUploadModal.fileData) {
+      alert('Please select a PDF document or image file to upload.');
+      return;
+    }
+    try {
+      setBillUploadModal(prev => ({ ...prev, isUploading: true }));
+      await api.purchaseOrders.uploadSubOrderBill(
+        billUploadModal.poId,
+        billUploadModal.subOrderNo,
+        {
+          billNo: billUploadModal.billNo,
+          fileName: billUploadModal.fileName,
+          fileData: billUploadModal.fileData,
+          mimeType: billUploadModal.mimeType
+        }
+      );
+      setBillUploadModal(prev => ({ ...prev, isOpen: false, isUploading: false }));
+      alert(`Mill bill uploaded successfully for Sub PO ${billUploadModal.subOrderNo}!`);
+      loadData();
+      if (selectedPO) {
+        handleViewPODetails(selectedPO);
+      }
+    } catch (err) {
+      alert(`Failed to upload bill: ${err.message}`);
+      setBillUploadModal(prev => ({ ...prev, isUploading: false }));
+    }
+  };
+
+  const handleDeleteSubOrderBill = async (poId, subOrderNo) => {
+    if (!confirm(`Are you sure you want to delete the bill document for ${subOrderNo}?`)) return;
+    try {
+      await api.purchaseOrders.deleteSubOrderBill(poId, subOrderNo);
+      setBillPreviewModal(prev => ({ ...prev, isOpen: false }));
+      alert(`Bill document removed for Sub PO ${subOrderNo}.`);
+      loadData();
+      if (selectedPO) {
+        handleViewPODetails(selectedPO);
+      }
+    } catch (err) {
+      alert(`Failed to delete bill: ${err.message}`);
+    }
+  };
 
   // Modals
   const [selectedPO, setSelectedPO] = useState(null);
@@ -41,7 +198,6 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [isReceiveOpen, setIsReceiveOpen] = useState(false);
   const [isAllocModalOpen, setIsAllocModalOpen] = useState(false);
-  const [isReserveModalOpen, setIsReserveModalOpen] = useState(false);
 
   useEffect(() => {
     if (quickActionTrigger?.action === 'po') {
@@ -71,16 +227,11 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
     override_allowed: false
   });
 
-  const [reserveForm, setReserveForm] = useState({
-    warehouse_id: '',
-    quantity: ''
-  });
-
   const loadData = async () => {
     try {
       setLoading(true);
       const [posRes, custRes, prodRes, indRes, whRes] = await Promise.all([
-        api.purchaseOrders.getAll({ status: statusFilter, buyerId: buyerFilter, search }),
+        api.purchaseOrders.getAll({ status: statusFilter, buyerId: buyerFilter, search, sortOrder }),
         api.customers.getAll(),
         api.products.getAll(),
         api.industries.getAll(),
@@ -101,7 +252,50 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
 
   useEffect(() => {
     loadData();
-  }, [statusFilter, buyerFilter]);
+  }, [statusFilter, buyerFilter, sortOrder]);
+
+  const pendingCount = useMemo(() => {
+    return purchaseOrders.filter(p => Number(p.remaining_quantity ?? (p.ordered_quantity - (p.loaded_quantity || 0))) > 0).length;
+  }, [purchaseOrders]);
+
+  const fullyLoadedCount = useMemo(() => {
+    return purchaseOrders.filter(p => Number(p.remaining_quantity ?? (p.ordered_quantity - (p.loaded_quantity || 0))) <= 0).length;
+  }, [purchaseOrders]);
+
+  const filteredPurchaseOrders = useMemo(() => {
+    return purchaseOrders.filter(po => {
+      const remaining = Number(po.remaining_quantity ?? (po.ordered_quantity - (po.loaded_quantity || 0)));
+      if (pendingFilter === 'pending-qtl') {
+        return remaining > 0;
+      }
+      if (pendingFilter === 'fully-loaded') {
+        return remaining <= 0;
+      }
+      return true;
+    });
+  }, [purchaseOrders, pendingFilter]);
+
+  const sortedPurchaseOrders = useMemo(() => {
+    return [...filteredPurchaseOrders].sort((a, b) => {
+      const dateA = a.po_date || '';
+      const dateB = b.po_date || '';
+      const subA = a.sub_order_no || '';
+      const subB = b.sub_order_no || '';
+      const idA = a.id || 0;
+      const idB = b.id || 0;
+
+      if (sortOrder === 'old-to-new') {
+        if (dateA !== dateB) return dateA.localeCompare(dateB);
+        if (subA !== subB) return subA.localeCompare(subB);
+        return idA - idB;
+      } else {
+        // Default: new-to-old
+        if (dateA !== dateB) return dateB.localeCompare(dateA);
+        if (subA !== subB) return subB.localeCompare(subA);
+        return idB - idA;
+      }
+    });
+  }, [filteredPurchaseOrders, sortOrder]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -183,27 +377,8 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
     }
   };
 
-  const handleReserveStock = async (e) => {
-    e.preventDefault();
-    try {
-      await api.stock.reserve({
-        poId: selectedPO,
-        productId: poDetails.purchaseOrder.product_id,
-        warehouseId: reserveForm.warehouse_id,
-        quantity: reserveForm.quantity
-      });
-      setIsReserveModalOpen(false);
-      setReserveForm({ warehouse_id: '', quantity: '' });
-      handleViewPODetails(selectedPO);
-      loadData();
-      alert('Stock reserved successfully for this customer order!');
-    } catch (err) {
-      alert(`Reservation failed: ${err.message}`);
-    }
-  };
-
   const handleCancelPO = async (poId) => {
-    if (!confirm('Are you sure you want to cancel this purchase order? All pending allocations and reservations will be cancelled.')) return;
+    if (!confirm('Are you sure you want to cancel this purchase order? All pending allocations will be cancelled.')) return;
     try {
       await api.purchaseOrders.cancel(poId);
       loadData();
@@ -260,7 +435,7 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
         </div>
 
         {/* Filter Toolbar */}
-        <form onSubmit={handleSearchSubmit} className="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
+        <form onSubmit={handleSearchSubmit} className="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-2.5">
           <div className="relative">
             <Search size={14} className="absolute left-2.5 top-2.5 text-gray-400" />
             <input
@@ -299,9 +474,31 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
             ))}
           </select>
 
+          {/* Pending QTL Fulfillment Filter */}
+          <select
+            value={pendingFilter}
+            onChange={(e) => setPendingFilter(e.target.value)}
+            className="w-full px-2.5 py-1.5 bg-[#FAF9F6] border border-[#E8E2DC] rounded text-xs font-semibold text-[#8F1717] focus:ring-1 focus:ring-[#8F1717] focus:outline-none cursor-pointer"
+            title="Filter by Pending QTL fulfillment status"
+          >
+            <option value="all">Fulfillment: All ({purchaseOrders.length})</option>
+            <option value="pending-qtl">⚠️ Pending QTL ({pendingCount})</option>
+            <option value="fully-loaded">✅ Fully Loaded ({fullyLoadedCount})</option>
+          </select>
+
+          <select
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value)}
+            className="w-full px-2.5 py-1.5 bg-[#FAF9F6] border border-[#E8E2DC] rounded text-xs font-semibold text-[#8F1717] focus:ring-1 focus:ring-[#8F1717] focus:outline-none cursor-pointer"
+            title="Sort chronological order"
+          >
+            <option value="new-to-old">Sort: Newest to Oldest</option>
+            <option value="old-to-new">Sort: Oldest to Newest</option>
+          </select>
+
           <button
             type="submit"
-            className="w-full flex items-center justify-center gap-1 bg-gray-100 hover:bg-gray-200 text-xs font-semibold py-1.5 rounded transition-colors text-[#252525]"
+            className="w-full flex items-center justify-center gap-1 bg-gray-100 hover:bg-gray-200 text-xs font-semibold py-1.5 rounded transition-colors text-[#252525] cursor-pointer"
           >
             <Filter size={13} />
             <span>Apply Filters</span>
@@ -311,73 +508,461 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
 
       {/* PO Listing Table */}
       <div className="bg-white rounded-lg border border-[#E8E2DC] shadow-xs overflow-hidden">
+        {/* Table Toolbar with Glance All Toggle and Pending QTL Quick Tabs */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-3 py-2 bg-gray-50/80 border-b border-[#E8E2DC] text-xs">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-semibold text-gray-700">Orders List</span>
+            <span className="text-gray-300">|</span>
+            <div className="flex items-center gap-1 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setPendingFilter('all')}
+                className={`px-2 py-0.5 rounded text-[11px] font-semibold transition-colors cursor-pointer ${
+                  pendingFilter === 'all'
+                    ? 'bg-[#8F1717] text-white shadow-2xs'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                }`}
+              >
+                All Orders ({purchaseOrders.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setPendingFilter('pending-qtl')}
+                className={`px-2 py-0.5 rounded text-[11px] font-semibold transition-colors cursor-pointer flex items-center gap-1 ${
+                  pendingFilter === 'pending-qtl'
+                    ? 'bg-amber-700 text-white shadow-2xs'
+                    : 'bg-white text-amber-800 hover:bg-amber-50 border border-amber-200'
+                }`}
+                title="Filter POs that have pending QTL remaining to be loaded"
+              >
+                <span>⚠️ Pending QTL</span>
+                <span className={`px-1 py-0.2 rounded text-[10px] ${pendingFilter === 'pending-qtl' ? 'bg-black/20 text-white' : 'bg-amber-100 text-amber-900'}`}>
+                  {pendingCount}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPendingFilter('fully-loaded')}
+                className={`px-2 py-0.5 rounded text-[11px] font-semibold transition-colors cursor-pointer flex items-center gap-1 ${
+                  pendingFilter === 'fully-loaded'
+                    ? 'bg-emerald-700 text-white shadow-2xs'
+                    : 'bg-white text-emerald-800 hover:bg-emerald-50 border border-emerald-200'
+                }`}
+                title="Filter POs that are fully loaded (0 QTL remaining)"
+              >
+                <span>✅ Fully Loaded</span>
+                <span className={`px-1 py-0.2 rounded text-[10px] ${pendingFilter === 'fully-loaded' ? 'bg-black/20 text-white' : 'bg-emerald-100 text-emerald-900'}`}>
+                  {fullyLoadedCount}
+                </span>
+              </button>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={toggleExpandAll}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-[#8F1717] bg-white hover:bg-red-50 border border-red-200 rounded shadow-2xs transition-colors cursor-pointer self-start sm:self-auto"
+            title="Expand or collapse sub-orders across all POs for a quick glance"
+          >
+            <Layers size={13} />
+            <span>
+              {sortedPurchaseOrders.length > 0 && sortedPurchaseOrders.every(p => expandedPOs[p.id])
+                ? 'Collapse All Sub-Orders'
+                : 'Glance All Sub-Orders (Expand All)'}
+            </span>
+          </button>
+        </div>
+
         <div className="overflow-x-auto">
           <table className="excel-grid">
             <thead>
               <tr>
                 <th className="w-12 text-center">#</th>
-                <th className="text-left">PO Number</th>
-                <th className="text-center">Date</th>
+                <th 
+                  className="text-left cursor-pointer hover:bg-gray-100/70 select-none transition-colors"
+                  onClick={() => setSortOrder(prev => prev === 'new-to-old' ? 'old-to-new' : 'new-to-old')}
+                  title="Click to toggle New to Old / Old to New sort"
+                >
+                  <div className="flex items-center gap-1">
+                    <span>PO Number</span>
+                    <ArrowUpDown size={12} className={sortOrder === 'new-to-old' ? 'text-[#8F1717]' : 'text-blue-600'} />
+                    <span className="text-[10px] font-mono text-gray-500 font-normal">
+                      ({sortOrder === 'new-to-old' ? 'Newest' : 'Oldest'})
+                    </span>
+                  </div>
+                </th>
+                <th 
+                  className="text-center cursor-pointer hover:bg-gray-100/70 select-none transition-colors"
+                  onClick={() => setSortOrder(prev => prev === 'new-to-old' ? 'old-to-new' : 'new-to-old')}
+                  title="Click to toggle New to Old / Old to New sort"
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    <span>Date</span>
+                    <ArrowUpDown size={12} className="text-gray-400" />
+                  </div>
+                </th>
                 <th className="text-left">Buyer / Customer</th>
                 <th className="text-left">Rice Product</th>
                 <th className="text-right">Ordered QTL</th>
-                <th className="text-right">Allocated QTL</th>
                 <th className="text-right">Loaded QTL</th>
-                <th className="text-right">Dispatched QTL</th>
                 <th className="text-right">Remaining QTL</th>
                 <th className="text-right">Selling Rate</th>
                 <th className="text-right">Order Value</th>
                 <th className="text-center">Status</th>
-                <th className="text-center w-24">Actions</th>
+                <th className="text-center w-28">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {purchaseOrders.length === 0 ? (
+              {sortedPurchaseOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={14} className="text-center py-10 text-xs text-[#777777]">
+                  <td colSpan={12} className="text-center py-10 text-xs text-[#777777]">
                     No purchase orders found matching criteria.
                   </td>
                 </tr>
               ) : (
-                purchaseOrders.map((po, idx) => (
-                  <tr key={po.id} className="hover:bg-amber-50/40">
-                    <td className="text-center text-[11px] text-[#777777] font-mono">{idx + 1}</td>
-                    <td className="font-semibold text-[#8F1717] cursor-pointer hover:underline" onClick={() => handleViewPODetails(po.id)}>
-                      {po.po_number}
-                    </td>
-                    <td className="text-center text-xs">{po.po_date}</td>
-                    <td className="font-medium">{po.customer_name}</td>
-                    <td>{po.product_name}</td>
-                    <td className="text-right font-mono font-bold">{Number(po.ordered_quantity).toFixed(2)}</td>
-                    <td className="text-right font-mono text-purple-700">{Number(po.allocated_quantity).toFixed(2)}</td>
-                    <td className="text-right font-mono text-indigo-700">{Number(po.loaded_quantity).toFixed(2)}</td>
-                    <td className="text-right font-mono text-emerald-700 font-bold">{Number(po.dispatched_quantity).toFixed(2)}</td>
-                    <td className="text-right font-mono text-amber-700 font-bold">{Number(po.remaining_quantity).toFixed(2)}</td>
-                    <td className="text-right font-mono">₹{Number(po.customer_selling_rate).toLocaleString('en-IN')}</td>
-                    <td className="text-right font-mono font-semibold">₹{Number(po.order_value).toLocaleString('en-IN')}</td>
-                    <td className="text-center">{getStatusBadge(po.status)}</td>
-                    <td className="text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <button
-                          onClick={() => handleViewPODetails(po.id)}
-                          className="p-1 rounded text-[#8F1717] hover:bg-red-50"
-                          title="View Sourcing Allocations & Fulfillment"
-                        >
-                          <Eye size={15} />
-                        </button>
-                        {po.status !== 'Completed' && po.status !== 'Cancelled' && po.dispatched_quantity === 0 && (
-                          <button
-                            onClick={() => handleCancelPO(po.id)}
-                            className="p-1 rounded text-red-400 hover:text-red-700 hover:bg-red-50"
-                            title="Cancel Order"
+                sortedPurchaseOrders.map((po, idx) => {
+                  const subOrdersList = po.sub_orders || [];
+                  const hasMultipleSubs = subOrdersList.length > 1;
+                  const isExpanded = !!expandedPOs[po.id];
+
+                  // Extract list of unique buyers
+                  const uniqueBuyers = Array.from(
+                    new Set(subOrdersList.map(s => s.buyer_name || s.buyerName).filter(Boolean))
+                  );
+                  if (uniqueBuyers.length === 0 && po.customer_name) {
+                    uniqueBuyers.push(po.customer_name);
+                  }
+
+                  // Format sub-order numbers display
+                  const firstSub = subOrdersList[0]?.sub_order_no || subOrdersList[0]?.subOrderNo;
+                  const lastSub = subOrdersList[subOrdersList.length - 1]?.sub_order_no || subOrdersList[subOrdersList.length - 1]?.subOrderNo;
+
+                  return (
+                    <React.Fragment key={po.id}>
+                      <tr className={`hover:bg-amber-50/40 transition-colors ${isExpanded ? 'bg-amber-50/30' : ''}`}>
+                        {/* Index & Expand Chevron */}
+                        <td className="text-center text-[11px] text-[#777777] font-mono">
+                          <div className="flex items-center justify-center gap-1">
+                            {hasMultipleSubs ? (
+                              <button
+                                type="button"
+                                onClick={() => toggleExpandPO(po.id)}
+                                className="p-0.5 rounded text-gray-500 hover:text-[#8F1717] hover:bg-gray-100 transition-colors cursor-pointer"
+                                title={isExpanded ? 'Collapse sub-orders' : 'Quick glance sub-orders'}
+                              >
+                                {isExpanded ? <ChevronDown size={14} className="text-[#8F1717]" /> : <ChevronRight size={14} />}
+                              </button>
+                            ) : (
+                              <span className="w-3.5 inline-block" />
+                            )}
+                            <span>{idx + 1}</span>
+                          </div>
+                        </td>
+
+                        {/* PO Number + Sub Numbers Glance */}
+                        <td className="font-semibold text-[#8F1717]">
+                          <div 
+                            className="font-mono font-bold cursor-pointer hover:underline inline-flex items-center gap-1"
+                            onClick={() => handleViewPODetails(po.id)}
+                            title="Click to view full PO sourcing & allocations"
                           >
-                            <Trash2 size={14} />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                            <span>{po.po_number}</span>
+                          </div>
+
+                          {/* Easy Glance for Sub Numbers */}
+                          {subOrdersList.length > 0 ? (
+                            <div className="mt-1 flex items-center gap-1 flex-wrap">
+                              {subOrdersList.map((s, sIdx) => {
+                                const sNo = s.sub_order_no || s.subOrderNo;
+                                return (
+                                  <span 
+                                    key={sIdx} 
+                                    className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200"
+                                    title={`${sNo}: ${s.buyer_name || s.buyerName} (${Number(s.ordered_quantity || s.orderedQuantity || 0).toFixed(1)} QTL)`}
+                                  >
+                                    {sNo}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            po.sub_order_no && (
+                              <div className="text-[10px] text-blue-700 font-mono font-semibold mt-0.5">
+                                Sub: {po.sub_order_no}
+                              </div>
+                            )
+                          )}
+                        </td>
+
+                        {/* PO Date */}
+                        <td className="text-center text-xs font-mono">{formatDateDMY(po.po_date)}</td>
+
+                        {/* Buyer / Customer Easy Glance */}
+                        <td>
+                          {subOrdersList.length <= 1 ? (
+                            <div className="font-semibold text-gray-900">{uniqueBuyers[0] || po.customer_name}</div>
+                          ) : subOrdersList.length <= 3 ? (
+                            <div className="space-y-1">
+                              {subOrdersList.map((s, sIdx) => (
+                                <div key={sIdx} className="text-xs">
+                                  <span className="font-mono text-blue-700 font-bold text-[10px] mr-1">{s.sub_order_no || s.subOrderNo}:</span>
+                                  <span className="font-semibold text-gray-900">{s.buyer_name || s.buyerName}</span>
+                                  <span className="text-gray-500 font-mono text-[10px] ml-1">({Number(s.ordered_quantity || s.orderedQuantity || 0).toFixed(1)} QTL)</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="space-y-1">
+                              {subOrdersList.slice(0, 2).map((s, sIdx) => (
+                                <div key={sIdx} className="text-xs">
+                                  <span className="font-mono text-blue-700 font-bold text-[10px] mr-1">{s.sub_order_no || s.subOrderNo}:</span>
+                                  <span className="font-semibold text-gray-900">{s.buyer_name || s.buyerName}</span>
+                                  <span className="text-gray-500 font-mono text-[10px] ml-1">({Number(s.ordered_quantity || s.orderedQuantity || 0).toFixed(1)} QTL)</span>
+                                </div>
+                              ))}
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); toggleExpandPO(po.id); }}
+                                className={`inline-flex items-center gap-1 mt-0.5 text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors cursor-pointer shadow-2xs ${
+                                  isExpanded 
+                                    ? 'bg-[#8F1717] text-white border-[#8F1717]' 
+                                    : 'bg-red-50 text-[#8F1717] border-red-200 hover:bg-red-100'
+                                }`}
+                                title={`Click to glance all ${subOrdersList.length} sub-orders:\n${subOrdersList.map(s => `${s.sub_order_no || s.subOrderNo}: ${s.buyer_name || s.buyerName} (${s.ordered_quantity || s.orderedQuantity} QTL)`).join('\n')}`}
+                              >
+                                <Users size={10} />
+                                <span>{isExpanded ? 'Hide buyer list' : `+ ${subOrdersList.length - 2} more buyers (glance all)`}</span>
+                                {isExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                              </button>
+                            </div>
+                          )}
+                        </td>
+
+                        <td>{po.product_name}</td>
+                        <td className="text-right font-mono font-bold">{Number(po.ordered_quantity).toFixed(2)}</td>
+                        <td className="text-right font-mono text-indigo-700 font-bold">{Number(po.loaded_quantity).toFixed(2)}</td>
+                        <td className="text-right font-mono text-amber-700 font-bold">{Number(po.remaining_quantity).toFixed(2)}</td>
+                        <td className="text-right font-mono">₹{Number(po.customer_selling_rate).toLocaleString('en-IN')}</td>
+                        <td className="text-right font-mono font-semibold">₹{Number(po.order_value).toLocaleString('en-IN')}</td>
+                        <td className="text-center">{getStatusBadge(po.status)}</td>
+                        <td className="text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            {/* Quick Glance Toggle Button */}
+                            {hasMultipleSubs && (
+                              <button
+                                type="button"
+                                onClick={() => toggleExpandPO(po.id)}
+                                className={`p-1 rounded transition-colors cursor-pointer ${
+                                  isExpanded 
+                                    ? 'bg-[#8F1717] text-white' 
+                                    : 'text-[#8F1717] hover:bg-red-50'
+                                }`}
+                                title={isExpanded ? 'Collapse Sub-Orders Glance' : 'Quick Glance Sub-Orders & Buyers'}
+                              >
+                                <Layers size={14} />
+                              </button>
+                            )}
+
+                            {/* Open Whole PO Drawer Button */}
+                            <button
+                              onClick={() => handleViewPODetails(po.id)}
+                              className="p-1 rounded text-[#8F1717] hover:bg-red-50 transition-colors cursor-pointer"
+                              title="Open Whole PO Sourcing & Allocations Drawer"
+                            >
+                              <Eye size={15} />
+                            </button>
+
+                            {/* Cancel PO */}
+                            {po.status !== 'Completed' && po.status !== 'Cancelled' && po.dispatched_quantity === 0 && (
+                              <button
+                                onClick={() => handleCancelPO(po.id)}
+                                className="p-1 rounded text-red-400 hover:text-red-700 hover:bg-red-50 transition-colors cursor-pointer"
+                                title="Cancel Order"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+
+                      {/* INLINE SUB-ORDERS & BUYERS GLANCE ACCORDION */}
+                      {isExpanded && (
+                        <tr className="bg-slate-50/90 border-b border-[#E8E2DC]">
+                          <td colSpan={12} className="p-0 border-y border-amber-200">
+                            <div className="bg-gradient-to-r from-amber-50/70 via-white to-blue-50/40 p-3 pl-8">
+                              {/* Top Bar of Accordion */}
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#8F1717] text-white text-[11px] font-bold tracking-wide uppercase">
+                                    <Layers size={11} />
+                                    Sub-Orders & Buyers Quick Glance
+                                  </span>
+                                  <span className="text-xs font-mono font-bold text-gray-800">
+                                    Master PO: {po.po_number}
+                                  </span>
+                                  <span className="text-[11px] text-gray-600 bg-white px-2 py-0.5 rounded border border-gray-200 font-medium">
+                                    {subOrdersList.length} Sub-Orders • {uniqueBuyers.length} Buyers
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleViewPODetails(po.id)}
+                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-[#8F1717] hover:text-red-900 bg-white hover:bg-red-50 border border-red-200 px-2.5 py-1 rounded transition-colors shadow-2xs cursor-pointer"
+                                  title="Open full drawer for sourcing allocations, loading notes, and mill dispatches"
+                                >
+                                  <span>Open Whole PO Details</span>
+                                  <ExternalLink size={12} />
+                                </button>
+                              </div>
+
+                              {/* Mini Sub-Orders Table */}
+                              <div className="overflow-x-auto rounded border border-gray-200 bg-white shadow-2xs">
+                                <table className="w-full text-xs">
+                                  <thead>
+                                    <tr className="bg-gray-100/90 text-gray-700 font-semibold border-b border-gray-200 text-[11px]">
+                                      <th className="py-2 px-3 text-left w-10">#</th>
+                                      <th className="py-2 px-3 text-left">Sub PO Number</th>
+                                      <th className="py-2 px-3 text-left">Buyer / Consignee Name</th>
+                                      <th className="py-2 px-3 text-left">Product Variety</th>
+                                      <th className="py-2 px-3 text-right">Ordered QTL</th>
+                                      <th className="py-2 px-3 text-right">Loaded QTL</th>
+                                      <th className="py-2 px-3 text-right">Pending QTL</th>
+                                      <th className="py-2 px-3 text-right">Selling Rate</th>
+                                      <th className="py-2 px-3 text-right">Subtotal Value</th>
+                                      <th className="py-2 px-3 text-center">Mill Bill</th>
+                                      <th className="py-2 px-3 text-center">Quick Load</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-gray-100">
+                                    {subOrdersList.map((sub, sIdx) => {
+                                      const ordQty = Number(sub.ordered_quantity || sub.orderedQuantity || 0);
+                                      const ldQty = Number(sub.loaded_quantity || sub.loadedQuantity || 0);
+                                      const remQty = Math.max(0, ordQty - ldQty);
+                                      return (
+                                        <tr key={sIdx} className="hover:bg-amber-50/50 transition-colors">
+                                          <td className="py-1.5 px-3 text-gray-400 font-mono text-[10px]">{sIdx + 1}</td>
+                                          <td className="py-1.5 px-3 font-mono font-bold text-blue-700">
+                                            <span className="px-1.5 py-0.5 rounded bg-blue-50 border border-blue-200">
+                                              {sub.sub_order_no || sub.subOrderNo || `Sub #${sIdx + 1}`}
+                                            </span>
+                                          </td>
+                                          <td className="py-1.5 px-3 font-bold text-gray-900">
+                                            {sub.buyer_name || sub.buyerName || po.customer_name}
+                                          </td>
+                                          <td className="py-1.5 px-3 text-gray-700">
+                                            {sub.product_name || sub.productName || po.product_name}
+                                          </td>
+                                          <td className="py-1.5 px-3 text-right font-mono font-bold text-gray-900">
+                                            {ordQty.toFixed(2)}
+                                          </td>
+                                          <td className="py-1.5 px-3 text-right font-mono font-bold text-indigo-700">
+                                            {ldQty.toFixed(2)}
+                                          </td>
+                                          <td className={`py-1.5 px-3 text-right font-mono font-bold ${remQty > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                                            {remQty.toFixed(2)}
+                                          </td>
+                                          <td className="py-1.5 px-3 text-right font-mono text-gray-700">
+                                            ₹{Number(sub.rate || po.customer_selling_rate || 0).toLocaleString('en-IN')}
+                                          </td>
+                                          <td className="py-1.5 px-3 text-right font-mono font-semibold text-emerald-800">
+                                            ₹{Number(sub.amount || (ordQty * (sub.rate || 0)) || 0).toLocaleString('en-IN')}
+                                          </td>
+                                          <td className="py-1.5 px-3 text-center">
+                                            <div className="flex flex-col items-center justify-center gap-1">
+                                              {sub.bill_no || sub.billNo ? (
+                                                <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold font-mono text-[11px]">
+                                                  #{sub.bill_no || sub.billNo}
+                                                </span>
+                                              ) : (
+                                                <span className="text-gray-400 italic text-[10px]">No Bill #</span>
+                                              )}
+
+                                              {/* Sub PO Bill Document Status */}
+                                              {sub.bill_url || sub.billUrl ? (
+                                                <div className="flex items-center gap-1 mt-0.5">
+                                                  <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      setBillPreviewModal({
+                                                        isOpen: true,
+                                                        billUrl: sub.bill_url || sub.billUrl,
+                                                        billNo: sub.bill_no || sub.billNo,
+                                                        fileName: sub.bill_file_name || sub.billFileName,
+                                                        subOrderNo: sub.sub_order_no || sub.subOrderNo,
+                                                        poNumber: po.po_number,
+                                                        poId: po.id
+                                                      });
+                                                    }}
+                                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-[10px] font-semibold transition-colors cursor-pointer"
+                                                    title="Click to view/download bill PDF or image"
+                                                  >
+                                                    {(sub.bill_file_name || sub.billFileName || '').endsWith('.pdf') ? (
+                                                      <FileText size={11} className="text-red-600" />
+                                                    ) : (
+                                                      <Image size={11} className="text-blue-600" />
+                                                    )}
+                                                    <span>View Bill</span>
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      openUploadModal(po, sub);
+                                                    }}
+                                                    className="p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded cursor-pointer"
+                                                    title="Replace Bill Document"
+                                                  >
+                                                    <Upload size={11} />
+                                                  </button>
+                                                </div>
+                                              ) : (
+                                                <button
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    openUploadModal(po, sub);
+                                                  }}
+                                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 hover:bg-amber-100 text-[#8F1717] border border-amber-200 text-[10px] font-semibold transition-colors cursor-pointer shadow-2xs mt-0.5"
+                                                  title="Upload Mill Bill as PDF or Image for this Sub-Order"
+                                                >
+                                                  <Upload size={11} />
+                                                  <span>+ Upload Bill</span>
+                                                </button>
+                                              )}
+                                            </div>
+                                          </td>
+                                          <td className="py-1.5 px-3 text-center">
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                onOpenQuickAction?.({
+                                                  action: 'loading',
+                                                  poId: po.id,
+                                                  subOrderNo: sub.sub_order_no || sub.subOrderNo
+                                                });
+                                              }}
+                                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#8F1717] hover:bg-[#771212] text-white font-semibold text-[10px] shadow-2xs cursor-pointer transition-colors"
+                                              title={`Record truck loading for ${sub.sub_order_no || sub.subOrderNo} (${remQty.toFixed(2)} QTL pending)`}
+                                            >
+                                              <Plus size={10} />
+                                              <span>Load</span>
+                                            </button>
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -399,7 +984,7 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
               <div className="flex items-center justify-between text-xs mb-1.5">
                 <span className="font-bold text-[#8F1717] uppercase tracking-wide">Fulfillment Progress</span>
                 <span className="font-mono font-bold text-emerald-800">
-                  {poDetails.stats.totalDispatched} / {poDetails.purchaseOrder.ordered_quantity} QTL ({poDetails.stats.fulfillmentPercentage}%)
+                  {poDetails.stats.totalLoaded} / {poDetails.purchaseOrder.ordered_quantity} QTL ({poDetails.stats.fulfillmentPercentage}%)
                 </span>
               </div>
               <div className="h-2.5 w-full bg-gray-100 rounded-full overflow-hidden">
@@ -408,22 +993,18 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
                   style={{ width: `${Math.min(100, poDetails.stats.fulfillmentPercentage)}%` }}
                 ></div>
               </div>
-              <div className="grid grid-cols-4 gap-2 text-center text-xs mt-3 pt-3 border-t border-gray-100">
+              <div className="grid grid-cols-3 gap-2 text-center text-xs mt-3 pt-3 border-t border-gray-100">
                 <div>
                   <div className="text-gray-400 text-[10px]">Ordered</div>
                   <div className="font-mono font-bold">{poDetails.purchaseOrder.ordered_quantity} QTL</div>
                 </div>
                 <div>
-                  <div className="text-purple-600 text-[10px]">Allocated</div>
-                  <div className="font-mono font-bold">{poDetails.stats.totalAllocated} QTL</div>
-                </div>
-                <div>
                   <div className="text-indigo-600 text-[10px]">Loaded</div>
-                  <div className="font-mono font-bold">{poDetails.stats.totalLoaded} QTL</div>
+                  <div className="font-mono font-bold text-indigo-700">{poDetails.stats.totalLoaded} QTL</div>
                 </div>
                 <div>
-                  <div className="text-emerald-600 text-[10px]">Dispatched</div>
-                  <div className="font-mono font-bold">{poDetails.stats.totalDispatched} QTL</div>
+                  <div className="text-amber-600 text-[10px]">Remaining</div>
+                  <div className="font-mono font-bold text-amber-700">{poDetails.stats.remainingQuantity} QTL</div>
                 </div>
               </div>
             </div>
@@ -545,6 +1126,115 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
               </div>
             </div>
 
+            {/* Constituent Sub-Orders from Orders Webapp */}
+            {poDetails.subOrders && poDetails.subOrders.length > 0 && (
+              <div className="bg-white rounded-lg border border-[#E8E2DC] overflow-hidden shadow-xs">
+                <div className="bg-[#FAF9F6] px-4 py-3 border-b border-[#E8E2DC] flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-blue-900 flex items-center gap-1.5">
+                      <Layers size={15} className="text-blue-700" />
+                      Constituent Sub-Orders ({poDetails.subOrders.length})
+                    </h4>
+                    <p className="text-[11px] text-[#777777]">
+                      Sub-orders grouped under master PO {poDetails.purchaseOrder.po_number}
+                    </p>
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="excel-grid">
+                    <thead>
+                      <tr>
+                        <th className="text-left">Sub No</th>
+                        <th className="text-left">Buyer / Consignee</th>
+                        <th className="text-left">Product Variety</th>
+                        <th className="text-right">Volume (QTL)</th>
+                        <th className="text-right">Rate</th>
+                        <th className="text-right">Amount</th>
+                        <th className="text-center">Mill Bill & Document</th>
+                        <th className="text-left">Destination</th>
+                        <th className="text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {poDetails.subOrders.map(sub => (
+                        <tr key={sub.id || sub.sub_order_no || sub.subOrderNo} className="hover:bg-blue-50/20">
+                          <td className="font-mono font-bold text-blue-700">{sub.sub_order_no || sub.subOrderNo}</td>
+                          <td className="font-semibold text-gray-800">{sub.buyer_name || sub.buyerName}</td>
+                          <td className="text-gray-600">{sub.product_name || sub.productName}</td>
+                          <td className="text-right font-mono font-bold">{Number(sub.ordered_quantity || sub.orderedQuantity || 0).toFixed(2)}</td>
+                          <td className="text-right font-mono">₹{Number(sub.rate || 0).toLocaleString('en-IN')}</td>
+                          <td className="text-right font-mono font-bold text-[#8F1717]">₹{Number(sub.amount || 0).toLocaleString('en-IN')}</td>
+                          <td className="text-center">
+                            <div className="flex flex-col items-center justify-center gap-1">
+                              {sub.bill_no || sub.billNo ? (
+                                <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold font-mono text-[11px]">
+                                  #{sub.bill_no || sub.billNo}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400 italic text-[10px]">No Bill #</span>
+                              )}
+
+                              {sub.bill_url || sub.billUrl ? (
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setBillPreviewModal({
+                                        isOpen: true,
+                                        billUrl: sub.bill_url || sub.billUrl,
+                                        billNo: sub.bill_no || sub.billNo,
+                                        fileName: sub.bill_file_name || sub.billFileName,
+                                        subOrderNo: sub.sub_order_no || sub.subOrderNo,
+                                        poNumber: poDetails.purchaseOrder.po_number,
+                                        poId: poDetails.purchaseOrder.id
+                                      });
+                                    }}
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-[10px] font-semibold transition-colors cursor-pointer"
+                                    title="View / Download Bill Document"
+                                  >
+                                    {(sub.bill_file_name || sub.billFileName || '').endsWith('.pdf') ? (
+                                      <FileText size={11} className="text-red-600" />
+                                    ) : (
+                                      <Image size={11} className="text-blue-600" />
+                                    )}
+                                    <span>View Bill</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => openUploadModal(poDetails.purchaseOrder, sub)}
+                                    className="p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded cursor-pointer"
+                                    title="Replace Bill Document"
+                                  >
+                                    <Upload size={11} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => openUploadModal(poDetails.purchaseOrder, sub)}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 hover:bg-amber-100 text-[#8F1717] border border-amber-200 text-[10px] font-semibold transition-colors cursor-pointer shadow-2xs mt-0.5"
+                                  title="Upload Mill Bill as PDF or Image"
+                                >
+                                  <Upload size={11} />
+                                  <span>+ Upload Bill</span>
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                          <td className="text-[11px] text-gray-500">{sub.delivery_location || sub.deliveryLocation || '—'}</td>
+                          <td className="text-center">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-700">
+                              {sub.status || 'Active'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {/* Loading & Dispatches Breakdown */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Loadings */}
@@ -561,7 +1251,7 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
                       <div key={l.id} className="text-xs p-2 rounded bg-gray-50 flex items-center justify-between border border-gray-100">
                         <div>
                           <span className="font-semibold text-[#5E1010]">{l.loading_number}</span>
-                          <span className="text-gray-400 ml-2">({l.loading_date})</span>
+                          <span className="text-gray-400 font-mono text-[10px] ml-2">({formatDateDMY(l.loading_date)})</span>
                           <div className="text-[10px] text-gray-600">{l.industry_name} • Veh: {l.vehicle_number}</div>
                         </div>
                         <div className="text-right">
@@ -588,7 +1278,7 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
                       <div key={d.id} className="text-xs p-2 rounded bg-gray-50 flex items-center justify-between border border-gray-100">
                         <div>
                           <span className="font-semibold text-emerald-800">{d.dispatch_number}</span>
-                          <span className="text-gray-400 ml-2">({d.dispatch_date})</span>
+                          <span className="text-gray-400 font-mono text-[10px] ml-2">({formatDateDMY(d.dispatch_date)})</span>
                           <div className="text-[10px] text-gray-600">Veh: {d.vehicle_number} • {d.source_type}</div>
                         </div>
                         <div className="text-right">
@@ -602,21 +1292,6 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
               </div>
             </div>
 
-            {/* Warehouse Stock Reservation Controls */}
-            <div className="bg-white p-3.5 rounded-lg border border-[#E8E2DC] flex items-center justify-between">
-              <div>
-                <h5 className="text-xs font-bold text-[#252525]">Warehouse Inventory Reservation</h5>
-                <p className="text-[11px] text-gray-500">
-                  Active reservations for this PO: <strong>{poDetails.reservations.reduce((s, r) => s + (r.reserved_quantity - r.released_quantity), 0)} QTL</strong>
-                </p>
-              </div>
-              <button
-                onClick={() => setIsReserveModalOpen(true)}
-                className="text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-[#252525] px-3 py-1.5 rounded transition-colors"
-              >
-                + Reserve Stock
-              </button>
-            </div>
           </div>
         </Modal>
       )}
@@ -868,63 +1543,199 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
         </form>
       </Modal>
 
-      {/* Stock Reservation Modal */}
-      <Modal
-        isOpen={isReserveModalOpen}
-        onClose={() => setIsReserveModalOpen(false)}
-        title="Reserve Warehouse Stock for Customer Order"
-        subtitle="Soft commitment of existing inventory without physical outward deduction"
-      >
-        <form onSubmit={handleReserveStock} className="space-y-4 text-xs">
-          <div>
-            <label className="block font-semibold text-[#252525] mb-1">Select Warehouse / Godown *</label>
-            <select
-              required
-              value={reserveForm.warehouse_id}
-              onChange={(e) => setReserveForm({ ...reserveForm, warehouse_id: e.target.value })}
-              className="w-full p-2 bg-white border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
-            >
-              <option value="">Select Warehouse</option>
-              {warehouses.map(w => (
-                <option key={w.id} value={w.id}>{w.name} ({w.location}) — Stock: {w.current_stock} QTL</option>
-              ))}
-            </select>
-          </div>
+      {/* Sub-Order Mill Bill Upload Modal */}
+      {billUploadModal.isOpen && (
+        <Modal
+          isOpen={true}
+          onClose={() => !billUploadModal.isUploading && setBillUploadModal(prev => ({ ...prev, isOpen: false }))}
+          title={`Upload Mill Bill — Sub PO ${billUploadModal.subOrderNo}`}
+          subtitle={`Master PO: ${billUploadModal.poNumber} | Consignee: ${billUploadModal.buyerName}`}
+          maxWidth="max-w-lg"
+        >
+          <form onSubmit={handleSaveSubOrderBill} className="space-y-4 text-xs">
+            <div className="bg-amber-50/70 p-3 rounded-lg border border-amber-200">
+              <div className="text-[11px] text-amber-900 font-medium">
+                Upload the official mill invoice/bill document for this individual sub-order. Supported formats: <strong>PDF</strong>, <strong>PNG</strong>, <strong>JPG</strong>, <strong>WEBP</strong> (Max 15MB).
+              </div>
+            </div>
 
-          <div>
-            <label className="block font-semibold text-[#252525] mb-1">Quantity to Reserve (QTL) *</label>
-            <input
-              type="number"
-              step="0.01"
-              required
-              placeholder="e.g. 50"
-              value={reserveForm.quantity}
-              onChange={(e) => setReserveForm({ ...reserveForm, quantity: e.target.value })}
-              className="w-full p-2 bg-white border border-[#E8E2DC] rounded font-mono focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
-            />
-          </div>
+            <div>
+              <label className="block font-semibold text-[#252525] mb-1">
+                Mill Bill / Invoice Number
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. 131, 1300, 2450"
+                value={billUploadModal.billNo}
+                onChange={(e) => setBillUploadModal(prev => ({ ...prev, billNo: e.target.value }))}
+                className="w-full p-2 bg-white border border-[#E8E2DC] rounded font-mono font-bold text-gray-800 focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+              />
+              <span className="text-[10px] text-gray-500 mt-0.5 block">
+                Enter the bill number issued by the rice mill for this specific buyer's sub-order.
+              </span>
+            </div>
 
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded text-[11px] text-blue-900">
-            <strong>Accounting Guarantee:</strong> Reserving stock creates an allocation commitment that reduces <em>Available Stock</em> for sales, but strictly does <strong>not</strong> deduct physical warehouse inventory until confirmed dispatch.
-          </div>
+            <div>
+              <label className="block font-semibold text-[#252525] mb-1">
+                Select Bill Document (PDF or Image) *
+              </label>
+              <div className="border-2 border-dashed border-[#E8E2DC] hover:border-[#8F1717] rounded-xl p-4 text-center bg-gray-50/50 transition-colors">
+                <input
+                  type="file"
+                  id="subOrderBillFile"
+                  accept=".pdf,image/png,image/jpeg,image/jpg,image/webp"
+                  onChange={handleBillFileSelect}
+                  className="hidden"
+                />
+                <label htmlFor="subOrderBillFile" className="cursor-pointer flex flex-col items-center justify-center gap-2">
+                  <Upload size={24} className="text-[#8F1717]" />
+                  <div className="text-xs font-semibold text-gray-700">
+                    {billUploadModal.fileName ? (
+                      <span className="text-[#8F1717] font-bold">{billUploadModal.fileName}</span>
+                    ) : (
+                      <span>Click or Drag & Drop to select Bill File</span>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-gray-400">PDF, PNG, JPG up to 15MB</span>
+                </label>
 
-          <div className="pt-3 border-t border-[#E8E2DC] flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setIsReserveModalOpen(false)}
-              className="px-4 py-2 font-semibold text-gray-600 hover:bg-gray-100 rounded"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 font-semibold bg-[#8F1717] text-white rounded hover:bg-[#771212] shadow-xs"
-            >
-              Confirm Reservation
-            </button>
+                {billUploadModal.fileData && (
+                  <div className="mt-3 pt-3 border-t border-gray-200 flex items-center justify-center gap-2">
+                    {billUploadModal.mimeType.includes('pdf') ? (
+                      <div className="flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-700 rounded border border-red-200 text-xs font-mono font-bold">
+                        <FileText size={14} />
+                        <span>PDF Document Ready ({Math.round(billUploadModal.fileSize / 1024)} KB)</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1">
+                        <img
+                          src={billUploadModal.fileData}
+                          alt="Preview"
+                          className="max-h-36 max-w-full rounded border border-gray-300 object-contain shadow-2xs"
+                        />
+                        <span className="text-[10px] text-gray-500 font-mono">
+                          Image Preview ({Math.round(billUploadModal.fileSize / 1024)} KB)
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-[#E8E2DC] flex items-center justify-end gap-2">
+              <button
+                type="button"
+                disabled={billUploadModal.isUploading}
+                onClick={() => setBillUploadModal(prev => ({ ...prev, isOpen: false }))}
+                className="px-4 py-2 font-semibold text-gray-600 hover:bg-gray-100 rounded transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={billUploadModal.isUploading || !billUploadModal.fileData}
+                className="inline-flex items-center gap-1.5 px-5 py-2 font-semibold bg-[#8F1717] text-white rounded hover:bg-[#771212] transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
+              >
+                {billUploadModal.isUploading ? (
+                  <span>Uploading...</span>
+                ) : (
+                  <>
+                    <Upload size={14} />
+                    <span>Upload & Save Bill</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Sub-Order Mill Bill Preview Modal */}
+      {billPreviewModal.isOpen && (
+        <Modal
+          isOpen={true}
+          onClose={() => setBillPreviewModal(prev => ({ ...prev, isOpen: false }))}
+          title={`Mill Bill — Sub PO ${billPreviewModal.subOrderNo}`}
+          subtitle={`Master PO: ${billPreviewModal.poNumber} | Bill No: ${billPreviewModal.billNo || 'Not specified'}`}
+          maxWidth="max-w-4xl"
+        >
+          <div className="space-y-4">
+            {/* Top Details Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 bg-gray-50 rounded-lg border border-gray-200 text-xs">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                  {billPreviewModal.subOrderNo}
+                </span>
+                {billPreviewModal.billNo && (
+                  <span className="font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    Bill #{billPreviewModal.billNo}
+                  </span>
+                )}
+                <span className="text-gray-500 font-mono text-[11px] truncate max-w-[220px]">
+                  {billPreviewModal.fileName}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href={billPreviewModal.billUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-blue-700 hover:text-blue-900 bg-white hover:bg-blue-50 border border-blue-200 rounded transition-colors shadow-2xs"
+                >
+                  <ExternalLink size={12} />
+                  <span>Open in New Tab</span>
+                </a>
+                <a
+                  href={billPreviewModal.billUrl}
+                  download={billPreviewModal.fileName || `Bill_${billPreviewModal.subOrderNo}`}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-100 border border-gray-300 rounded transition-colors shadow-2xs"
+                >
+                  <Download size={12} />
+                  <span>Download</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteSubOrderBill(billPreviewModal.poId, billPreviewModal.subOrderNo)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-red-600 hover:text-red-800 bg-white hover:bg-red-50 border border-red-200 rounded transition-colors shadow-2xs cursor-pointer"
+                  title="Delete this bill document"
+                >
+                  <Trash2 size={12} />
+                  <span>Delete</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Viewer Box */}
+            <div className="rounded-xl overflow-hidden border border-gray-200 bg-gray-100 flex items-center justify-center p-2 min-h-[450px]">
+              {billPreviewModal.billUrl?.endsWith('.pdf') ? (
+                <iframe
+                  src={billPreviewModal.billUrl}
+                  className="w-full h-[600px] rounded border border-gray-200 bg-white"
+                  title="Bill PDF Viewer"
+                />
+              ) : (
+                <img
+                  src={billPreviewModal.billUrl}
+                  alt="Mill Bill Document"
+                  className="max-h-[600px] max-w-full rounded object-contain shadow-xs bg-white"
+                />
+              )}
+            </div>
+
+            <div className="pt-2 border-t border-gray-200 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setBillPreviewModal(prev => ({ ...prev, isOpen: false }))}
+                className="px-5 py-1.5 font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
           </div>
-        </form>
-      </Modal>
+        </Modal>
+      )}
+
     </div>
   );
 }

@@ -14,7 +14,7 @@ import {
   Settings, 
   ChevronDown, 
   ChevronRight, 
-  Menu, 
+  ChevronLeft, 
   X, 
   ShieldCheck, 
   UserCheck, 
@@ -32,7 +32,23 @@ export default function Layout({ activePage, setActivePage, children, onOpenQuic
   const [loadingMenuOpen, setLoadingMenuOpen] = useState(false);
   const [reportsMenuOpen, setReportsMenuOpen] = useState(false);
   const [currentRoleState, setCurrentRoleState] = useState(getRole());
+  const [logoUrl, setLogoUrl] = useState(() => {
+    try {
+      return localStorage.getItem('keshar_kali_logo') || '/logo.svg';
+    } catch {
+      return '/logo.svg';
+    }
+  });
   const [time, setTime] = useState(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+
+  useEffect(() => {
+    const handleLogoUpdate = (e) => {
+      const url = e.detail?.logoUrl || localStorage.getItem('keshar_kali_logo') || '/logo.svg';
+      setLogoUrl(url);
+    };
+    window.addEventListener('company-logo-updated', handleLogoUpdate);
+    return () => window.removeEventListener('company-logo-updated', handleLogoUpdate);
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -42,29 +58,17 @@ export default function Layout({ activePage, setActivePage, children, onOpenQuic
   }, []);
 
   const handleRoleToggle = () => {
-    const next = currentRoleState === 'Admin' ? 'Operator' : 'Admin';
+    const next = currentRoleState === 'Admin' ? 'Operator' : currentRoleState === 'Operator' ? 'Supplier' : 'Admin';
     setRole(next);
     setCurrentRoleState(next);
   };
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'supplier-dashboard', label: 'Supplier Workspace', icon: Factory },
     { id: 'purchase-orders', label: 'Received POs', icon: Inbox },
     { id: 'industry-sourcing', label: 'Industry Sourcing', icon: Factory },
-    { 
-      id: 'stock', 
-      label: 'Stock Management', 
-      icon: Warehouse,
-      subItems: [
-        { id: 'stock-dashboard', label: 'Stock Dashboard' },
-        { id: 'stock-ledger', label: 'Stock Ledger' },
-        { id: 'stock-inward', label: 'Stock Inward' },
-        { id: 'stock-outward', label: 'Stock Outward' },
-        { id: 'stock-transfers', label: 'Stock Transfers' },
-        { id: 'stock-adjustments', label: 'Stock Adjustments' },
-        { id: 'stock-valuation', label: 'Stock Valuation & Summary' },
-      ]
-    },
+    { id: 'stock-management', label: 'Stock Management', icon: Warehouse },
     { 
       id: 'loading', 
       label: 'Loading Management', 
@@ -89,39 +93,54 @@ export default function Layout({ activePage, setActivePage, children, onOpenQuic
       ]
     },
     { id: 'customers', label: 'Customers', icon: Users },
-    { id: 'industries', label: 'Industries (Confidential)', icon: Factory },
+    { id: 'industries', label: 'Industries & Godowns', icon: Factory },
     { id: 'products', label: 'Products', icon: Layers },
-    { id: 'warehouses', label: 'Warehouses / Godowns', icon: Warehouse },
     { id: 'settings', label: 'Settings & Audit Logs', icon: Settings },
   ];
 
   return (
-    <div className="flex h-screen bg-[#FAF9F6] overflow-hidden text-[#252525]">
-      {/* Sidebar */}
+    <div className="flex h-screen bg-[#F8F4EE] overflow-hidden text-[#252525] relative">
+      {/* Background luminous ambient lights for glass refraction */}
+      <div className="fixed -top-20 right-10 w-[550px] h-[350px] bg-gradient-to-br from-[#C69A3B]/30 via-amber-500/20 to-transparent rounded-full blur-[80px] pointer-events-none -z-0" />
+      <div className="fixed -top-10 left-60 w-[500px] h-[350px] bg-gradient-to-br from-[#8F1717]/25 via-rose-500/15 to-transparent rounded-full blur-[85px] pointer-events-none -z-0" />
+      <div className="fixed bottom-10 right-20 w-[550px] h-[450px] bg-gradient-to-tr from-emerald-500/20 via-[#C69A3B]/15 to-transparent rounded-full blur-[100px] pointer-events-none -z-0" />
+      <div className="fixed top-1/2 left-1/3 -translate-y-1/2 w-[450px] h-[450px] bg-gradient-to-br from-[#5E1010]/15 to-[#C69A3B]/10 rounded-full blur-[110px] pointer-events-none -z-0" />
+
+      {/* Floating Translucent Glass Sidebar */}
       <aside 
-        className={`${sidebarOpen ? 'w-64' : 'w-16'} transition-all duration-200 bg-[#5E1010] text-white flex flex-col z-30 shrink-0 border-r border-[#8F1717]/40 shadow-xl`}
+        className={`${sidebarOpen ? 'w-64' : 'w-20'} my-3 ml-3 h-[calc(100vh-1.5rem)] rounded-3xl transition-all duration-300 glass-sidebar text-white flex flex-col z-30 shrink-0 overflow-hidden`}
       >
         {/* Brand Header */}
-        <div className="h-16 flex items-center justify-between px-4 bg-[#8F1717] border-b-2 border-[#C69A3B]">
-          <div className={`flex items-center gap-2.5 overflow-hidden ${!sidebarOpen && 'justify-center w-full'}`}>
-            <div className="w-8 h-8 rounded-full bg-[#C69A3B] flex items-center justify-center font-bold text-xs text-[#5E1010] shadow-sm shrink-0 font-['Space_Grotesk']">
-              KK
-            </div>
-            {sidebarOpen && (
-              <div className="leading-tight truncate">
-                <span className="font-bold text-sm tracking-wider uppercase font-['Space_Grotesk',sans-serif]">Keshar Kali</span>
-                <span className="block text-[10px] text-[#C69A3B] font-medium tracking-tight">Precision in Every Grain</span>
+        <div className="h-16 flex items-center justify-between px-3.5 bg-[#8F1717]/85 backdrop-blur-md border-b border-[#C69A3B]/40">
+          {sidebarOpen ? (
+            <>
+              <div className="flex items-center gap-2.5 overflow-hidden">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#C69A3B] to-[#b08730] flex items-center justify-center font-bold text-xs text-[#5E1010] shadow-[0_0_12px_rgba(198,154,59,0.5)] shrink-0 font-['Space_Grotesk']">
+                  KK
+                </div>
+                <div className="leading-tight truncate">
+                  <span className="font-bold text-sm tracking-wider uppercase font-['Space_Grotesk',sans-serif]">Keshar Kali</span>
+                  <span className="block text-[10px] text-[#C69A3B] font-medium tracking-tight">Precision in Every Grain</span>
+                </div>
               </div>
-            )}
-          </div>
-          {sidebarOpen && (
-            <button 
-              onClick={() => setSidebarOpen(false)}
-              className="text-white/70 hover:text-white p-1 rounded hover:bg-white/10"
-              title="Collapse sidebar"
-            >
-              <Menu size={16} />
-            </button>
+              <button 
+                onClick={() => setSidebarOpen(false)}
+                className="text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors shrink-0"
+                title="Collapse sidebar"
+              >
+                <ChevronLeft size={18} />
+              </button>
+            </>
+          ) : (
+            <div className="w-full flex items-center justify-center">
+              <button 
+                onClick={() => setSidebarOpen(true)}
+                className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all shadow-xs group"
+                title="Expand sidebar"
+              >
+                <ChevronRight size={18} className="group-hover:translate-x-0.5 transition-transform" />
+              </button>
+            </div>
           )}
         </div>
 
@@ -131,7 +150,7 @@ export default function Layout({ activePage, setActivePage, children, onOpenQuic
             const Icon = item.icon;
             const hasSub = !!item.subItems;
             const isSubActive = hasSub && item.subItems.some(sub => sub.id === activePage);
-            const isDirectActive = activePage === item.id;
+            const isDirectActive = activePage === item.id || (item.id === 'stock-management' && (activePage === 'stock' || activePage === 'stock-management' || activePage.startsWith('stock-')));
             const isMenuOpen = item.id === 'stock' ? stockMenuOpen : item.id === 'loading' ? loadingMenuOpen : item.id === 'reports' ? reportsMenuOpen : false;
 
             return (
@@ -204,8 +223,12 @@ export default function Layout({ activePage, setActivePage, children, onOpenQuic
                 </div>
               </div>
             ) : (
-              <button onClick={() => setSidebarOpen(true)} className="mx-auto text-white/70 hover:text-white">
-                <Menu size={16} />
+              <button 
+                onClick={() => setSidebarOpen(true)} 
+                className="mx-auto text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                title="Expand sidebar"
+              >
+                <ChevronRight size={16} />
               </button>
             )}
 
@@ -222,31 +245,51 @@ export default function Layout({ activePage, setActivePage, children, onOpenQuic
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Top Navbar */}
-        <header className="h-14 bg-white border-b border-[#E8E2DC] flex items-center justify-between px-6 z-20 shrink-0 shadow-xs">
+      {/* Main Content Area: Content smoothly glides under the floating glass navbar */}
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto relative z-10">
+        {/* Floating Top Navbar Island */}
+        <header className="sticky top-3 z-30 mx-3 md:mx-6 my-2 h-16 glass-nav rounded-2xl flex items-center justify-between px-6 shrink-0 transition-all">
           <div className="flex items-center gap-3">
             {!sidebarOpen && (
               <button 
                 onClick={() => setSidebarOpen(true)}
-                className="text-[#8F1717] hover:bg-gray-100 p-1.5 rounded"
+                className="text-[#8F1717] hover:bg-white/60 p-2 rounded-xl transition-colors border border-white/40 shadow-xs"
+                title="Expand sidebar"
               >
-                <Menu size={18} />
+                <ChevronRight size={18} />
               </button>
             )}
-            <div className="flex items-center gap-2">
-              <span className="text-xs uppercase tracking-wider font-bold text-[#8F1717]">Keshar Kali</span>
-              <span className="text-gray-300">/</span>
-              <span className="text-xs font-semibold text-[#252525] capitalize">
+            <div className="flex items-center gap-2.5">
+              <div 
+                onClick={() => setActivePage('dashboard')} 
+                className="cursor-pointer flex items-center transition-transform hover:scale-[1.02] active:scale-95"
+                title="Keshar Kali — Dashboard"
+              >
+                <img 
+                  src={logoUrl || "/logo.svg"} 
+                  alt="Keshar Kali" 
+                  className="h-7 md:h-8 w-auto max-w-[170px] object-contain drop-shadow-xs"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    if (e.target.nextSibling) {
+                      e.target.nextSibling.style.display = 'inline-flex';
+                    }
+                  }}
+                />
+                <span className="hidden text-xs uppercase tracking-wider font-bold text-[#8F1717]">
+                  Keshar Kali
+                </span>
+              </div>
+              <span className="text-gray-300 text-sm font-light">/</span>
+              <span className="text-xs font-semibold text-[#252525] capitalize bg-black/5 px-2.5 py-1 rounded-lg">
                 {activePage.replace(/-/g, ' ')}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
             {/* Live Clock */}
-            <div className="hidden sm:flex items-center gap-1.5 text-xs text-[#777777] font-mono bg-[#FAF9F6] px-2.5 py-1 rounded border border-[#E8E2DC]">
+            <div className="hidden sm:flex items-center gap-1.5 text-xs text-[#555555] font-mono bg-white/50 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/60 shadow-xs">
               <Clock size={12} className="text-[#8F1717]" />
               <span>{time} IST</span>
             </div>
@@ -254,16 +297,16 @@ export default function Layout({ activePage, setActivePage, children, onOpenQuic
             {/* Quick Actions Dropdown / Modal Trigger */}
             <button
               onClick={() => onOpenQuickAction && onOpenQuickAction('po')}
-              className="flex items-center gap-1.5 bg-[#8F1717] hover:bg-[#771212] text-white text-xs font-semibold px-3 py-1.5 rounded-md shadow-xs transition-colors"
+              className="flex items-center gap-1.5 bg-gradient-to-r from-[#8F1717] to-[#771212] hover:from-[#771212] hover:to-[#5E1010] text-white text-xs font-semibold px-3.5 py-1.5 rounded-xl border border-[#C69A3B]/50 shadow-[0_0_14px_rgba(143,23,23,0.35)] hover:shadow-[0_0_20px_rgba(143,23,23,0.55)] transition-all"
               title="Record incoming customer purchase order received by Keshar Kali"
             >
-              <Inbox size={14} />
+              <Inbox size={14} className="text-[#C69A3B]" />
               <span>Receive PO</span>
             </button>
 
             <button
               onClick={() => onOpenQuickAction && onOpenQuickAction('loading')}
-              className="flex items-center gap-1.5 bg-[#5E1010] hover:bg-[#480c0c] text-white text-xs font-semibold px-3 py-1.5 rounded-md shadow-xs transition-colors"
+              className="flex items-center gap-1.5 bg-gradient-to-r from-[#5E1010] to-[#480c0c] hover:from-[#480c0c] hover:to-[#380909] text-white text-xs font-semibold px-3.5 py-1.5 rounded-xl border border-white/30 shadow-[0_0_14px_rgba(94,16,16,0.35)] hover:shadow-[0_0_20px_rgba(94,16,16,0.55)] transition-all"
             >
               <Truck size={14} />
               <span className="hidden sm:inline">Add Loading</span>
@@ -271,7 +314,7 @@ export default function Layout({ activePage, setActivePage, children, onOpenQuic
 
             <button
               onClick={() => onOpenQuickAction && onOpenQuickAction('dispatch')}
-              className="flex items-center gap-1.5 bg-[#C69A3B] hover:bg-[#b08730] text-[#5E1010] text-xs font-bold px-3 py-1.5 rounded-md shadow-xs transition-colors"
+              className="flex items-center gap-1.5 bg-gradient-to-r from-[#C69A3B] to-[#b08730] hover:from-[#b08730] hover:to-[#997324] text-[#5E1010] text-xs font-bold px-3.5 py-1.5 rounded-xl border border-[#C69A3B]/70 shadow-[0_0_14px_rgba(198,154,59,0.4)] hover:shadow-[0_0_22px_rgba(198,154,59,0.65)] transition-all"
             >
               <Send size={14} />
               <span className="hidden sm:inline">Dispatch</span>
@@ -280,7 +323,7 @@ export default function Layout({ activePage, setActivePage, children, onOpenQuic
         </header>
 
         {/* Page Content Viewport */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-[#FAF9F6]">
+        <main className="p-3 md:p-6 pt-1 flex-1 bg-transparent">
           {children}
         </main>
       </div>

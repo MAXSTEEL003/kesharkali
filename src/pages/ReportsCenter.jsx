@@ -12,6 +12,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { api, downloadBlob } from '../api';
+import { formatDateDMY } from '../utils/date';
 
 export default function ReportsCenter() {
   const [activeTab, setActiveTab] = useState('loading'); // 'loading', 'industry', 'buyer', 'po', 'stock'
@@ -271,7 +272,7 @@ export default function ReportsCenter() {
                       <tr key={r.id || idx}>
                         <td className="text-center font-mono text-[11px] text-gray-400">{idx + 1}</td>
                         <td className="font-semibold text-[#8F1717]">{r.industry_name}</td>
-                        <td className="text-center text-xs">{r.loading_date}</td>
+                        <td className="text-center text-xs font-mono">{formatDateDMY(r.loading_date)}</td>
                         <td className="font-mono">{r.loading_number}</td>
                         <td className="font-semibold">{r.po_number}</td>
                         <td>{r.customer_name}</td>
@@ -297,7 +298,6 @@ export default function ReportsCenter() {
                       <th className="text-left">Product</th>
                       <th className="text-right">Ordered QTL</th>
                       <th className="text-right">Loaded QTL</th>
-                      <th className="text-right">Dispatched QTL</th>
                       <th className="text-right">Remaining QTL</th>
                       <th className="text-right">Selling Rate</th>
                       <th className="text-right">Order Value</th>
@@ -310,11 +310,10 @@ export default function ReportsCenter() {
                         <td className="text-center font-mono text-[11px] text-gray-400">{idx + 1}</td>
                         <td className="font-semibold text-[#8F1717]">{r.customer_name}</td>
                         <td className="font-semibold">{r.po_number}</td>
-                        <td className="text-center text-xs">{r.po_date}</td>
+                        <td className="text-center text-xs font-mono">{formatDateDMY(r.po_date)}</td>
                         <td>{r.product_name}</td>
                         <td className="text-right font-mono font-bold">{r.ordered_quantity}</td>
-                        <td className="text-right font-mono text-purple-700">{r.loaded_quantity}</td>
-                        <td className="text-right font-mono text-emerald-700 font-bold">{r.dispatched_quantity}</td>
+                        <td className="text-right font-mono text-indigo-700 font-bold">{r.loaded_quantity}</td>
                         <td className="text-right font-mono text-amber-700 font-bold">{r.remaining_quantity}</td>
                         <td className="text-right font-mono">₹{r.customer_selling_rate}</td>
                         <td className="text-right font-mono font-bold">₹{Number(r.order_value).toLocaleString('en-IN')}</td>
@@ -338,29 +337,28 @@ export default function ReportsCenter() {
                       <th className="text-left">Customer</th>
                       <th className="text-left">Product</th>
                       <th className="text-right">Ordered QTL</th>
-                      <th className="text-right">Allocated QTL</th>
                       <th className="text-right">Loaded QTL</th>
-                      <th className="text-right">Dispatched QTL</th>
-                      <th className="text-right">Pending Loading</th>
-                      <th className="text-right">Pending Dispatch</th>
+                      <th className="text-right">Pending QTL</th>
                       <th className="text-right">Fulfillment %</th>
                     </tr>
                   </thead>
                   <tbody>
                     {reportData.map((r, idx) => {
-                      const pct = ((Number(r.dispatched_quantity) / Number(r.ordered_quantity)) * 100).toFixed(1);
+                      const loaded = Number(r.loaded_quantity || 0);
+                      const ordered = Number(r.ordered_quantity || 0);
+                      const pending = Math.max(0, ordered - loaded);
+                      const pct = ordered > 0 ? ((loaded / ordered) * 100).toFixed(1) : '0.0';
                       return (
                         <tr key={r.po_number || idx}>
                           <td className="text-center font-mono text-[11px] text-gray-400">{idx + 1}</td>
                           <td className="font-semibold text-[#8F1717]">{r.po_number}</td>
                           <td className="font-medium">{r.customer_name}</td>
                           <td>{r.product_name}</td>
-                          <td className="text-right font-mono font-bold">{r.ordered_quantity}</td>
-                          <td className="text-right font-mono text-purple-700">{r.allocated_quantity}</td>
-                          <td className="text-right font-mono text-indigo-700">{r.loaded_quantity}</td>
-                          <td className="text-right font-mono text-emerald-700 font-bold">{r.dispatched_quantity}</td>
-                          <td className="text-right font-mono text-amber-700">{r.pending_loading}</td>
-                          <td className="text-right font-mono text-orange-700">{r.pending_dispatch}</td>
+                          <td className="text-right font-mono font-bold">{ordered.toFixed(2)}</td>
+                          <td className="text-right font-mono text-indigo-700 font-bold">{loaded.toFixed(2)}</td>
+                          <td className={`text-right font-mono font-bold ${pending > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                            {pending.toFixed(2)}
+                          </td>
                           <td className="text-right font-mono font-bold text-emerald-800">{pct}%</td>
                         </tr>
                       );
@@ -381,7 +379,6 @@ export default function ReportsCenter() {
                       <th className="text-right">Total Inward</th>
                       <th className="text-right">Total Outward</th>
                       <th className="text-right">Physical Balance</th>
-                      <th className="text-right">Reserved Stock</th>
                       <th className="text-right">Available Stock</th>
                     </tr>
                   </thead>
@@ -396,7 +393,6 @@ export default function ReportsCenter() {
                         <td className="text-right font-mono text-emerald-700">+{r.totalInward}</td>
                         <td className="text-right font-mono text-red-700">-{r.totalOutward}</td>
                         <td className="text-right font-mono font-bold text-[#8F1717]">{r.physicalBalance}</td>
-                        <td className="text-right font-mono text-amber-700">{r.reservedQuantity}</td>
                         <td className="text-right font-mono font-bold text-emerald-700">{r.availableQuantity}</td>
                       </tr>
                     ))}

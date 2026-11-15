@@ -9,9 +9,10 @@ CREATE TABLE IF NOT EXISTS users (
     username TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     full_name TEXT NOT NULL,
-    role TEXT NOT NULL CHECK(role IN ('Admin', 'Operator')),
+    role TEXT NOT NULL CHECK(role IN ('Admin', 'Operator', 'Supplier')),
     email TEXT,
     phone TEXT,
+    supplier_id INTEGER REFERENCES industries(id),
     active INTEGER NOT NULL DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -41,6 +42,9 @@ CREATE TABLE IF NOT EXISTS industries (
     phone TEXT,
     available_products TEXT, -- Comma-separated or descriptive
     default_purchase_rate REAL DEFAULT 0,
+    is_default INTEGER DEFAULT 0,
+    capacity_qtl REAL DEFAULT 15000,
+    facility_type TEXT DEFAULT 'Rice Mill & Godown',
     notes TEXT,
     active INTEGER NOT NULL DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -91,13 +95,30 @@ CREATE TABLE IF NOT EXISTS purchase_orders (
         'Allocation Pending',
         'Partially Allocated',
         'Allocated',
+        'Pending Acceptance',
+        'Accepted',
+        'Query Raised',
+        'Loading Scheduled',
         'Partially Loaded',
         'Loaded',
         'Partially Dispatched',
         'Dispatched',
+        'Delivered',
         'Completed',
         'Cancelled'
     )),
+    original_order_id TEXT,
+    supplier_id INTEGER REFERENCES industries(id),
+    supplier_rate REAL DEFAULT 0,
+    supplier_notes TEXT,
+    query_text TEXT,
+    revised_date DATE,
+    sync_status TEXT DEFAULT 'Synced',
+    customer_name_text TEXT,
+    customer_contact_text TEXT,
+    sub_order_no TEXT,
+    bill_no TEXT,
+    sub_orders_json TEXT,
     created_by TEXT DEFAULT 'Staff',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -132,6 +153,8 @@ CREATE TABLE IF NOT EXISTS loading_entries (
     loading_number TEXT UNIQUE NOT NULL,
     loading_date DATE NOT NULL,
     po_id INTEGER NOT NULL REFERENCES purchase_orders(id),
+    sub_order_no TEXT,
+    sub_order_id INTEGER REFERENCES po_sub_orders(id),
     allocation_id INTEGER REFERENCES industry_allocations(id),
     industry_id INTEGER NOT NULL REFERENCES industries(id),
     product_id INTEGER NOT NULL REFERENCES products(id),
@@ -139,6 +162,7 @@ CREATE TABLE IF NOT EXISTS loading_entries (
     warehouse_id INTEGER REFERENCES warehouses(id), -- Required if fulfillment_type == 'Warehouse'
     loading_location TEXT,
     vehicle_number TEXT NOT NULL,
+    driver_phone TEXT,
     loading_quantity REAL NOT NULL, -- QTL
     purchase_rate REAL NOT NULL, -- ₹/QTL
     loading_amount REAL NOT NULL, -- loading_quantity * purchase_rate
@@ -159,6 +183,7 @@ CREATE TABLE IF NOT EXISTS dispatches (
     dispatch_date DATE NOT NULL,
     dispatch_quantity REAL NOT NULL, -- QTL
     vehicle_number TEXT NOT NULL,
+    driver_phone TEXT,
     source_type TEXT NOT NULL CHECK(source_type IN ('Warehouse', 'Direct')),
     warehouse_id INTEGER REFERENCES warehouses(id),
     remarks TEXT,
@@ -269,6 +294,72 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     details TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 16. Cross-Project Integration Sync Logs (Idempotency & Replay Protection)
+CREATE TABLE IF NOT EXISTS integration_sync_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    idempotency_key TEXT UNIQUE NOT NULL,
+    direction TEXT NOT NULL CHECK(direction IN ('INBOUND_PO', 'OUTBOUND_REVERSE')),
+    source_order_id TEXT NOT NULL,
+    supplier_po_number TEXT,
+    supplier_id INTEGER REFERENCES industries(id),
+    status TEXT NOT NULL CHECK(status IN ('Success', 'Failed', 'Duplicate_Ignored', 'Pending')),
+    payload TEXT NOT NULL,
+    error_message TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 17. Supplier Documents (Invoices, Weighbridge Slips, LR Copies)
+CREATE TABLE IF NOT EXISTS supplier_documents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    po_id INTEGER NOT NULL REFERENCES purchase_orders(id),
+    loading_id INTEGER REFERENCES loading_entries(id),
+    supplier_id INTEGER NOT NULL REFERENCES industries(id),
+    document_type TEXT NOT NULL CHECK(document_type IN ('Supplier Invoice', 'Weighbridge Slip', 'Loading Receipt', 'LR Copy', 'Quality Report', 'Other')),
+    file_name TEXT NOT NULL,
+    file_url TEXT NOT NULL,
+    file_size INTEGER DEFAULT 0,
+    mime_type TEXT,
+    uploaded_by TEXT NOT NULL,
+    uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 18. Purchase Order Chronological Ledger
+CREATE TABLE IF NOT EXISTS po_ledger (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    po_id INTEGER NOT NULL REFERENCES purchase_orders(id),
+    po_number TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    actor TEXT NOT NULL,
+    metadata TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 19. Purchase Order Sub-Orders (Constituent sub-orders with supplier-specific Sub No)
+CREATE TABLE IF NOT EXISTS po_sub_orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    po_id INTEGER NOT NULL REFERENCES purchase_orders(id) ON DELETE CASCADE,
+    po_number TEXT NOT NULL,
+    sub_order_no TEXT NOT NULL, -- e.g. BRI-0001, BRI-0002
+    buyer_name TEXT NOT NULL,
+    product_name TEXT NOT NULL,
+    ordered_quantity REAL NOT NULL, -- in QTL
+    rate REAL NOT NULL, -- in ₹/QTL
+    amount REAL NOT NULL,
+    bill_no TEXT, -- Mill Bill # (e.g. 131, 127, 299)
+    delivery_location TEXT,
+    loaded_quantity REAL DEFAULT 0,
+    customer_id INTEGER REFERENCES customers(id),
+    bill_url TEXT,
+    bill_file_name TEXT,
+    bill_uploaded_at DATETIME,
+    status TEXT DEFAULT 'New',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_sub_po ON po_sub_orders(po_id);
+CREATE INDEX IF NOT EXISTS idx_sub_no ON po_sub_orders(sub_order_no);
 
 -- Performance Indexes
 CREATE INDEX IF NOT EXISTS idx_po_customer ON purchase_orders(customer_id);

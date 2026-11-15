@@ -2,10 +2,11 @@
 const express = require('express');
 const router = express.Router();
 const { query, get, run, transaction } = require('../db');
-const { recordOutward, releaseReservation, getAvailableStock } = require('../services/stockService');
+const { recordOutward, getAvailableStock } = require('../services/stockService');
 const { sendDispatchNotification } = require('../services/whatsappService');
 const { derivePOStatus } = require('./purchaseOrders');
 const { logAction } = require('../services/auditService');
+const { pushReverseUpdateToOrdersPortal } = require('./integration');
 
 function generateDispatchNumber() {
     const year = new Date().getFullYear();
@@ -58,6 +59,10 @@ router.get('/', (req, res) => {
         `;
 
         const params = [];
+        if (req.user && req.user.role === 'Supplier' && req.user.supplierId) {
+            sql += ' AND (le.industry_id = ? OR po.supplier_id = ?)';
+            params.push(req.user.supplierId, req.user.supplierId);
+        }
         if (poId) {
             sql += ' AND d.po_id = ?';
             params.push(poId);
@@ -87,7 +92,7 @@ router.get('/', (req, res) => {
 // GET pending loadings ready for dispatch
 router.get('/pending-loadings', (req, res) => {
     try {
-        const loadings = query(`
+        let sql = `
             SELECT 
                 le.*,
                 po.po_number,
@@ -114,8 +119,17 @@ router.get('/pending-loadings', (req, res) => {
                 GROUP BY loading_id
             ) dsp_stats ON le.id = dsp_stats.loading_id
             WHERE le.loading_status = 'Loaded' AND (le.loading_quantity - COALESCE(dsp_stats.total_dispatched, 0)) > 0
-            ORDER BY le.loading_date ASC
-        `);
+        `;
+
+        const params = [];
+        if (req.user && req.user.role === 'Supplier' && req.user.supplierId) {
+            sql += ' AND (le.industry_id = ? OR po.supplier_id = ?)';
+            params.push(req.user.supplierId, req.user.supplierId);
+        }
+
+        sql += ' ORDER BY le.loading_date ASC';
+
+        const loadings = query(sql, params);
         res.json({ pendingLoadings: loadings });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -130,6 +144,7 @@ router.post('/', async (req, res) => {
             dispatch_date,
             dispatch_quantity,
             vehicle_number,
+            driver_phone,
             remarks
         } = req.body;
 
@@ -149,6 +164,7 @@ router.post('/', async (req, res) => {
                 po.id as po_id,
                 po.po_number,
                 po.ordered_quantity,
+                po.original_order_id,
                 c.name as customer_name,
                 p.name as product_name,
                 p.unit as product_unit
@@ -189,6 +205,7 @@ router.post('/', async (req, res) => {
         const dispatchNumber = generateDispatchNumber();
         const date = dispatch_date || new Date().toISOString().split('T')[0];
         const vehicle = vehicle_number || loading.vehicle_number;
+        const phone = driver_phone || loading.driver_phone || null;
 
         let newDispatchId;
 
@@ -197,9 +214,9 @@ router.post('/', async (req, res) => {
             const stmt = db.prepare(`
                 INSERT INTO dispatches (
                     dispatch_number, loading_id, po_id, dispatch_date,
-                    dispatch_quantity, vehicle_number, source_type,
+                    dispatch_quantity, vehicle_number, driver_phone, source_type,
                     warehouse_id, remarks, notification_status, created_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?)
             `);
 
             const result = stmt.run(
@@ -209,6 +226,7 @@ router.post('/', async (req, res) => {
                 date,
                 dspQty,
                 vehicle,
+                phone,
                 loading.fulfillment_type,
                 loading.fulfillment_type === 'Warehouse' ? loading.warehouse_id : null,
                 remarks || '',
@@ -237,18 +255,51 @@ router.post('/', async (req, res) => {
                     rate: loading.purchase_rate,
                     remarks: `Customer dispatch ${dispatchNumber} via vehicle ${vehicle} for PO ${loading.po_number}`
                 }, db);
-
-                // Release matching reservation if one exists
-                releaseReservation(loading.po_id, loading.product_id, dspQty, db);
             }
             // If Direct dispatch, rice goes directly from mill to customer -> NO warehouse inventory deduction!
 
             // Update PO Status
             const newPOStatus = derivePOStatus(loading.po_id);
             db.prepare('UPDATE purchase_orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(newPOStatus, loading.po_id);
+
+            // Record in PO Ledger
+            db.prepare(`
+                INSERT INTO po_ledger (po_id, po_number, event_type, title, description, actor, metadata)
+                VALUES (?, ?, 'DISPATCH', ?, ?, ?, ?)
+            `).run(
+                loading.po_id,
+                loading.po_number,
+                'Transport Dispatched',
+                `Vehicle ${vehicle} dispatched with ${dspQty} QTL. Driver: ${phone || '—'}. Ref: ${dispatchNumber}.`,
+                req.user?.fullName || 'Supplier Staff',
+                JSON.stringify({ dispatchId: newDispatchId, dispatchNumber, quantity: dspQty, vehicle, phone })
+            );
         });
 
         logAction('Dispatch', newDispatchId, 'CREATE', req.user?.username || 'Staff', { dispatchNumber, dspQty, vehicle, fulfillment_type: loading.fulfillment_type });
+
+        // Push reverse update to Orders Webapp (App A)
+        if (loading.original_order_id) {
+            pushReverseUpdateToOrdersPortal({
+                orderId: loading.original_order_id,
+                poNumber: loading.po_number,
+                eventType: 'DISPATCH_CREATED',
+                eventPayload: {
+                    dispatchId: `dsp_${newDispatchId}`,
+                    dispatchNumber,
+                    poNumber: loading.po_number,
+                    vehicleNumber: vehicle,
+                    driverPhone: phone,
+                    quantityDispatched: dspQty,
+                    dispatchDate: date,
+                    deliveryStatus: 'Dispatched',
+                    remarks
+                },
+                status: 'Dispatched',
+                loadedQuantity: dspQty,
+                remainingQuantity: Math.max(0, poRemaining - dspQty)
+            }).catch(e => console.error('[ReverseSync Dispatch] Error:', e.message));
+        }
 
         // Trigger WhatsApp Notification
         let notificationResult = null;
