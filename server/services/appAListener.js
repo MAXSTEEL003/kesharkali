@@ -159,7 +159,7 @@ function ingestAppAOrder(docId, docData) {
             const res = insertStmt.run(
                 poNumber, leadCustomerId, productId, isoDate, totalQty, rate,
                 destination, `Real-time sync from App A placed_orders. Supplier: Bhagwathi Rice`,
-                'Pending Acceptance', 'App A Live Listener', poNumber, supplierId,
+                'New', 'App A Live Listener', poNumber, supplierId,
                 rate, 'Synced', leadBuyerName, '+91 98800 12345',
                 subOrderNoString, rawBillNo, JSON.stringify(subOrders)
             );
