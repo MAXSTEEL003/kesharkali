@@ -4,10 +4,22 @@
 const { DatabaseSync } = require('node:sqlite');
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
 
-const DB_DIR = path.resolve(__dirname, '../../data');
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NETLIFY);
+
+const DB_DIR = process.env.DB_DIR || (
+    isServerless 
+        ? path.join(os.tmpdir(), 'kesharkali_data') 
+        : path.resolve(__dirname, '../../data')
+);
+
 if (!fs.existsSync(DB_DIR)) {
-    fs.mkdirSync(DB_DIR, { recursive: true });
+    try {
+        fs.mkdirSync(DB_DIR, { recursive: true });
+    } catch (e) {
+        console.warn('[DB] Warning creating DB_DIR:', e.message);
+    }
 }
 
 const DB_PATH = process.env.DB_PATH || path.join(DB_DIR, 'kesharkali.db');
@@ -157,6 +169,18 @@ function initDb() {
         }
     } catch (uMigErr) {
         console.warn('[DB Migration] Users role migration note:', uMigErr.message);
+    }
+
+    // Auto-seed baseline master records if fresh database
+    try {
+        const prodCount = db.prepare('SELECT COUNT(*) as count FROM products;').get();
+        if (!prodCount || prodCount.count === 0) {
+            console.log('[DB] Fresh database detected, seeding baseline data...');
+            const { seed } = require('./seed');
+            seed();
+        }
+    } catch (seedErr) {
+        console.warn('[DB] Auto-seed check notice:', seedErr.message);
     }
 
     return db;

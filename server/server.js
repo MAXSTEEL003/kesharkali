@@ -88,10 +88,18 @@ app.get('/api/firebase/status', (req, res) => {
 
 // Serve uploaded documents (bills, weighbridge slips, etc.)
 const fs = require('fs');
-const uploadsDir = path.resolve(__dirname, '../uploads');
+const os = require('os');
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NETLIFY);
+const uploadsDir = process.env.UPLOADS_DIR || (
+    isServerless ? path.join(os.tmpdir(), 'kesharkali_uploads') : path.resolve(__dirname, '../uploads')
+);
 const billsDir = path.join(uploadsDir, 'bills');
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-if (!fs.existsSync(billsDir)) fs.mkdirSync(billsDir, { recursive: true });
+try {
+    if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+    if (!fs.existsSync(billsDir)) fs.mkdirSync(billsDir, { recursive: true });
+} catch (e) {
+    console.warn('[Uploads] Directory setup notice:', e.message);
+}
 app.use('/uploads', express.static(uploadsDir));
 
 // Serve static frontend build if present

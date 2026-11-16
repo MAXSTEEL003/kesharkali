@@ -38,7 +38,10 @@ export function setAuthToken(token) {
   }
 }
 
+const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+
 async function request(endpoint, options = {}) {
+  const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
   const headers = {
     'Content-Type': 'application/json',
     'x-user-role': currentRole,
@@ -47,7 +50,7 @@ async function request(endpoint, options = {}) {
     ...options.headers
   };
 
-  const response = await fetch(endpoint, {
+  const response = await fetch(url, {
     ...options,
     headers
   });
