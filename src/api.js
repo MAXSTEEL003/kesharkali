@@ -258,6 +258,7 @@ export const api = {
   // Supplier Portal Specific Actions
   supplier: {
     acceptPO: (id, data = {}) => request(`/api/purchase-orders/${id}/supplier-accept`, { method: 'POST', body: JSON.stringify(data) }),
+    acceptAllPOs: (data = {}) => request('/api/purchase-orders/supplier-accept-all', { method: 'POST', body: JSON.stringify(data) }),
     queryPO: (id, data) => request(`/api/purchase-orders/${id}/supplier-query`, { method: 'POST', body: JSON.stringify(data) }),
     reschedulePO: (id, data) => request(`/api/purchase-orders/${id}/supplier-reschedule`, { method: 'POST', body: JSON.stringify(data) }),
     getPOLedger: (id) => request(`/api/purchase-orders/${id}/ledger`),

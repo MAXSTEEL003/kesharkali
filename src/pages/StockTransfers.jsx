@@ -1,11 +1,11 @@
 // src/pages/StockTransfers.jsx
 import React, { useState, useEffect } from 'react';
-import { ArrowLeftRight, CheckCircle2, Warehouse, Truck } from 'lucide-react';
+import { ArrowLeftRight, CheckCircle2, Factory, Truck } from 'lucide-react';
 import { api } from '../api';
 
 export default function StockTransfers({ setActivePage, onSuccess }) {
   const [products, setProducts] = useState([]);
-  const [warehouses, setWarehouses] = useState([]);
+  const [mills, setMills] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
@@ -23,12 +23,13 @@ export default function StockTransfers({ setActivePage, onSuccess }) {
   useEffect(() => {
     async function loadData() {
       try {
-        const [prodRes, whRes] = await Promise.all([
+        const [prodRes, indRes] = await Promise.all([
           api.products.getAll(),
-          api.warehouses.getAll()
+          api.industries.getAll()
         ]);
+        const inds = indRes.industries || [];
         setProducts(prodRes.products || []);
-        setWarehouses(whRes.warehouses || []);
+        setMills(inds);
       } catch (err) {
         setErrorMsg(err.message);
       }
@@ -39,14 +40,14 @@ export default function StockTransfers({ setActivePage, onSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (form.sourceWarehouseId === form.destWarehouseId) {
-      setErrorMsg('Source and Destination warehouse cannot be identical');
+      setErrorMsg('Source and Destination mill cannot be identical');
       return;
     }
     try {
       setSubmitting(true);
       setErrorMsg(null);
       const res = await api.stock.transfer(form);
-      setSuccessMsg(`Inter-warehouse Transfer posted! Transfer Ref: ${res.result.transferNumber}. Transferred ${res.result.quantity} QTL from ${res.result.source} to ${res.result.destination}`);
+      setSuccessMsg(`Inter-Mill Transfer posted! Transfer Ref: ${res.result.transferNumber}. Transferred ${res.result.quantity} QTL from ${res.result.source} to ${res.result.destination}`);
       if (onSuccess) onSuccess();
       setForm({
         date: new Date().toISOString().split('T')[0],
@@ -71,10 +72,10 @@ export default function StockTransfers({ setActivePage, onSuccess }) {
           <div>
             <h1 className="text-base font-bold text-[#252525] font-['Space_Grotesk'] flex items-center gap-2">
               <ArrowLeftRight size={18} className="text-[#8F1717]" />
-              Inter-Warehouse Stock Transfer
+              Inter-Mill Stock Transfer
             </h1>
             <p className="text-xs text-[#777777]">
-              Atomic transfer between supplier godowns with dual-side transactional ledger entries
+              Atomic transfer between rice mills with dual-side transactional ledger entries
             </p>
           </div>
           {setActivePage && (
@@ -129,31 +130,31 @@ export default function StockTransfers({ setActivePage, onSuccess }) {
             </div>
 
             <div>
-              <label className="block font-semibold text-[#252525] mb-1">Source Warehouse (Transfer Out) *</label>
+              <label className="block font-semibold text-[#252525] mb-1">Source Mill (Transfer Out) *</label>
               <select
                 required
                 value={form.sourceWarehouseId}
                 onChange={(e) => setForm({ ...form, sourceWarehouseId: e.target.value })}
                 className="w-full p-2 bg-[#FAF9F6] border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
               >
-                <option value="">Select Source Godown</option>
-                {warehouses.map(w => (
-                  <option key={w.id} value={w.id}>{w.name} (Stock: {w.current_stock} QTL)</option>
+                <option value="">Select Source Mill</option>
+                {mills.map(m => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="block font-semibold text-[#252525] mb-1">Destination Warehouse (Transfer In) *</label>
+              <label className="block font-semibold text-[#252525] mb-1">Destination Mill (Transfer In) *</label>
               <select
                 required
                 value={form.destWarehouseId}
                 onChange={(e) => setForm({ ...form, destWarehouseId: e.target.value })}
                 className="w-full p-2 bg-[#FAF9F6] border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
               >
-                <option value="">Select Destination Godown</option>
-                {warehouses.map(w => (
-                  <option key={w.id} value={w.id}>{w.name} (Stock: {w.current_stock} QTL)</option>
+                <option value="">Select Destination Mill</option>
+                {mills.map(m => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
                 ))}
               </select>
             </div>

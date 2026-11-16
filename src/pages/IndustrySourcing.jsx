@@ -38,19 +38,19 @@ export default function IndustrySourcing() {
 
   return (
     <div className="space-y-4">
-      {/* Sourcing Header & Confidentiality Notice */}
+      {/* Sourcing Header & Notice */}
       <div className="bg-white rounded-lg border border-[#E8E2DC] p-4 shadow-xs flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-base font-bold text-[#252525] font-['Space_Grotesk']">
-              Industry Sourcing & Multi-Mill Sourcing Portfolio
+              Industry Sourcing Portfolio
             </h1>
-            <span className="bg-red-100 text-[#8F1717] text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
-              Confidential Internal
+            <span className="bg-amber-100 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
+              External Supplier Procurement
             </span>
           </div>
           <p className="text-xs text-[#777777]">
-            Consolidated mill procurement contracts, purchase allocations, and fulfillment pipelines
+            Procurement tracking for when the supplier buys from other suppliers/mills to load into the Keshar Kali brand
           </p>
         </div>
       </div>
@@ -89,7 +89,7 @@ export default function IndustrySourcing() {
             <thead>
               <tr>
                 <th className="w-10 text-center">#</th>
-                <th className="text-left">Industry / Rice Mill</th>
+                <th className="text-left">External Supplier / Mill</th>
                 <th className="text-left">Location</th>
                 <th className="text-left">Customer PO</th>
                 <th className="text-left">Buyer</th>

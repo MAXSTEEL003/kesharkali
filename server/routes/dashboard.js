@@ -131,6 +131,18 @@ router.get('/', (req, res) => {
             ORDER BY le.loading_date ASC LIMIT 5
         `);
 
+        const recentLoadings = query(`
+            SELECT 
+                le.id, le.loading_number, le.loading_date, le.loading_quantity,
+                po.po_number, COALESCE(c.name, po.customer_name_text, 'Designated Buyer') as customer_name, le.vehicle_number,
+                le.dispatch_status
+            FROM loading_entries le
+            JOIN purchase_orders po ON le.po_id = po.id
+            LEFT JOIN customers c ON po.customer_id = c.id
+            WHERE le.loading_status = 'Loaded'
+            ORDER BY le.loading_date DESC, le.id DESC LIMIT 5
+        `);
+
         res.json({
             metrics: {
                 totalPurchaseOrders: poStats.total_pos,
@@ -153,9 +165,11 @@ router.get('/', (req, res) => {
             productDistribution,
             lowStockProducts,
             recentActivities,
+            recentLoadings,
             pendingTasks: {
                 unallocatedPOs: pendingPOs,
-                undispatchedLoadings: pendingDispatchLoadings
+                undispatchedLoadings: pendingDispatchLoadings,
+                recentLoadings
             }
         });
     } catch (err) {

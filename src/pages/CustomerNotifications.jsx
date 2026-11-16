@@ -1,16 +1,22 @@
 // src/pages/CustomerNotifications.jsx
-import React, { useState, useEffect } from 'react';
-import { MessageSquare, RefreshCw, CheckCircle2, AlertTriangle, Eye, ShieldCheck, Send } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { MessageSquare, RefreshCw, CheckCircle2, AlertTriangle, Eye, ShieldCheck, Send, Search, RotateCcw, Filter } from 'lucide-react';
 import Modal from '../components/Modal';
 import { api } from '../api';
+import { useNotification } from '../context/NotificationContext';
 
 export default function CustomerNotifications() {
+  const { showToast } = useNotification();
   const [logs, setLogs] = useState([]);
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedLog, setSelectedLog] = useState(null);
   const [retryingId, setRetryingId] = useState(null);
+
+  // Filters
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const loadData = async () => {
     try {
@@ -24,6 +30,7 @@ export default function CustomerNotifications() {
       setError(null);
     } catch (err) {
       setError(err.message);
+      showToast(`Error loading notifications: ${err.message}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -33,14 +40,40 @@ export default function CustomerNotifications() {
     loadData();
   }, []);
 
+  const hasActiveFilters = Boolean(search.trim() || statusFilter !== 'all');
+
+  const handleClearFilters = () => {
+    setSearch('');
+    setStatusFilter('all');
+  };
+
+  const filteredLogs = useMemo(() => {
+    return logs.filter(log => {
+      if (statusFilter !== 'all' && log.status !== statusFilter) return false;
+      if (search.trim()) {
+        const q = search.trim().toLowerCase();
+        const match = (
+          log.customer_name?.toLowerCase().includes(q) ||
+          log.recipient_phone?.toLowerCase().includes(q) ||
+          log.po_number?.toLowerCase().includes(q) ||
+          log.dispatch_number?.toLowerCase().includes(q) ||
+          log.vehicle_number?.toLowerCase().includes(q) ||
+          log.driver_phone?.toLowerCase().includes(q)
+        );
+        if (!match) return false;
+      }
+      return true;
+    });
+  }, [logs, search, statusFilter]);
+
   const handleRetry = async (notificationId) => {
     try {
       setRetryingId(notificationId);
       await api.whatsapp.retry(notificationId);
       loadData();
-      alert('Notification re-sent successfully!');
+      showToast('Notification re-sent successfully!', 'success');
     } catch (err) {
-      alert(`Retry failed: ${err.message}`);
+      showToast(`Retry failed: ${err.message}`, 'error');
     } finally {
       setRetryingId(null);
     }
@@ -84,6 +117,53 @@ export default function CustomerNotifications() {
         </div>
       </div>
 
+      {/* Filter Toolbar */}
+      <div className="bg-white rounded-lg border border-[#E8E2DC] p-3 shadow-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 text-xs">
+          <div className="relative flex-1 min-w-[240px]">
+            <Search size={14} className="absolute left-2.5 top-2.5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search Customer, Phone, PO#, Dispatch ID, Vehicle..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-8 pr-3 py-1.5 bg-[#FAF9F6] border border-[#E8E2DC] rounded text-xs focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-2.5 py-1.5 bg-[#FAF9F6] border border-[#E8E2DC] rounded text-xs focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+            >
+              <option value="all">All Delivery Statuses ({logs.length})</option>
+              <option value="Delivered">✅ Delivered ({logs.filter(l => l.status === 'Delivered').length})</option>
+              <option value="Sent">📤 Sent / In Transit ({logs.filter(l => l.status === 'Sent').length})</option>
+              <option value="Failed">⚠️ Failed ({logs.filter(l => l.status === 'Failed').length})</option>
+            </select>
+
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={handleClearFilters}
+                className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded text-xs transition-colors cursor-pointer"
+                title="Reset filters"
+              >
+                <RotateCcw size={12} />
+                <span>Reset</span>
+              </button>
+            )}
+
+            {hasActiveFilters && (
+              <span className="text-[11px] text-[#8F1717] font-semibold">
+                Showing {filteredLogs.length} of {logs.length}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Notifications Table */}
       <div className="bg-white rounded-lg border border-[#E8E2DC] shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
@@ -104,14 +184,26 @@ export default function CustomerNotifications() {
               </tr>
             </thead>
             <tbody>
-              {logs.length === 0 ? (
+              {filteredLogs.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="text-center py-10 text-xs text-gray-400">
-                    No customer notifications logged yet. Dispatches will automatically trigger alerts.
+                    {hasActiveFilters ? (
+                      <div>
+                        <p className="font-semibold text-gray-600 mb-1">No notifications match your search criteria.</p>
+                        <button
+                          onClick={handleClearFilters}
+                          className="text-xs text-[#8F1717] font-semibold hover:underline"
+                        >
+                          Clear Filters
+                        </button>
+                      </div>
+                    ) : (
+                      'No customer notifications logged yet. Dispatches will automatically trigger alerts.'
+                    )}
                   </td>
                 </tr>
               ) : (
-                logs.map((log, idx) => (
+                filteredLogs.map((log, idx) => (
                   <tr key={log.id} className="hover:bg-amber-50/40">
                     <td className="text-center font-mono text-[11px] text-gray-400">{idx + 1}</td>
                     <td className="text-center text-xs font-mono">{new Date(log.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</td>

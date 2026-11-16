@@ -1,11 +1,11 @@
 // src/pages/StockInward.jsx
 import React, { useState, useEffect } from 'react';
-import { ArrowDownLeft, CheckCircle2, Warehouse } from 'lucide-react';
+import { ArrowDownLeft, CheckCircle2, Factory } from 'lucide-react';
 import { api } from '../api';
 
 export default function StockInward({ setActivePage, onSuccess }) {
   const [products, setProducts] = useState([]);
-  const [warehouses, setWarehouses] = useState([]);
+  const [mills, setMills] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState(null);
@@ -16,7 +16,7 @@ export default function StockInward({ setActivePage, onSuccess }) {
     productId: '',
     warehouseId: '',
     quantity: '',
-    rate: '',
+    rate: 0,
     transactionType: 'Purchase Inward',
     source: '',
     referenceNumber: '',
@@ -26,12 +26,17 @@ export default function StockInward({ setActivePage, onSuccess }) {
   useEffect(() => {
     async function loadData() {
       try {
-        const [prodRes, whRes] = await Promise.all([
+        const [prodRes, indRes] = await Promise.all([
           api.products.getAll(),
-          api.warehouses.getAll()
+          api.industries.getAll()
         ]);
+        const inds = indRes.industries || [];
         setProducts(prodRes.products || []);
-        setWarehouses(whRes.warehouses || []);
+        setMills(inds);
+        const def = inds.find(i => i.is_default === 1) || inds[0];
+        if (def) {
+          setForm(prev => ({ ...prev, warehouseId: String(def.id) }));
+        }
       } catch (err) {
         setErrorMsg(err.message);
       } finally {
@@ -46,20 +51,23 @@ export default function StockInward({ setActivePage, onSuccess }) {
     try {
       setSubmitting(true);
       setErrorMsg(null);
-      const res = await api.stock.inward(form);
+      const res = await api.stock.inward({
+        ...form,
+        rate: 0
+      });
       setSuccessMsg(`Stock Inward successfully posted! Transaction: ${res.result.transactionNumber}. New Balance: ${res.result.runningBalance} QTL`);
       if (onSuccess) onSuccess();
-      setForm({
+      setForm(prev => ({
         date: new Date().toISOString().split('T')[0],
         productId: '',
-        warehouseId: '',
+        warehouseId: prev.warehouseId || '',
         quantity: '',
-        rate: '',
+        rate: 0,
         transactionType: 'Purchase Inward',
         source: '',
         referenceNumber: '',
         remarks: ''
-      });
+      }));
     } catch (err) {
       setErrorMsg(err.message);
     } finally {
@@ -77,7 +85,7 @@ export default function StockInward({ setActivePage, onSuccess }) {
               Stock Inward Entry Form
             </h1>
             <p className="text-xs text-[#777777]">
-              Post warehouse physical inventory receipt from rice mills, replenishments, or returns
+              Post physical inventory receipt at milling unit, replenishments, or returns
             </p>
           </div>
           <button
@@ -164,16 +172,16 @@ export default function StockInward({ setActivePage, onSuccess }) {
             </div>
 
             <div>
-              <label className="block font-semibold text-[#252525] mb-1">Destination Warehouse / Godown *</label>
+              <label className="block font-semibold text-[#252525] mb-1">Destination Mill *</label>
               <select
                 required
                 value={form.warehouseId}
                 onChange={(e) => setForm({ ...form, warehouseId: e.target.value })}
                 className="w-full p-2 bg-[#FAF9F6] border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
               >
-                <option value="">Select Warehouse</option>
-                {warehouses.map(w => (
-                  <option key={w.id} value={w.id}>{w.name} ({w.location})</option>
+                <option value="">Select Mill</option>
+                {mills.map(m => (
+                  <option key={m.id} value={m.id}>{m.name} ({m.location})</option>
                 ))}
               </select>
             </div>
@@ -187,18 +195,6 @@ export default function StockInward({ setActivePage, onSuccess }) {
                 placeholder="e.g. 100.00"
                 value={form.quantity}
                 onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-                className="w-full p-2 bg-[#FAF9F6] border border-[#E8E2DC] rounded font-mono focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block font-semibold text-[#252525] mb-1">Purchase / Inward Rate (₹/QTL)</label>
-              <input
-                type="number"
-                step="0.01"
-                placeholder="e.g. 2850.00"
-                value={form.rate}
-                onChange={(e) => setForm({ ...form, rate: e.target.value })}
                 className="w-full p-2 bg-[#FAF9F6] border border-[#E8E2DC] rounded font-mono focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
               />
             </div>

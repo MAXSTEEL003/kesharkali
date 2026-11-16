@@ -25,12 +25,13 @@ router.get('/master-loading', (req, res) => {
             SELECT 
                 le.*,
                 po.po_number,
-                c.name as customer_name,
+                COALESCE(pso.buyer_name, c.name) as customer_name,
                 i.name as industry_name,
                 p.name as product_name
             FROM loading_entries le
             JOIN purchase_orders po ON le.po_id = po.id
             JOIN customers c ON po.customer_id = c.id
+            LEFT JOIN po_sub_orders pso ON (le.sub_order_id = pso.id OR (le.po_id = pso.po_id AND le.sub_order_no = pso.sub_order_no))
             JOIN industries i ON le.industry_id = i.id
             JOIN products p ON le.product_id = p.id
             WHERE le.loading_status != 'Cancelled'
@@ -38,7 +39,7 @@ router.get('/master-loading', (req, res) => {
         const params = [];
         if (startDate) { sql += ' AND le.loading_date >= ?'; params.push(startDate); }
         if (endDate) { sql += ' AND le.loading_date <= ?'; params.push(endDate); }
-        if (buyerId) { sql += ' AND po.customer_id = ?'; params.push(buyerId); }
+        if (buyerId) { sql += ' AND (po.customer_id = ? OR pso.buyer_name = (SELECT name FROM customers WHERE id = ?))'; params.push(buyerId, buyerId); }
         if (industryId) { sql += ' AND le.industry_id = ?'; params.push(industryId); }
         if (fulfillmentType) { sql += ' AND le.fulfillment_type = ?'; params.push(fulfillmentType); }
         sql += ' ORDER BY le.loading_date DESC, le.id DESC';
@@ -57,12 +58,13 @@ router.get('/export/master-loading', async (req, res) => {
             SELECT 
                 le.*,
                 po.po_number,
-                c.name as customer_name,
+                COALESCE(pso.buyer_name, c.name) as customer_name,
                 i.name as industry_name,
                 p.name as product_name
             FROM loading_entries le
             JOIN purchase_orders po ON le.po_id = po.id
             JOIN customers c ON po.customer_id = c.id
+            LEFT JOIN po_sub_orders pso ON (le.sub_order_id = pso.id OR (le.po_id = pso.po_id AND le.sub_order_no = pso.sub_order_no))
             JOIN industries i ON le.industry_id = i.id
             JOIN products p ON le.product_id = p.id
             WHERE le.loading_status != 'Cancelled'
@@ -70,7 +72,7 @@ router.get('/export/master-loading', async (req, res) => {
         const params = [];
         if (startDate) { sql += ' AND le.loading_date >= ?'; params.push(startDate); }
         if (endDate) { sql += ' AND le.loading_date <= ?'; params.push(endDate); }
-        if (buyerId) { sql += ' AND po.customer_id = ?'; params.push(buyerId); }
+        if (buyerId) { sql += ' AND (po.customer_id = ? OR pso.buyer_name = (SELECT name FROM customers WHERE id = ?))'; params.push(buyerId, buyerId); }
         if (industryId) { sql += ' AND le.industry_id = ?'; params.push(industryId); }
         if (fulfillmentType) { sql += ' AND le.fulfillment_type = ?'; params.push(fulfillmentType); }
         sql += ' ORDER BY le.loading_date DESC, le.id DESC';

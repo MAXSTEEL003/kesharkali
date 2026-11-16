@@ -1,12 +1,14 @@
 // src/pages/StockLedger.jsx
-import React, { useState, useEffect } from 'react';
-import { FileText, Download, Filter, Search, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { FileText, Download, Filter, Search, ArrowDownLeft, ArrowUpRight, RotateCcw, X } from 'lucide-react';
 import { api, downloadBlob } from '../api';
+import { useNotification } from '../context/NotificationContext';
 
 export default function StockLedger({ setActiveTab, onNewInward, onNewOutward }) {
+  const { showToast } = useNotification();
   const [ledger, setLedger] = useState([]);
   const [products, setProducts] = useState([]);
-  const [warehouses, setWarehouses] = useState([]);
+  const [mills, setMills] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -21,32 +23,73 @@ export default function StockLedger({ setActiveTab, onNewInward, onNewOutward })
   const loadData = async () => {
     try {
       setLoading(true);
-      const [ledgerRes, prodRes, whRes] = await Promise.all([
+      const [ledgerRes, prodRes, indRes] = await Promise.all([
         api.stock.getLedger({ productId, warehouseId, transactionType, startDate, endDate, search }),
         api.products.getAll(),
-        api.warehouses.getAll()
+        api.industries.getAll()
       ]);
       setLedger(ledgerRes.ledger || []);
       setProducts(prodRes.products || []);
-      setWarehouses(whRes.warehouses || []);
+      setMills(indRes.industries || []);
       setError(null);
     } catch (err) {
       setError(err.message);
+      showToast(`Error loading ledger: ${err.message}`, 'error');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadData();
-  }, [productId, warehouseId, transactionType, startDate, endDate]);
+    const timer = setTimeout(() => {
+      loadData();
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [productId, warehouseId, transactionType, startDate, endDate, search]);
+
+  const hasActiveFilters = Boolean(productId || warehouseId || transactionType || startDate || endDate || search.trim());
+
+  const handleClearFilters = () => {
+    setProductId('');
+    setWarehouseId('');
+    setTransactionType('');
+    setStartDate('');
+    setEndDate('');
+    setSearch('');
+  };
+
+  // Immediate client-side reactive filtering for zero-latency keystrokes
+  const filteredLedger = useMemo(() => {
+    return ledger.filter(row => {
+      if (productId && String(row.product_id) !== String(productId)) return false;
+      if (warehouseId && String(row.warehouse_id) !== String(warehouseId)) return false;
+      if (transactionType && row.transaction_type !== transactionType) return false;
+      if (startDate && row.date < startDate) return false;
+      if (endDate && row.date > endDate) return false;
+      if (search.trim()) {
+        const q = search.trim().toLowerCase();
+        const match = (
+          row.transaction_number?.toLowerCase().includes(q) ||
+          row.reference_number?.toLowerCase().includes(q) ||
+          row.source?.toLowerCase().includes(q) ||
+          row.destination?.toLowerCase().includes(q) ||
+          row.product_name?.toLowerCase().includes(q) ||
+          row.transaction_type?.toLowerCase().includes(q) ||
+          row.remarks?.toLowerCase().includes(q)
+        );
+        if (!match) return false;
+      }
+      return true;
+    });
+  }, [ledger, productId, warehouseId, transactionType, startDate, endDate, search]);
 
   const handleExportExcel = async () => {
     try {
       const blob = await api.reports.exportStockLedger({ productId });
       downloadBlob(blob, `Keshar_Kali_Stock_Ledger_${new Date().toISOString().split('T')[0]}.xlsx`);
+      showToast('Stock Ledger Excel export downloaded successfully!', 'success');
     } catch (err) {
-      alert(`Export failed: ${err.message}`);
+      showToast(`Export failed: ${err.message}`, 'error');
     }
   };
 
@@ -56,10 +99,17 @@ export default function StockLedger({ setActiveTab, onNewInward, onNewOutward })
       <div className="glass-panel rounded-2xl p-5 shadow-xs">
         <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#E8E2DC]/80">
           <div>
-            <h1 className="text-base font-bold text-[#252525] font-['Space_Grotesk'] flex items-center gap-2">
-              <FileText size={18} className="text-[#8F1717]" />
-              Authoritative Stock Ledger (Running Balance)
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-base font-bold text-[#252525] font-['Space_Grotesk'] flex items-center gap-2">
+                <FileText size={18} className="text-[#8F1717]" />
+                Authoritative Stock Ledger (Running Balance)
+              </h1>
+              {hasActiveFilters && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#8F1717]/10 text-[#8F1717] border border-[#8F1717]/20">
+                  Filtered ({filteredLedger.length} of {ledger.length})
+                </span>
+              )}
+            </div>
             <p className="text-xs text-[#777777]">
               Chronological inventory transaction accounting with immutable running balances
             </p>
@@ -99,7 +149,18 @@ export default function StockLedger({ setActiveTab, onNewInward, onNewOutward })
         </div>
 
         {/* Filters */}
-        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2.5 text-xs">
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-2 text-xs">
+          <div className="relative md:col-span-1">
+            <Search size={13} className="absolute left-2.5 top-2.5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search ledger..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-8 pr-2.5 py-1.5 bg-[#FAF9F6] border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+            />
+          </div>
+
           <select
             value={productId}
             onChange={(e) => setProductId(e.target.value)}
@@ -116,9 +177,9 @@ export default function StockLedger({ setActiveTab, onNewInward, onNewOutward })
             onChange={(e) => setWarehouseId(e.target.value)}
             className="p-1.5 bg-[#FAF9F6] border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
           >
-            <option value="">All Warehouses</option>
-            {warehouses.map(w => (
-              <option key={w.id} value={w.id}>{w.name}</option>
+            <option value="">All Mills / Facilities</option>
+            {mills.map(m => (
+              <option key={m.id} value={m.id}>{m.name}</option>
             ))}
           </select>
 
@@ -139,21 +200,36 @@ export default function StockLedger({ setActiveTab, onNewInward, onNewOutward })
             <option value="Internal Stock Issue">Internal Stock Issue</option>
           </select>
 
-          <input
-            type="date"
-            placeholder="From Date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="p-1.5 bg-[#FAF9F6] border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
-          />
+          <div className="flex items-center gap-1">
+            <input
+              type="date"
+              title="Start Date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-1/2 p-1.5 bg-[#FAF9F6] border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none text-[11px]"
+            />
+            <input
+              type="date"
+              title="End Date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-1/2 p-1.5 bg-[#FAF9F6] border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none text-[11px]"
+            />
+          </div>
 
-          <input
-            type="date"
-            placeholder="To Date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="p-1.5 bg-[#FAF9F6] border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
-          />
+          <div className="flex items-center gap-1.5">
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={handleClearFilters}
+                className="w-full flex items-center justify-center gap-1 p-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded text-xs transition-colors cursor-pointer"
+                title="Clear all active filters"
+              >
+                <RotateCcw size={12} />
+                <span>Reset</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -177,14 +253,26 @@ export default function StockLedger({ setActiveTab, onNewInward, onNewOutward })
               </tr>
             </thead>
             <tbody>
-              {ledger.length === 0 ? (
+              {filteredLedger.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="text-center py-12 text-xs text-gray-400">
-                    No ledger entries found matching filters.
+                    {hasActiveFilters ? (
+                      <div>
+                        <p className="font-semibold text-gray-600 mb-1">No ledger entries match your filter criteria.</p>
+                        <button
+                          onClick={handleClearFilters}
+                          className="mt-1 text-xs text-[#8F1717] font-semibold hover:underline"
+                        >
+                          Clear Filters
+                        </button>
+                      </div>
+                    ) : (
+                      'No ledger entries found.'
+                    )}
                   </td>
                 </tr>
               ) : (
-                ledger.map((row, idx) => {
+                filteredLedger.map((row, idx) => {
                   const isInward = Number(row.inward_quantity) > 0;
                   const isOutward = Number(row.outward_quantity) > 0;
 
@@ -226,4 +314,5 @@ export default function StockLedger({ setActiveTab, onNewInward, onNewOutward })
     </div>
   );
 }
+
 

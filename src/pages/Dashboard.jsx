@@ -103,14 +103,6 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
           </button>
 
           <button 
-            onClick={() => onOpenQuickAction('dispatch')}
-            className="flex items-center gap-1.5 text-xs font-bold bg-gradient-to-r from-[#C69A3B] to-[#b08730] hover:from-[#b08730] hover:to-[#997324] text-[#5E1010] px-3.5 py-2 rounded-xl shadow-[0_0_12px_rgba(198,154,59,0.35)] hover:shadow-[0_0_20px_rgba(198,154,59,0.6)] border border-[#C69A3B]/60 transition-all"
-          >
-            <Send size={14} />
-            <span>Confirm Dispatch</span>
-          </button>
-
-          <button 
             onClick={() => setActivePage('reports-loading')}
             className="flex items-center gap-1.5 text-xs font-semibold bg-white/70 backdrop-blur-md border border-[#E8E2DC] text-[#252525] px-3.5 py-2 rounded-xl hover:bg-white transition-all shadow-xs"
           >
@@ -121,7 +113,7 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
       </div>
 
       {/* Row 1: Primary Operational KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-3">
         <StatCard 
           label="Received Customer POs" 
           value={`${metrics.totalPurchaseOrders}`} 
@@ -139,29 +131,21 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
           onClick={() => setActivePage('purchase-orders')}
         />
         <StatCard 
-          label="Total Loaded" 
+          label="Total Loaded & Dispatched" 
           value={`${metrics.totalLoadedQuantity.toLocaleString('en-IN')} QTL`} 
-          subtext={`Pending Loading: ${metrics.pendingLoading} QTL`}
+          subtext={`${metrics.totalLoadedQuantity.toLocaleString('en-IN')} QTL delivered to buyers`}
           icon={Truck} 
-          color="gold"
+          color="green"
           onClick={() => setActivePage('master-loading-register')}
         />
         <StatCard 
-          label="Total Dispatched" 
-          value={`${metrics.totalDispatchedQuantity.toLocaleString('en-IN')} QTL`} 
-          subtext={`Pending Dispatch: ${metrics.pendingDispatch} QTL`}
-          icon={Send} 
-          color="green"
-          onClick={() => setActivePage('dispatch-management')}
-        />
-        <StatCard 
-          label="Pending Fulfillment" 
-          value={`${metrics.overallPendingFulfillment.toLocaleString('en-IN')} QTL`} 
-          subtext="Net Buyer Deliveries Due"
+          label="Pending Mill Loading" 
+          value={`${metrics.pendingLoading.toLocaleString('en-IN')} QTL`} 
+          subtext="Orders Awaiting Mill Trucks"
           icon={Clock} 
           color="amber"
-          alert={metrics.overallPendingFulfillment > 0}
-          onClick={() => setActivePage('pending-loadings')}
+          alert={metrics.pendingLoading > 0}
+          onClick={() => setActivePage('master-loading-register')}
         />
       </div>
 
@@ -274,24 +258,24 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
           </div>
         </div>
 
-        {/* Loadings Pending Dispatch */}
+        {/* Recent Dispatched Truck Loadings */}
         <div className="glass-panel rounded-2xl shadow-xs overflow-hidden flex flex-col">
           <div className="bg-white/60 backdrop-blur-md border-b border-[#E8E2DC]/80 px-4 py-3 flex items-center justify-between">
             <h3 className="text-xs font-bold uppercase tracking-wider text-[#5E1010] flex items-center gap-2">
               <Truck size={15} />
-              Loadings Ready for Dispatch
+              Recent Dispatched Truck Loadings
             </h3>
             <button 
-              onClick={() => setActivePage('dispatch-management')}
+              onClick={() => setActivePage('master-loading-register')}
               className="text-xs text-[#5E1010] hover:underline flex items-center gap-1 font-semibold"
             >
-              Dispatch Center <ArrowRight size={12} />
+              Loading Register <ArrowRight size={12} />
             </button>
           </div>
           <div className="p-0 flex-1 overflow-x-auto">
-            {pendingTasks.undispatchedLoadings.length === 0 ? (
+            {(!pendingTasks.recentLoadings || pendingTasks.recentLoadings.length === 0) ? (
               <div className="p-6 text-center text-xs text-[#777777]">
-                No pending loaded quantities waiting for dispatch.
+                No truck loadings recorded yet.
               </div>
             ) : (
               <table className="w-full text-xs">
@@ -300,12 +284,12 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
                     <th className="py-2 px-3 text-left">Loading #</th>
                     <th className="py-2 px-3 text-left">PO & Buyer</th>
                     <th className="py-2 px-3 text-left">Vehicle</th>
-                    <th className="py-2 px-3 text-right">Available QTL</th>
-                    <th className="py-2 px-3 text-center">Action</th>
+                    <th className="py-2 px-3 text-right">Dispatched QTL</th>
+                    <th className="py-2 px-3 text-center">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#E8E2DC]">
-                  {pendingTasks.undispatchedLoadings.map(ld => (
+                  {pendingTasks.recentLoadings.map(ld => (
                     <tr key={ld.id} className="hover:bg-amber-50/30">
                       <td className="py-2.5 px-3 font-semibold text-[#5E1010]">{ld.loading_number}</td>
                       <td className="py-2.5 px-3">
@@ -314,15 +298,12 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
                       </td>
                       <td className="py-2.5 px-3 font-mono text-xs">{ld.vehicle_number}</td>
                       <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-700">
-                        {ld.pending_dispatch_qtl}
+                        {ld.loading_quantity} QTL
                       </td>
                       <td className="py-2.5 px-3 text-center">
-                        <button
-                          onClick={() => setActivePage('dispatch-management')}
-                          className="px-2 py-1 rounded bg-[#C69A3B] text-[#5E1010] text-[10px] font-bold hover:bg-[#b08730]"
-                        >
-                          Dispatch
-                        </button>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                          Dispatched
+                        </span>
                       </td>
                     </tr>
                   ))}
@@ -338,7 +319,7 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
         {/* Industry Sourcing Distribution */}
         <div className="glass-panel rounded-2xl p-5 shadow-xs">
           <h3 className="text-xs font-bold uppercase tracking-wider text-[#8F1717] mb-3 flex items-center justify-between">
-            <span>Industry Sourcing Breakdown (Strictly Internal)</span>
+            <span>Sourcing & Mill Fulfillment Breakdown</span>
             <span className="text-[10px] text-gray-500 font-normal">Actual loaded volume</span>
           </h3>
           <div className="space-y-3">

@@ -1,13 +1,19 @@
 // src/pages/Products.jsx
-import React, { useState, useEffect } from 'react';
-import { Layers, Plus, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Layers, Plus, AlertTriangle, CheckCircle2, Search, RotateCcw, Filter } from 'lucide-react';
 import Modal from '../components/Modal';
 import { api } from '../api';
+import { useNotification } from '../context/NotificationContext';
 
 export default function Products() {
+  const { showToast } = useNotification();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
+
+  // Filters
+  const [search, setSearch] = useState('');
+  const [stockStatusFilter, setStockStatusFilter] = useState('all'); // 'all' | 'low-stock' | 'normal'
 
   const [form, setForm] = useState({
     code: '',
@@ -25,7 +31,7 @@ export default function Products() {
       const res = await api.products.getAll();
       setProducts(res.products || []);
     } catch (err) {
-      alert(`Failed to load products: ${err.message}`);
+      showToast(`Failed to load products: ${err.message}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -34,6 +40,31 @@ export default function Products() {
   useEffect(() => {
     loadData();
   }, []);
+
+  const hasActiveFilters = Boolean(search.trim() || stockStatusFilter !== 'all');
+
+  const handleClearFilters = () => {
+    setSearch('');
+    setStockStatusFilter('all');
+  };
+
+  const filteredProducts = useMemo(() => {
+    return products.filter(p => {
+      if (stockStatusFilter === 'low-stock' && !p.is_low_stock) return false;
+      if (stockStatusFilter === 'normal' && p.is_low_stock) return false;
+      if (search.trim()) {
+        const q = search.trim().toLowerCase();
+        const match = (
+          p.code?.toLowerCase().includes(q) ||
+          p.name?.toLowerCase().includes(q) ||
+          p.brand?.toLowerCase().includes(q) ||
+          p.variety?.toLowerCase().includes(q)
+        );
+        if (!match) return false;
+      }
+      return true;
+    });
+  }, [products, search, stockStatusFilter]);
 
   const handleCreateProduct = async (e) => {
     e.preventDefault();
@@ -49,9 +80,10 @@ export default function Products() {
         min_stock_threshold: '50',
         standard_selling_rate: ''
       });
+      showToast('Product variety created successfully!', 'success');
       loadData();
     } catch (err) {
-      alert(err.message);
+      showToast(err.message, 'error');
     }
   };
 
@@ -78,6 +110,52 @@ export default function Products() {
         </button>
       </div>
 
+      {/* Filter Toolbar */}
+      <div className="bg-white rounded-lg border border-[#E8E2DC] p-3 shadow-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 text-xs">
+          <div className="relative flex-1 min-w-[240px]">
+            <Search size={14} className="absolute left-2.5 top-2.5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search Code, Name, Brand, Variety..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-8 pr-3 py-1.5 bg-[#FAF9F6] border border-[#E8E2DC] rounded text-xs focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <select
+              value={stockStatusFilter}
+              onChange={(e) => setStockStatusFilter(e.target.value)}
+              className="px-2.5 py-1.5 bg-[#FAF9F6] border border-[#E8E2DC] rounded text-xs focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+            >
+              <option value="all">All Inventory Statuses ({products.length})</option>
+              <option value="low-stock">⚠️ Low Stock Alert ({products.filter(p => p.is_low_stock).length})</option>
+              <option value="normal">✅ Normal Stock ({products.filter(p => !p.is_low_stock).length})</option>
+            </select>
+
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={handleClearFilters}
+                className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded text-xs transition-colors cursor-pointer"
+                title="Reset filters"
+              >
+                <RotateCcw size={12} />
+                <span>Reset</span>
+              </button>
+            )}
+
+            {hasActiveFilters && (
+              <span className="text-[11px] text-[#8F1717] font-semibold">
+                Showing {filteredProducts.length} of {products.length}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Products Table */}
       <div className="bg-white rounded-lg border border-[#E8E2DC] shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
@@ -98,33 +176,53 @@ export default function Products() {
               </tr>
             </thead>
             <tbody>
-              {products.map((p, idx) => (
-                <tr key={p.id} className="hover:bg-amber-50/40">
-                  <td className="text-center font-mono text-[11px] text-gray-400">{idx + 1}</td>
-                  <td className="font-mono text-xs font-bold text-[#8F1717]">{p.code}</td>
-                  <td className="font-semibold text-[#252525]">{p.name}</td>
-                  <td>{p.brand}</td>
-                  <td className="text-xs text-gray-600">{p.variety}</td>
-                  <td className="text-center font-mono text-xs font-semibold">{p.unit}</td>
-                  <td className="text-right font-mono font-bold">₹{p.standard_selling_rate}</td>
-                  <td className="text-right font-mono text-gray-500">{p.min_stock_threshold} QTL</td>
-                  <td className="text-right font-mono font-bold text-[#8F1717]">{p.physical_stock}</td>
-                  <td className="text-right font-mono font-bold text-emerald-700 bg-amber-50/30">
-                    {p.available_stock} QTL
-                  </td>
-                  <td className="text-center">
-                    {p.is_low_stock ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                        <AlertTriangle size={10} /> LOW STOCK
-                      </span>
+              {filteredProducts.length === 0 ? (
+                <tr>
+                  <td colSpan={11} className="py-8 text-center text-gray-400 text-xs">
+                    {hasActiveFilters ? (
+                      <div>
+                        <p className="font-semibold text-gray-600 mb-1">No products match your filter.</p>
+                        <button
+                          onClick={handleClearFilters}
+                          className="text-xs text-[#8F1717] font-semibold hover:underline"
+                        >
+                          Clear Filters
+                        </button>
+                      </div>
                     ) : (
-                      <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800">
-                        HEALTHY
-                      </span>
+                      'No products cataloged yet.'
                     )}
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredProducts.map((p, idx) => (
+                  <tr key={p.id} className="hover:bg-amber-50/40">
+                    <td className="text-center font-mono text-[11px] text-gray-400">{idx + 1}</td>
+                    <td className="font-mono text-xs font-bold text-[#8F1717]">{p.code}</td>
+                    <td className="font-semibold text-[#252525]">{p.name}</td>
+                    <td>{p.brand}</td>
+                    <td className="text-xs text-gray-600">{p.variety}</td>
+                    <td className="text-center font-mono text-xs font-semibold">{p.unit}</td>
+                    <td className="text-right font-mono font-bold">₹{p.standard_selling_rate}</td>
+                    <td className="text-right font-mono text-gray-500">{p.min_stock_threshold} QTL</td>
+                    <td className="text-right font-mono font-bold text-[#8F1717]">{p.physical_stock}</td>
+                    <td className="text-right font-mono font-bold text-emerald-700 bg-amber-50/30">
+                      {p.available_stock} QTL
+                    </td>
+                    <td className="text-center">
+                      {p.is_low_stock ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                          <AlertTriangle size={10} /> LOW STOCK
+                        </span>
+                      ) : (
+                        <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800">
+                          HEALTHY
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

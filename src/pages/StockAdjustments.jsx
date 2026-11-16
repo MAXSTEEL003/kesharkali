@@ -5,7 +5,7 @@ import { api } from '../api';
 
 export default function StockAdjustments({ setActivePage, onSuccess }) {
   const [products, setProducts] = useState([]);
-  const [warehouses, setWarehouses] = useState([]);
+  const [mills, setMills] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
@@ -22,12 +22,17 @@ export default function StockAdjustments({ setActivePage, onSuccess }) {
   useEffect(() => {
     async function loadData() {
       try {
-        const [prodRes, whRes] = await Promise.all([
+        const [prodRes, indRes] = await Promise.all([
           api.products.getAll(),
-          api.warehouses.getAll()
+          api.industries.getAll()
         ]);
+        const inds = indRes.industries || [];
         setProducts(prodRes.products || []);
-        setWarehouses(whRes.warehouses || []);
+        setMills(inds);
+        const def = inds.find(i => i.is_default === 1) || inds[0];
+        if (def) {
+          setForm(prev => ({ ...prev, warehouseId: String(def.id) }));
+        }
       } catch (err) {
         setErrorMsg(err.message);
       }
@@ -131,16 +136,16 @@ export default function StockAdjustments({ setActivePage, onSuccess }) {
             </div>
 
             <div>
-              <label className="block font-semibold text-[#252525] mb-1">Warehouse / Godown Audited *</label>
+              <label className="block font-semibold text-[#252525] mb-1">Mill Facility Audited *</label>
               <select
                 required
                 value={form.warehouseId}
                 onChange={(e) => setForm({ ...form, warehouseId: e.target.value })}
                 className="w-full p-2 bg-[#FAF9F6] border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
               >
-                <option value="">Select Warehouse</option>
-                {warehouses.map(w => (
-                  <option key={w.id} value={w.id}>{w.name}</option>
+                <option value="">Select Mill Facility</option>
+                {mills.map(m => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
                 ))}
               </select>
             </div>

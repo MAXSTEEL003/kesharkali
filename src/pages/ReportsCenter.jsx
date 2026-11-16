@@ -1,5 +1,5 @@
 // src/pages/ReportsCenter.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   FileSpreadsheet, 
   Download, 
@@ -9,12 +9,16 @@ import {
   ShoppingCart, 
   Warehouse, 
   Calendar,
-  CheckCircle2
+  CheckCircle2,
+  Search,
+  RotateCcw
 } from 'lucide-react';
 import { api, downloadBlob } from '../api';
 import { formatDateDMY } from '../utils/date';
+import { useNotification } from '../context/NotificationContext';
 
 export default function ReportsCenter() {
+  const { showToast } = useNotification();
   const [activeTab, setActiveTab] = useState('loading'); // 'loading', 'industry', 'buyer', 'po', 'stock'
   const [reportData, setReportData] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -27,6 +31,7 @@ export default function ReportsCenter() {
   const [endDate, setEndDate] = useState('');
   const [buyerId, setBuyerId] = useState('');
   const [industryId, setIndustryId] = useState('');
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     async function loadCatalogs() {
@@ -61,7 +66,7 @@ export default function ReportsCenter() {
       }
       setReportData(res.report || res.summary || []);
     } catch (err) {
-      alert(`Report query failed: ${err.message}`);
+      showToast(`Report query failed: ${err.message}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -70,6 +75,26 @@ export default function ReportsCenter() {
   useEffect(() => {
     fetchReport();
   }, [activeTab, startDate, endDate, buyerId, industryId]);
+
+  const hasActiveFilters = Boolean(startDate || endDate || buyerId || industryId || search.trim());
+
+  const handleClearFilters = () => {
+    setStartDate('');
+    setEndDate('');
+    setBuyerId('');
+    setIndustryId('');
+    setSearch('');
+  };
+
+  const filteredReportData = useMemo(() => {
+    if (!search.trim()) return reportData;
+    const q = search.trim().toLowerCase();
+    return reportData.filter(row => {
+      return Object.values(row).some(val => 
+        val !== null && val !== undefined && String(val).toLowerCase().includes(q)
+      );
+    });
+  }, [reportData, search]);
 
   const handleExport = async () => {
     try {
@@ -97,9 +122,10 @@ export default function ReportsCenter() {
 
       if (blob) {
         downloadBlob(blob, filename);
+        showToast('Report exported to Excel successfully!', 'success');
       }
     } catch (err) {
-      alert(`Export failed: ${err.message}`);
+      showToast(`Export failed: ${err.message}`, 'error');
     } finally {
       setExporting(false);
     }
@@ -160,7 +186,18 @@ export default function ReportsCenter() {
       </div>
 
       {/* Filter Ribbon */}
-      <div className="bg-white rounded-b-lg border-x border-b border-[#E8E2DC] p-3 -mt-4 shadow-xs grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 text-xs">
+      <div className="bg-white rounded-b-lg border-x border-b border-[#E8E2DC] p-3 -mt-4 shadow-xs grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2.5 text-xs">
+        <div className="relative">
+          <Search size={14} className="absolute left-2.5 top-2.5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search report..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-8 pr-3 py-1.5 bg-[#FAF9F6] border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+          />
+        </div>
+
         <input
           type="date"
           value={startDate}
@@ -198,6 +235,20 @@ export default function ReportsCenter() {
             {industries.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
           </select>
         )}
+
+        <div className="flex items-center">
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={handleClearFilters}
+              className="w-full flex items-center justify-center gap-1 p-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded text-xs transition-colors cursor-pointer"
+              title="Reset report filters"
+            >
+              <RotateCcw size={12} />
+              <span>Reset Filters</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Live Preview Table */}
@@ -205,8 +256,22 @@ export default function ReportsCenter() {
         <div className="overflow-x-auto max-h-[580px]">
           {loading ? (
             <div className="py-12 text-center text-xs text-gray-500">Querying database records...</div>
-          ) : reportData.length === 0 ? (
-            <div className="py-12 text-center text-xs text-gray-400">No report records found for selected filters.</div>
+          ) : filteredReportData.length === 0 ? (
+            <div className="py-12 text-center text-xs text-gray-400">
+              {hasActiveFilters ? (
+                <div>
+                  <p className="font-semibold text-gray-600 mb-1">No report records found for selected filters.</p>
+                  <button
+                    onClick={handleClearFilters}
+                    className="text-xs text-[#8F1717] font-semibold hover:underline"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+              ) : (
+                'No report records found.'
+              )}
+            </div>
           ) : (
             <table className="excel-grid">
               {activeTab === 'loading' && (
@@ -229,7 +294,7 @@ export default function ReportsCenter() {
                     </tr>
                   </thead>
                   <tbody>
-                    {reportData.map((r, idx) => (
+                    {filteredReportData.map((r, idx) => (
                       <tr key={r.id || idx}>
                         <td className="text-center font-mono text-[11px] text-gray-400">{idx + 1}</td>
                         <td className="text-center text-xs">{r.loading_date}</td>
@@ -268,7 +333,7 @@ export default function ReportsCenter() {
                     </tr>
                   </thead>
                   <tbody>
-                    {reportData.map((r, idx) => (
+                    {filteredReportData.map((r, idx) => (
                       <tr key={r.id || idx}>
                         <td className="text-center font-mono text-[11px] text-gray-400">{idx + 1}</td>
                         <td className="font-semibold text-[#8F1717]">{r.industry_name}</td>
@@ -305,7 +370,7 @@ export default function ReportsCenter() {
                     </tr>
                   </thead>
                   <tbody>
-                    {reportData.map((r, idx) => (
+                    {filteredReportData.map((r, idx) => (
                       <tr key={r.id || idx}>
                         <td className="text-center font-mono text-[11px] text-gray-400">{idx + 1}</td>
                         <td className="font-semibold text-[#8F1717]">{r.customer_name}</td>
@@ -343,7 +408,7 @@ export default function ReportsCenter() {
                     </tr>
                   </thead>
                   <tbody>
-                    {reportData.map((r, idx) => {
+                    {filteredReportData.map((r, idx) => {
                       const loaded = Number(r.loaded_quantity || 0);
                       const ordered = Number(r.ordered_quantity || 0);
                       const pending = Math.max(0, ordered - loaded);
@@ -383,7 +448,7 @@ export default function ReportsCenter() {
                     </tr>
                   </thead>
                   <tbody>
-                    {reportData.map((r, idx) => (
+                    {filteredReportData.map((r, idx) => (
                       <tr key={r.productId || idx}>
                         <td className="text-center font-mono text-[11px] text-gray-400">{idx + 1}</td>
                         <td className="font-mono text-xs">{r.productCode}</td>

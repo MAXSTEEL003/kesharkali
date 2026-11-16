@@ -1,17 +1,23 @@
 // src/pages/Customers.jsx
-import React, { useState, useEffect } from 'react';
-import { Users, Plus, Phone, MessageSquare, Building2, Eye, FileText, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Users, Plus, Phone, MessageSquare, Building2, Eye, FileText, CheckCircle2, Search, RotateCcw, Filter } from 'lucide-react';
 import Modal from '../components/Modal';
 import { api } from '../api';
 import { formatDateDMY } from '../utils/date';
+import { useNotification } from '../context/NotificationContext';
 
 export default function Customers() {
+  const { showToast } = useNotification();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [customerDetails, setCustomerDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
+
+  // Filters
+  const [search, setSearch] = useState('');
+  const [dueFilter, setDueFilter] = useState('all'); // 'all' | 'has-due' | 'zero-due'
 
   const [form, setForm] = useState({
     name: '',
@@ -30,7 +36,7 @@ export default function Customers() {
       const res = await api.customers.getAll();
       setCustomers(res.customers || []);
     } catch (err) {
-      alert(`Failed to load customers: ${err.message}`);
+      showToast(`Failed to load customers: ${err.message}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -40,6 +46,36 @@ export default function Customers() {
     loadData();
   }, []);
 
+  const hasActiveFilters = Boolean(search.trim() || dueFilter !== 'all');
+
+  const handleClearFilters = () => {
+    setSearch('');
+    setDueFilter('all');
+  };
+
+  const filteredCustomers = useMemo(() => {
+    return customers.filter(c => {
+      const pendingDue = Number(c.pending_qtl || 0);
+      if (dueFilter === 'has-due' && pendingDue <= 0.001) return false;
+      if (dueFilter === 'zero-due' && pendingDue > 0.001) return false;
+
+      if (search.trim()) {
+        const q = search.trim().toLowerCase();
+        const match = (
+          c.name?.toLowerCase().includes(q) ||
+          c.contact_person?.toLowerCase().includes(q) ||
+          c.city?.toLowerCase().includes(q) ||
+          c.gstin?.toLowerCase().includes(q) ||
+          c.phone?.toLowerCase().includes(q) ||
+          c.whatsapp_number?.toLowerCase().includes(q) ||
+          c.address?.toLowerCase().includes(q)
+        );
+        if (!match) return false;
+      }
+      return true;
+    });
+  }, [customers, search, dueFilter]);
+
   const handleViewCustomer = async (id) => {
     try {
       setLoadingDetails(true);
@@ -47,7 +83,7 @@ export default function Customers() {
       const res = await api.customers.getById(id);
       setCustomerDetails(res);
     } catch (err) {
-      alert(err.message);
+      showToast(err.message, 'error');
     } finally {
       setLoadingDetails(false);
     }
@@ -68,9 +104,10 @@ export default function Customers() {
         gstin: '',
         notes: ''
       });
+      showToast('Customer profile created successfully!', 'success');
       loadData();
     } catch (err) {
-      alert(err.message);
+      showToast(err.message, 'error');
     }
   };
 
@@ -97,6 +134,52 @@ export default function Customers() {
         </button>
       </div>
 
+      {/* Filter Toolbar */}
+      <div className="bg-white rounded-lg border border-[#E8E2DC] p-3 shadow-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 text-xs">
+          <div className="relative flex-1 min-w-[240px]">
+            <Search size={14} className="absolute left-2.5 top-2.5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search Buyer Name, City, Contact, GSTIN..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-8 pr-3 py-1.5 bg-[#FAF9F6] border border-[#E8E2DC] rounded text-xs focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <select
+              value={dueFilter}
+              onChange={(e) => setDueFilter(e.target.value)}
+              className="px-2.5 py-1.5 bg-[#FAF9F6] border border-[#E8E2DC] rounded text-xs focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+            >
+              <option value="all">All Balance Statuses ({customers.length})</option>
+              <option value="has-due">⚠️ With Pending Dues ({customers.filter(c => Number(c.pending_qtl || 0) > 0.001).length})</option>
+              <option value="zero-due">✅ Zero Balance Due ({customers.filter(c => Number(c.pending_qtl || 0) <= 0.001).length})</option>
+            </select>
+
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={handleClearFilters}
+                className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded text-xs transition-colors cursor-pointer"
+                title="Reset filters"
+              >
+                <RotateCcw size={12} />
+                <span>Reset</span>
+              </button>
+            )}
+
+            {hasActiveFilters && (
+              <span className="text-[11px] text-[#8F1717] font-semibold">
+                Showing {filteredCustomers.length} of {customers.length}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Customers Table */}
       <div className="bg-white rounded-lg border border-[#E8E2DC] shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
@@ -117,33 +200,53 @@ export default function Customers() {
               </tr>
             </thead>
             <tbody>
-              {customers.map((c, idx) => (
-                <tr key={c.id} className="hover:bg-amber-50/40">
-                  <td className="text-center font-mono text-[11px] text-gray-400">{idx + 1}</td>
-                  <td className="font-semibold text-[#8F1717] cursor-pointer hover:underline" onClick={() => handleViewCustomer(c.id)}>
-                    {c.name}
-                  </td>
-                  <td>{c.contact_person || '—'}</td>
-                  <td>{c.city || '—'}</td>
-                  <td className="text-center font-mono text-xs">{c.whatsapp_number}</td>
-                  <td className="text-center font-mono text-xs text-gray-600">{c.gstin || '—'}</td>
-                  <td className="text-right font-mono font-bold">{c.total_orders}</td>
-                  <td className="text-right font-mono">{Number(c.total_ordered_qtl).toFixed(2)}</td>
-                  <td className="text-right font-mono text-emerald-700 font-bold">{Number(c.total_dispatched_qtl).toFixed(2)}</td>
-                  <td className="text-right font-mono font-bold text-amber-700 bg-amber-50/30">
-                    {Number(c.pending_qtl).toFixed(2)}
-                  </td>
-                  <td className="text-center">
-                    <button
-                      onClick={() => handleViewCustomer(c.id)}
-                      className="p-1 rounded text-[#8F1717] hover:bg-red-50"
-                      title="View Customer Order Ledger"
-                    >
-                      <Eye size={15} />
-                    </button>
+              {filteredCustomers.length === 0 ? (
+                <tr>
+                  <td colSpan={11} className="py-8 text-center text-gray-400 text-xs">
+                    {hasActiveFilters ? (
+                      <div>
+                        <p className="font-semibold text-gray-600 mb-1">No customers match your search criteria.</p>
+                        <button
+                          onClick={handleClearFilters}
+                          className="text-xs text-[#8F1717] font-semibold hover:underline"
+                        >
+                          Clear Filters
+                        </button>
+                      </div>
+                    ) : (
+                      'No customers registered yet.'
+                    )}
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredCustomers.map((c, idx) => (
+                  <tr key={c.id} className="hover:bg-amber-50/40">
+                    <td className="text-center font-mono text-[11px] text-gray-400">{idx + 1}</td>
+                    <td className="font-semibold text-[#8F1717] cursor-pointer hover:underline" onClick={() => handleViewCustomer(c.id)}>
+                      {c.name}
+                    </td>
+                    <td>{c.contact_person || '—'}</td>
+                    <td>{c.city || '—'}</td>
+                    <td className="text-center font-mono text-xs">{c.whatsapp_number}</td>
+                    <td className="text-center font-mono text-xs text-gray-600">{c.gstin || '—'}</td>
+                    <td className="text-right font-mono font-bold">{c.total_orders}</td>
+                    <td className="text-right font-mono">{Number(c.total_ordered_qtl).toFixed(2)}</td>
+                    <td className="text-right font-mono text-emerald-700 font-bold">{Number(c.total_dispatched_qtl).toFixed(2)}</td>
+                    <td className="text-right font-mono font-bold text-amber-700 bg-amber-50/30">
+                      {Number(c.pending_qtl).toFixed(2)}
+                    </td>
+                    <td className="text-center">
+                      <button
+                        onClick={() => handleViewCustomer(c.id)}
+                        className="p-1 rounded text-[#8F1717] hover:bg-red-50 cursor-pointer"
+                        title="View Customer Order Ledger"
+                      >
+                        <Eye size={15} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

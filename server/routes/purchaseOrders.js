@@ -122,8 +122,14 @@ router.get('/', (req, res) => {
             params.push(allowedSupplierId);
         }
         if (buyerId) {
-            sql += ' AND po.customer_id = ?';
-            params.push(buyerId);
+            sql += ` AND (
+                po.customer_id = ? 
+                OR po.id IN (
+                    SELECT po_id FROM po_sub_orders 
+                    WHERE buyer_name = (SELECT name FROM customers WHERE id = ?)
+                )
+            )`;
+            params.push(buyerId, buyerId);
         }
         if (productId) {
             sql += ' AND po.product_id = ?';
@@ -142,9 +148,21 @@ router.get('/', (req, res) => {
             params.push(endDate);
         }
         if (search) {
-            sql += ' AND (po.po_number LIKE ? OR c.name LIKE ? OR p.name LIKE ?)';
+            sql += ` AND (
+                po.po_number LIKE ? 
+                OR c.name LIKE ? 
+                OR p.name LIKE ?
+                OR po.sub_order_no LIKE ?
+                OR po.sub_orders_json LIKE ?
+                OR po.customer_name_text LIKE ?
+                OR po.original_order_id LIKE ?
+                OR po.id IN (
+                    SELECT po_id FROM po_sub_orders 
+                    WHERE sub_order_no LIKE ? OR buyer_name LIKE ? OR bill_no LIKE ?
+                )
+            )`;
             const q = `%${search}%`;
-            params.push(q, q, q);
+            params.push(q, q, q, q, q, q, q, q, q, q);
         }
 
         const orderPref = (sortOrder || sort || 'new-to-old').toLowerCase();
@@ -481,6 +499,70 @@ router.post('/:id/cancel', (req, res) => {
 // -------------------------------------------------------------
 // Supplier Operational Actions & PO Chronological Ledger
 // -------------------------------------------------------------
+
+// 0. Supplier accepts ALL pending POs in bulk
+router.post('/supplier-accept-all', (req, res) => {
+    try {
+        const { supplier_id } = req.body || {};
+        let targetSupplierId = supplier_id;
+        if (req.user && req.user.role === 'Supplier' && req.user.supplierId) {
+            targetSupplierId = req.user.supplierId;
+        }
+
+        let sql = "SELECT * FROM purchase_orders WHERE status IN ('New', 'Pending', 'Pending Acceptance')";
+        const params = [];
+
+        if (targetSupplierId) {
+            sql += " AND (supplier_id = ? OR supplier_id IS NULL)";
+            params.push(targetSupplierId);
+        }
+
+        const pendingPOs = query(sql, params);
+        if (pendingPOs.length === 0) {
+            return res.json({ success: true, count: 0, message: 'No pending purchase orders to accept.' });
+        }
+
+        const actor = req.user?.fullName || 'Supplier';
+
+        transaction(() => {
+            for (const po of pendingPOs) {
+                run("UPDATE purchase_orders SET status = 'Accepted', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [po.id]);
+
+                run(`
+                    INSERT INTO po_ledger (po_id, po_number, event_type, title, description, actor)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                `, [
+                    po.id,
+                    po.po_number,
+                    'PO_ACCEPTED',
+                    'Order Confirmed & Accepted by Mill',
+                    `Supplier ${actor} accepted PO ${po.po_number} (Bulk Accept). Loading schedule initiated.`,
+                    actor
+                ]);
+
+                if (po.original_order_id) {
+                    pushReverseUpdateToOrdersPortal({
+                        orderId: po.original_order_id,
+                        poNumber: po.po_number,
+                        eventType: 'PO_ACCEPTED',
+                        eventPayload: { status: 'Accepted' },
+                        actor
+                    }).catch(() => {});
+                }
+            }
+        });
+
+        logAction('PurchaseOrder', 'BULK', 'SUPPLIER_ACCEPT_ALL', actor);
+
+        res.json({
+            success: true,
+            count: pendingPOs.length,
+            message: `Successfully accepted all ${pendingPOs.length} pending purchase orders.`
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 // 1. Supplier accepts PO
 router.post('/:id/supplier-accept', (req, res) => {

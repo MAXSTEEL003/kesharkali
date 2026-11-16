@@ -69,16 +69,7 @@ export default function Layout({ activePage, setActivePage, children, onOpenQuic
     { id: 'purchase-orders', label: 'Received POs', icon: Inbox },
     { id: 'industry-sourcing', label: 'Industry Sourcing', icon: Factory },
     { id: 'stock-management', label: 'Stock Management', icon: Warehouse },
-    { 
-      id: 'loading', 
-      label: 'Loading Management', 
-      icon: Truck,
-      subItems: [
-        { id: 'master-loading-register', label: 'Master Loading Register' },
-        { id: 'pending-loadings', label: 'Pending Loadings' }
-      ]
-    },
-    { id: 'dispatch-management', label: 'Dispatch Management', icon: Send },
+    { id: 'master-loading-register', label: 'Master Loading Register', icon: Truck },
     { id: 'customer-notifications', label: 'WhatsApp Notifications', icon: MessageSquare },
     { 
       id: 'reports', 
@@ -93,7 +84,7 @@ export default function Layout({ activePage, setActivePage, children, onOpenQuic
       ]
     },
     { id: 'customers', label: 'Customers', icon: Users },
-    { id: 'industries', label: 'Industries & Godowns', icon: Factory },
+    { id: 'industries', label: 'Rice Mills & Industries', icon: Factory },
     { id: 'products', label: 'Products', icon: Layers },
     { id: 'settings', label: 'Settings & Audit Logs', icon: Settings },
   ];
@@ -310,14 +301,6 @@ export default function Layout({ activePage, setActivePage, children, onOpenQuic
             >
               <Truck size={14} />
               <span className="hidden sm:inline">Add Loading</span>
-            </button>
-
-            <button
-              onClick={() => onOpenQuickAction && onOpenQuickAction('dispatch')}
-              className="flex items-center gap-1.5 bg-gradient-to-r from-[#C69A3B] to-[#b08730] hover:from-[#b08730] hover:to-[#997324] text-[#5E1010] text-xs font-bold px-3.5 py-1.5 rounded-xl border border-[#C69A3B]/70 shadow-[0_0_14px_rgba(198,154,59,0.4)] hover:shadow-[0_0_22px_rgba(198,154,59,0.65)] transition-all"
-            >
-              <Send size={14} />
-              <span className="hidden sm:inline">Dispatch</span>
             </button>
           </div>
         </header>

@@ -6,8 +6,9 @@ const { recordInward } = require('../services/stockService');
 const { derivePOStatus } = require('./purchaseOrders');
 const { logAction } = require('../services/auditService');
 const { pushReverseUpdateToOrdersPortal } = require('./integration');
+const { sendDispatchNotification } = require('../services/whatsappService');
 
-function generateLoadingNumber() {
+function generateLoadingNumber(offset = 0) {
     const year = new Date().getFullYear();
     const last = get(`
         SELECT loading_number FROM loading_entries 
@@ -15,12 +16,34 @@ function generateLoadingNumber() {
         ORDER BY id DESC LIMIT 1
     `, [`LD-${year}-%`]);
 
-    if (!last || !last.loading_number) {
-        return `LD-${year}-001`;
+    let seq = 1;
+    if (last && last.loading_number) {
+        const parts = last.loading_number.split('-');
+        const parsed = parseInt(parts[2], 10);
+        if (!isNaN(parsed)) {
+            seq = parsed + 1;
+        }
     }
-    const parts = last.loading_number.split('-');
-    const seq = parseInt(parts[2], 10) + 1;
-    return `LD-${year}-${String(seq).padStart(3, '0')}`;
+    return `LD-${year}-${String(seq + offset).padStart(3, '0')}`;
+}
+
+function generateDispatchNumber(offset = 0) {
+    const year = new Date().getFullYear();
+    const last = get(`
+        SELECT dispatch_number FROM dispatches 
+        WHERE dispatch_number LIKE ? 
+        ORDER BY id DESC LIMIT 1
+    `, [`DSP-${year}-%`]);
+
+    let seq = 1;
+    if (last && last.dispatch_number) {
+        const parts = last.dispatch_number.split('-');
+        const parsed = parseInt(parts[2], 10);
+        if (!isNaN(parsed)) {
+            seq = parsed + 1;
+        }
+    }
+    return `DSP-${year}-${String(seq + offset).padStart(3, '0')}`;
 }
 
 // GET Master Loading Register entries with rich join filters
@@ -52,6 +75,7 @@ router.get('/', (req, res) => {
                 pso.loaded_quantity as sub_loaded_quantity,
                 i.name as industry_name,
                 i.location as industry_location,
+                i.is_default as is_default_partner,
                 p.name as product_name,
                 p.code as product_code,
                 p.unit as product_unit,
@@ -89,8 +113,8 @@ router.get('/', (req, res) => {
             params.push(endDate);
         }
         if (buyerId) {
-            sql += ' AND po.customer_id = ?';
-            params.push(buyerId);
+            sql += ' AND (po.customer_id = ? OR pso.buyer_name = (SELECT name FROM customers WHERE id = ?))';
+            params.push(buyerId, buyerId);
         }
         if (industryId) {
             sql += ' AND le.industry_id = ?';
@@ -117,9 +141,20 @@ router.get('/', (req, res) => {
             params.push(dispatchStatus);
         }
         if (search) {
-            sql += ' AND (le.loading_number LIKE ? OR po.po_number LIKE ? OR c.name LIKE ? OR i.name LIKE ? OR le.vehicle_number LIKE ?)';
+            sql += ` AND (
+                le.loading_number LIKE ? 
+                OR po.po_number LIKE ? 
+                OR c.name LIKE ? 
+                OR i.name LIKE ? 
+                OR le.vehicle_number LIKE ?
+                OR le.sub_order_no LIKE ?
+                OR pso.buyer_name LIKE ?
+                OR p.name LIKE ?
+                OR le.loading_location LIKE ?
+                OR le.remarks LIKE ?
+            )`;
             const q = `%${search}%`;
-            params.push(q, q, q, q, q);
+            params.push(q, q, q, q, q, q, q, q, q, q);
         }
 
         sql += ' ORDER BY le.loading_date DESC, le.id DESC';
@@ -182,9 +217,250 @@ router.get('/summary', (req, res) => {
     }
 });
 
-// Create Loading Entry (Single)
+// Create Loading Entry (Single or Bulk Multi-Sub-Order)
 router.post('/', (req, res) => {
     try {
+        // Bulk Multi-Sub-Order Truck Loading
+        if (req.body.items && Array.isArray(req.body.items) && req.body.items.length > 0) {
+            const {
+                industry_id,
+                loading_date,
+                fulfillment_type = 'Direct',
+                warehouse_id,
+                loading_location,
+                vehicle_number,
+                driver_phone,
+                remarks,
+                items
+            } = req.body;
+
+            if (!industry_id || !vehicle_number || items.length === 0) {
+                return res.status(400).json({ error: 'Industry, vehicle number, and at least one sub-order item are required' });
+            }
+
+            if (fulfillment_type === 'Warehouse' && !warehouse_id) {
+                return res.status(400).json({ error: 'Warehouse must be selected when fulfillment type is Warehouse.' });
+            }
+
+            const validatedItems = [];
+            for (const it of items) {
+                const poId = it.po_id || it.poId;
+                const po = get('SELECT * FROM purchase_orders WHERE id = ?', [poId]);
+                if (!po) {
+                    return res.status(404).json({ error: `Purchase Order ID ${poId} not found` });
+                }
+
+                const loadQty = Number(it.loading_quantity || it.loadQty);
+                if (!loadQty || loadQty <= 0) {
+                    return res.status(400).json({ error: `Invalid loading quantity for sub-order ${it.sub_order_no || it.subOrderNo}` });
+                }
+
+                const subNo = it.sub_order_no || it.subOrderNo;
+                const subId = it.sub_order_id || it.subOrderId;
+                let subOrder = null;
+                if (subId) {
+                    subOrder = get('SELECT * FROM po_sub_orders WHERE id = ?', [subId]);
+                } else if (subNo) {
+                    subOrder = get('SELECT * FROM po_sub_orders WHERE po_id = ? AND sub_order_no = ?', [poId, subNo]);
+                }
+
+                // Sub-order overload check
+                if (subOrder) {
+                    const subAlreadyLoaded = Number(subOrder.loaded_quantity || 0);
+                    const subOrderedQty = Number(subOrder.ordered_quantity || 0);
+                    if (subAlreadyLoaded + loadQty > subOrderedQty && !it.override_allowed && !req.body.override_allowed) {
+                        return res.status(400).json({
+                            error: `Overloading not permitted: Sub-Order ${subOrder.sub_order_no} (${subOrder.buyer_name}) has ordered ${subOrderedQty} QTL. Already loaded: ${subAlreadyLoaded} QTL. Adding ${loadQty} QTL exceeds sub-order quantity by ${(subAlreadyLoaded + loadQty - subOrderedQty).toFixed(2)} QTL.`
+                        });
+                    }
+                }
+
+                // PO overload check
+                const existingLoadedRow = get("SELECT COALESCE(SUM(loading_quantity), 0) as total FROM loading_entries WHERE po_id = ? AND loading_status != 'Cancelled'", [poId]);
+                const currentlyLoaded = Number(existingLoadedRow?.total || 0);
+                const orderQty = Number(po.ordered_quantity);
+
+                if (currentlyLoaded + loadQty > orderQty && !it.override_allowed && !req.body.override_allowed) {
+                    return res.status(400).json({
+                        error: `Overloading not permitted: PO ${po.po_number} requires ${orderQty} QTL. Current loaded is ${currentlyLoaded} QTL. Adding ${loadQty} QTL exceeds total by ${(currentlyLoaded + loadQty - orderQty)} QTL.`
+                    });
+                }
+
+                const rate = Number(it.purchase_rate !== undefined && it.purchase_rate !== null && it.purchase_rate !== ''
+                    ? it.purchase_rate
+                    : (it.purchaseRate !== undefined && it.purchaseRate !== null && it.purchaseRate !== ''
+                        ? it.purchaseRate
+                        : (req.body.purchase_rate !== undefined && req.body.purchase_rate !== null && req.body.purchase_rate !== ''
+                            ? req.body.purchase_rate
+                            : 0)));
+                const amount = Number((loadQty * rate).toFixed(2));
+                const prodId = it.product_id || it.productId || po.product_id;
+
+                validatedItems.push({
+                    po,
+                    subOrder,
+                    loadQty,
+                    rate,
+                    amount,
+                    prodId,
+                    subNo: subOrder?.sub_order_no || subNo || null,
+                    subId: subOrder?.id || subId || null,
+                    location: it.loading_location || loading_location || subOrder?.delivery_location || po.delivery_location || ''
+                });
+            }
+
+            const date = loading_date || new Date().toISOString().split('T')[0];
+            const createdEntries = [];
+            const createdDispatchIds = [];
+            const affectedPoIds = new Set();
+
+            transaction((db) => {
+                const insertStmt = db.prepare(`
+                    INSERT INTO loading_entries (
+                        loading_number, loading_date, po_id, sub_order_no, sub_order_id, allocation_id,
+                        industry_id, product_id, fulfillment_type, warehouse_id,
+                        loading_location, vehicle_number, driver_phone, loading_quantity,
+                        purchase_rate, loading_amount, loading_status, dispatch_status,
+                        remarks, created_by
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Loaded', 'Dispatched', ?, ?)
+                `);
+
+                const dspStmt = db.prepare(`
+                    INSERT INTO dispatches (
+                        dispatch_number, loading_id, po_id, dispatch_date,
+                        dispatch_quantity, vehicle_number, driver_phone, source_type,
+                        warehouse_id, remarks, notification_status, created_by
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?)
+                `);
+
+                for (let i = 0; i < validatedItems.length; i++) {
+                    const item = validatedItems[i];
+                    const loadingNumber = generateLoadingNumber(i);
+                    const resInsert = insertStmt.run(
+                        loadingNumber,
+                        date,
+                        item.po.id,
+                        item.subNo,
+                        item.subId,
+                        null,
+                        industry_id,
+                        item.prodId,
+                        fulfillment_type,
+                        fulfillment_type === 'Warehouse' ? warehouse_id : null,
+                        item.location,
+                        vehicle_number.toUpperCase().trim(),
+                        driver_phone || null,
+                        item.loadQty,
+                        item.rate,
+                        item.amount,
+                        remarks || '',
+                        req.user?.fullName || 'Staff'
+                    );
+
+                    const newLoadingId = resInsert.lastInsertRowid;
+                    createdEntries.push({ id: newLoadingId, loadingNumber, loading_number: loadingNumber, poId: item.po.id });
+                    affectedPoIds.add(item.po.id);
+
+                    // Loaded itself means dispatched: auto-record dispatch
+                    const dispatchNumber = generateDispatchNumber(i);
+                    const dspRes = dspStmt.run(
+                        dispatchNumber,
+                        newLoadingId,
+                        item.po.id,
+                        date,
+                        item.loadQty,
+                        vehicle_number.toUpperCase().trim(),
+                        driver_phone || null,
+                        fulfillment_type,
+                        fulfillment_type === 'Warehouse' ? warehouse_id : null,
+                        remarks || '',
+                        req.user?.fullName || 'Staff'
+                    );
+                    createdDispatchIds.push(dspRes.lastInsertRowid);
+
+                    // Update sub-order loaded_quantity & status
+                    if (item.subOrder) {
+                        const newSubLoaded = Number(item.subOrder.loaded_quantity || 0) + item.loadQty;
+                        const newSubStatus = newSubLoaded >= Number(item.subOrder.ordered_quantity) ? 'Loaded' : 'Partially Loaded';
+                        db.prepare('UPDATE po_sub_orders SET loaded_quantity = ?, status = ? WHERE id = ?').run(newSubLoaded, newSubStatus, item.subOrder.id);
+
+                        // Update sub_orders_json on purchase_orders
+                        const currentPO = db.prepare('SELECT sub_orders_json FROM purchase_orders WHERE id = ?').get(item.po.id);
+                        if (currentPO?.sub_orders_json) {
+                            try {
+                                const subs = JSON.parse(currentPO.sub_orders_json);
+                                for (const s of subs) {
+                                    if ((s.subOrderNo && s.subOrderNo === item.subOrder.sub_order_no) || (s.sub_order_no && s.sub_order_no === item.subOrder.sub_order_no)) {
+                                        s.loaded_quantity = newSubLoaded;
+                                        s.loadedQuantity = newSubLoaded;
+                                        s.status = newSubStatus;
+                                    }
+                                }
+                                db.prepare('UPDATE purchase_orders SET sub_orders_json = ? WHERE id = ?').run(JSON.stringify(subs), item.po.id);
+                            } catch (_) {}
+                        }
+                    }
+
+                    // Warehouse inward stock
+                    if (fulfillment_type === 'Warehouse') {
+                        const ind = db.prepare('SELECT name FROM industries WHERE id = ?').get(industry_id);
+                        const wh = db.prepare('SELECT name FROM warehouses WHERE id = ?').get(warehouse_id);
+
+                        recordInward({
+                            date,
+                            productId: item.prodId,
+                            warehouseId: warehouse_id,
+                            transactionType: 'Purchase Inward',
+                            referenceNumber: loadingNumber,
+                            source: ind?.name || 'Rice Mill',
+                            destination: wh?.name || 'Warehouse',
+                            quantity: item.loadQty,
+                            rate: item.rate,
+                            remarks: `Bulk Inwarded from Loading ${loadingNumber} (Vehicle: ${vehicle_number}) for Sub ${item.subNo || 'Direct'}`
+                        }, db);
+                    }
+
+                    // Record in PO Ledger
+                    db.prepare(`
+                        INSERT INTO po_ledger (po_id, po_number, event_type, title, description, actor, metadata)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    `).run(
+                        item.po.id,
+                        item.po.po_number,
+                        'LOADING_ENTRY',
+                        `Loading & Dispatch Recorded (${loadingNumber})`,
+                        `Vehicle ${vehicle_number.toUpperCase().trim()} loaded & dispatched with ${item.loadQty} QTL for Sub ${item.subNo || 'Direct'}.`,
+                        req.user?.fullName || 'Supplier Staff',
+                        JSON.stringify({ loadingId: newLoadingId, vehicleNumber: vehicle_number, quantity: item.loadQty, subOrderNo: item.subNo })
+                    );
+                }
+
+                // Update PO status for each affected PO
+                for (const pId of affectedPoIds) {
+                    const newStatus = derivePOStatus(pId);
+                    db.prepare('UPDATE purchase_orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(newStatus, pId);
+                }
+            });
+
+            // Trigger customer WhatsApp dispatch notifications asynchronously
+            try {
+                for (const dId of createdDispatchIds) {
+                    sendDispatchNotification(dId).catch(() => {});
+                }
+            } catch (_) {}
+
+            logAction('LoadingEntry', createdEntries[0]?.id, 'CREATE_BULK', req.user?.username || 'Staff', { count: createdEntries.length, vehicle_number, fulfillment_type });
+
+            return res.status(201).json({
+                success: true,
+                count: createdEntries.length,
+                loadingEntries: createdEntries,
+                loadingNumber: createdEntries[0]?.loadingNumber,
+                id: createdEntries[0]?.id,
+                message: `Bulk loading created successfully (${createdEntries.length} sub-orders loaded on vehicle ${vehicle_number})`
+            });
+        }
+
         const {
             po_id,
             sub_order_no,
@@ -203,7 +479,7 @@ router.post('/', (req, res) => {
             remarks
         } = req.body;
 
-        if (!po_id || !industry_id || !loading_quantity || !purchase_rate || !vehicle_number) {
+        if (!po_id || !industry_id || !loading_quantity || purchase_rate === undefined || purchase_rate === null || purchase_rate === '' || !vehicle_number) {
             return res.status(400).json({ error: 'PO, industry, vehicle number, loading quantity, and purchase rate are required' });
         }
 
@@ -229,7 +505,7 @@ router.post('/', (req, res) => {
         if (subOrder) {
             const subAlreadyLoaded = Number(subOrder.loaded_quantity || 0);
             const subOrderedQty = Number(subOrder.ordered_quantity || 0);
-            if (subAlreadyLoaded + loadQty > subOrderedQty && (!req.user || req.user.role !== 'Admin')) {
+            if (subAlreadyLoaded + loadQty > subOrderedQty && !req.body.override_allowed) {
                 return res.status(400).json({
                     error: `Overloading not permitted: Sub-Order ${subOrder.sub_order_no} (${subOrder.buyer_name}) has ordered ${subOrderedQty} QTL. Already loaded: ${subAlreadyLoaded} QTL. Adding ${loadQty} QTL exceeds sub-order quantity by ${(subAlreadyLoaded + loadQty - subOrderedQty).toFixed(2)} QTL.`
                 });
@@ -241,7 +517,7 @@ router.post('/', (req, res) => {
         const currentlyLoaded = Number(existingLoadedRow?.total || 0);
         const orderQty = Number(po.ordered_quantity);
 
-        if (currentlyLoaded + loadQty > orderQty && (!req.user || req.user.role !== 'Admin')) {
+        if (currentlyLoaded + loadQty > orderQty && !req.body.override_allowed) {
             return res.status(400).json({
                 error: `Overloading not permitted: Order quantity is ${orderQty} QTL. Current loaded is ${currentlyLoaded} QTL. Adding ${loadQty} QTL exceeds total by ${(currentlyLoaded + loadQty - orderQty)} QTL. Admin approval required.`
             });
@@ -253,6 +529,7 @@ router.post('/', (req, res) => {
         const date = loading_date || new Date().toISOString().split('T')[0];
 
         let newLoadingId;
+        let newDispatchId;
 
         transaction((db) => {
             const stmt = db.prepare(`
@@ -262,7 +539,7 @@ router.post('/', (req, res) => {
                     loading_location, vehicle_number, driver_phone, loading_quantity,
                     purchase_rate, loading_amount, loading_status, dispatch_status,
                     remarks, created_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Loaded', 'Pending', ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Loaded', 'Dispatched', ?, ?)
             `);
 
             const result = stmt.run(
@@ -286,6 +563,29 @@ router.post('/', (req, res) => {
                 req.user?.fullName || 'Staff'
             );
             newLoadingId = result.lastInsertRowid;
+
+            // Loaded itself means dispatched: auto-record dispatch
+            const dispatchNumber = generateDispatchNumber();
+            const dspRes = db.prepare(`
+                INSERT INTO dispatches (
+                    dispatch_number, loading_id, po_id, dispatch_date,
+                    dispatch_quantity, vehicle_number, driver_phone, source_type,
+                    warehouse_id, remarks, notification_status, created_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?)
+            `).run(
+                dispatchNumber,
+                newLoadingId,
+                po_id,
+                date,
+                loadQty,
+                vehicle_number.toUpperCase().trim(),
+                driver_phone || null,
+                fulfillment_type,
+                fulfillment_type === 'Warehouse' ? warehouse_id : null,
+                remarks || '',
+                req.user?.fullName || 'Staff'
+            );
+            newDispatchId = dspRes.lastInsertRowid;
 
             // Update sub-order loaded quantity and status
             if (subOrder) {
@@ -382,6 +682,10 @@ router.post('/', (req, res) => {
             }).catch(() => {});
         }
 
+        if (newDispatchId) {
+            sendDispatchNotification(newDispatchId).catch(() => {});
+        }
+
         logAction('LoadingEntry', newLoadingId, 'CREATE', req.user?.username || 'Staff', { loadingNumber, loadQty, vehicle_number, fulfillment_type });
 
         res.status(201).json({
@@ -464,18 +768,16 @@ router.post('/bulk-save', (req, res) => {
     }
 });
 
-// Delete Loading Entry (with validation - cannot delete if already dispatched)
+// Delete Loading Entry (with automatic reversal of dispatches and inventory)
 router.delete('/:id', (req, res) => {
     try {
         const loading = get('SELECT * FROM loading_entries WHERE id = ?', [req.params.id]);
         if (!loading) return res.status(404).json({ error: 'Loading entry not found' });
 
-        const dspCheck = get('SELECT COUNT(*) as count FROM dispatches WHERE loading_id = ?', [loading.id]);
-        if (dspCheck.count > 0) {
-            return res.status(400).json({ error: `Cannot delete loading entry with ${dspCheck.count} confirmed dispatch(es)!` });
-        }
-
         transaction((db) => {
+            // Delete associated dispatch records
+            db.prepare('DELETE FROM dispatches WHERE loading_id = ?').run(loading.id);
+
             // If warehouse fulfillment, reverse inward stock ledger entry
             if (loading.fulfillment_type === 'Warehouse') {
                 const lastRow = db.prepare(`SELECT running_balance FROM stock_ledger WHERE product_id = ? ORDER BY id DESC LIMIT 1`).get(loading.product_id);

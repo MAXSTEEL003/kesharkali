@@ -20,8 +20,10 @@ import {
 import { api, getRole, setRole } from '../api';
 import { useFirebaseAuth } from '../firebase/AuthContext';
 import { REQUIRED_COLLECTIONS } from '../firebase/schema';
+import { useNotification } from '../context/NotificationContext';
 
 export default function Settings() {
+  const { showToast } = useNotification();
   const { currentUser, isConfigured, loginWithGoogle, logout } = useFirebaseAuth();
   const [users, setUsers] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
@@ -125,7 +127,7 @@ export default function Settings() {
                   onClick={() => {
                     localStorage.removeItem('keshar_kali_logo');
                     window.dispatchEvent(new CustomEvent('company-logo-updated', { detail: { logoUrl: '/logo.svg' } }));
-                    alert('Reset to default Keshar Kali logo.');
+                    showToast('Reset to default Keshar Kali logo.', 'info');
                   }}
                   className="text-[10px] text-[#8F1717] hover:underline font-semibold"
                 >
@@ -154,7 +156,7 @@ export default function Settings() {
                         const dataUrl = evt.target.result;
                         localStorage.setItem('keshar_kali_logo', dataUrl);
                         window.dispatchEvent(new CustomEvent('company-logo-updated', { detail: { logoUrl: dataUrl } }));
-                        alert('Company logo updated successfully!');
+                        showToast('Company logo updated successfully!', 'success');
                       };
                       reader.readAsDataURL(file);
                     }}

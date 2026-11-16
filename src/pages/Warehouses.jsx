@@ -3,8 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { Warehouse, Plus, MapPin, Phone, User, CheckCircle2 } from 'lucide-react';
 import Modal from '../components/Modal';
 import { api } from '../api';
+import { useNotification } from '../context/NotificationContext';
 
 export default function Warehouses() {
+  const { showToast } = useNotification();
   const [warehouses, setWarehouses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -23,7 +25,7 @@ export default function Warehouses() {
       const res = await api.warehouses.getAll();
       setWarehouses(res.warehouses || []);
     } catch (err) {
-      alert(`Failed to load warehouses: ${err.message}`);
+      showToast(`Failed to load warehouses: ${err.message}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -45,9 +47,10 @@ export default function Warehouses() {
         manager_name: '',
         contact_phone: ''
       });
+      showToast('Warehouse created successfully!', 'success');
       loadData();
     } catch (err) {
-      alert(err.message);
+      showToast(err.message, 'error');
     }
   };
 

@@ -42,10 +42,10 @@ export default function StockDashboard({ setActivePage }) {
       <div className="glass-panel rounded-2xl p-5 shadow-xs flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-base font-bold text-[#252525] font-['Space_Grotesk']">
-            Stock Management & Warehouse Inventory Position
+            Stock Management & Mill Inventory Position
           </h1>
           <p className="text-xs text-[#777777]">
-            Authoritative physical balance and live running ledger accounting
+            Authoritative physical balance and live running ledger accounting across milling units
           </p>
         </div>
 
@@ -70,7 +70,7 @@ export default function StockDashboard({ setActivePage }) {
             onClick={() => setActivePage('stock-transfers')}
             className="flex items-center gap-1.5 text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-[#252525] px-3 py-1.5 rounded transition-colors shadow-xs"
           >
-            <span>Transfer Godown</span>
+            <span>Inter-Mill Transfer</span>
           </button>
 
           <button
@@ -95,7 +95,7 @@ export default function StockDashboard({ setActivePage }) {
         <StatCard
           label="Total Physical Stock"
           value={`${totalPhysicalStock.toLocaleString('en-IN')} QTL`}
-          subtext="Audited Warehouse Total"
+          subtext="Audited Mill Total"
           icon={Warehouse}
           color="red"
           onClick={() => setActivePage('stock-ledger')}

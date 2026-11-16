@@ -1,6 +1,6 @@
 // src/pages/Industries.jsx
 // Unified Industry & Mill Godown Master Register (Merged with Warehouse & Godown storage facilities)
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Factory, 
   Warehouse, 
@@ -13,17 +13,26 @@ import {
   CheckCircle2, 
   AlertCircle,
   FileSpreadsheet,
-  Boxes
+  Boxes,
+  Search,
+  RotateCcw,
+  Filter
 } from 'lucide-react';
 import Modal from '../components/Modal';
 import { api } from '../api';
 import { formatDateDMY } from '../utils/date';
+import { useNotification } from '../context/NotificationContext';
 
 export default function Industries() {
+  const { showToast, confirm } = useNotification();
   const [industries, setIndustries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedIndustry, setSelectedIndustry] = useState(null);
   const [industryDetails, setIndustryDetails] = useState(null);
+
+  // Filters
+  const [search, setSearch] = useState('');
+  const [defaultFilter, setDefaultFilter] = useState('all'); // 'all' | 'default-only'
 
   // Add / Edit Modal states
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -51,7 +60,7 @@ export default function Industries() {
       const res = await api.industries.getAll();
       setIndustries(res.industries || []);
     } catch (err) {
-      alert(`Failed to load industries: ${err.message}`);
+      showToast(`Failed to load industries: ${err.message}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -61,13 +70,39 @@ export default function Industries() {
     loadData();
   }, []);
 
+  const hasActiveFilters = Boolean(search.trim() || defaultFilter !== 'all');
+
+  const handleClearFilters = () => {
+    setSearch('');
+    setDefaultFilter('all');
+  };
+
+  const filteredIndustries = useMemo(() => {
+    return industries.filter(ind => {
+      if (defaultFilter === 'default-only' && Number(ind.is_default) !== 1) return false;
+      if (search.trim()) {
+        const q = search.trim().toLowerCase();
+        const match = (
+          ind.name?.toLowerCase().includes(q) ||
+          ind.location?.toLowerCase().includes(q) ||
+          ind.facility_type?.toLowerCase().includes(q) ||
+          ind.contact_person?.toLowerCase().includes(q) ||
+          ind.phone?.toLowerCase().includes(q) ||
+          ind.available_products?.toLowerCase().includes(q)
+        );
+        if (!match) return false;
+      }
+      return true;
+    });
+  }, [industries, search, defaultFilter]);
+
   const handleViewIndustry = async (id) => {
     try {
       setSelectedIndustry(id);
       const res = await api.industries.getById(id);
       setIndustryDetails(res);
     } catch (err) {
-      alert(err.message);
+      showToast(err.message, 'error');
     }
   };
 
@@ -100,9 +135,9 @@ export default function Industries() {
       setIsAddOpen(false);
       setForm(initialFormState);
       loadData();
-      alert('Industry & Mill Godown created successfully!');
+      showToast('Industry & Mill Godown created successfully!', 'success');
     } catch (err) {
-      alert(`Failed to create industry: ${err.message}`);
+      showToast(`Failed to create industry: ${err.message}`, 'error');
     }
   };
 
@@ -120,25 +155,30 @@ export default function Industries() {
       if (selectedIndustry === editForm.id) {
         handleViewIndustry(editForm.id);
       }
-      alert('Industry & Mill Godown updated successfully!');
+      showToast('Industry & Mill Godown updated successfully!', 'success');
     } catch (err) {
-      alert(`Failed to update industry: ${err.message}`);
+      showToast(`Failed to update industry: ${err.message}`, 'error');
     }
   };
 
   const handleSetDefault = async (ind) => {
-    if (!confirm(`Set "${ind.name}" as the preferred default rice mill / godown? All PO loadings & allocations will prioritize this facility by default.`)) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Set Default Rice Mill',
+      message: `Set "${ind.name}" as the preferred default rice mill / godown? All PO loadings & allocations will prioritize this facility by default.`,
+      confirmText: 'Set as Default',
+      type: 'warning'
+    });
+    if (!ok) return;
+
     try {
       await api.industries.setDefault(ind.id);
       loadData();
       if (selectedIndustry === ind.id) {
         handleViewIndustry(ind.id);
       }
-      alert(`"${ind.name}" is now set as the preferred default industry!`);
+      showToast(`"${ind.name}" is now set as the preferred default industry!`, 'success');
     } catch (err) {
-      alert(`Failed to set default: ${err.message}`);
+      showToast(`Failed to set default: ${err.message}`, 'error');
     }
   };
 
@@ -173,6 +213,51 @@ export default function Industries() {
         </button>
       </div>
 
+      {/* Filter Toolbar */}
+      <div className="bg-white rounded-lg border border-[#E8E2DC] p-3 shadow-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 text-xs">
+          <div className="relative flex-1 min-w-[240px]">
+            <Search size={14} className="absolute left-2.5 top-2.5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search Mill Name, Location, Contact Person, Phone..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-8 pr-3 py-1.5 bg-[#FAF9F6] border border-[#E8E2DC] rounded text-xs focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <select
+              value={defaultFilter}
+              onChange={(e) => setDefaultFilter(e.target.value)}
+              className="px-2.5 py-1.5 bg-[#FAF9F6] border border-[#E8E2DC] rounded text-xs focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+            >
+              <option value="all">All Sourcing Facilities ({industries.length})</option>
+              <option value="default-only">⭐ Default Sourcing Partner Only</option>
+            </select>
+
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={handleClearFilters}
+                className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded text-xs transition-colors cursor-pointer"
+                title="Reset filters"
+              >
+                <RotateCcw size={12} />
+                <span>Reset</span>
+              </button>
+            )}
+
+            {hasActiveFilters && (
+              <span className="text-[11px] text-[#8F1717] font-semibold">
+                Showing {filteredIndustries.length} of {industries.length}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Industries & Godowns Table */}
       <div className="bg-white rounded-lg border border-[#E8E2DC] shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
@@ -192,14 +277,26 @@ export default function Industries() {
               </tr>
             </thead>
             <tbody>
-              {industries.length === 0 ? (
+              {filteredIndustries.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="text-center py-8 text-xs text-gray-400">
-                    No industries or mill godowns recorded.
+                    {hasActiveFilters ? (
+                      <div>
+                        <p className="font-semibold text-gray-600 mb-1">No mills or facilities match your filter.</p>
+                        <button
+                          onClick={handleClearFilters}
+                          className="text-xs text-[#8F1717] font-semibold hover:underline"
+                        >
+                          Clear Filters
+                        </button>
+                      </div>
+                    ) : (
+                      'No industries or mill facilities recorded.'
+                    )}
                   </td>
                 </tr>
               ) : (
-                industries.map((ind, idx) => {
+                filteredIndustries.map((ind, idx) => {
                   const isDefault = Number(ind.is_default) === 1;
                   return (
                     <tr key={ind.id} className={`hover:bg-amber-50/40 transition-colors ${isDefault ? 'bg-amber-50/20' : ''}`}>

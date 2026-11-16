@@ -68,11 +68,11 @@ export default function StockManagement({ initialTab = 'ledger' }) {
 
   const tabs = [
     { id: 'ledger', label: 'Stock Ledger', icon: FileText, desc: 'Chronological running balance' },
-    { id: 'inward', label: 'Stock Inward', icon: ArrowDownLeft, desc: 'Receive stock from mills/returns' },
+    { id: 'inward', label: 'Stock Inward', icon: ArrowDownLeft, desc: 'Receive stock at mills/returns' },
     { id: 'outward', label: 'Stock Outward', icon: ArrowUpRight, desc: 'Issue stock and record customer dispatches' },
-    { id: 'transfers', label: 'Transfers', icon: ArrowLeftRight, desc: 'Inter-warehouse movement' },
+    { id: 'transfers', label: 'Transfers', icon: ArrowLeftRight, desc: 'Inter-mill movement' },
     { id: 'adjustments', label: 'Adjustments', icon: Scale, desc: 'Physical audit count reconciliation' },
-    { id: 'overview', label: 'Overview & Godowns', icon: LayoutDashboard, desc: 'Stock metrics & warehouse capacities' },
+    { id: 'overview', label: 'Overview & Mills', icon: LayoutDashboard, desc: 'Stock metrics & mill capacities' },
     { id: 'valuation', label: 'Valuation & WAC', icon: TrendingUp, desc: 'Weighted average asset valuation' },
   ];
 
@@ -86,10 +86,10 @@ export default function StockManagement({ initialTab = 'ledger' }) {
           <div>
             <h1 className="text-base font-bold text-[#252525] font-['Space_Grotesk'] flex items-center gap-2">
               <Warehouse size={20} className="text-[#8F1717]" />
-              <span>Stock Management & Warehouse Inventory</span>
+              <span>Stock Management & Mill Inventory</span>
             </h1>
             <p className="text-xs text-[#777777]">
-              Authoritative physical balance and live running ledger accounting
+              Authoritative physical balance and live running ledger accounting across milling units
             </p>
           </div>
 

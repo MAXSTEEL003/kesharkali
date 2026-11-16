@@ -14,8 +14,10 @@ import {
 import Modal from '../components/Modal';
 import { api } from '../api';
 import { formatDateDMY } from '../utils/date';
+import { useNotification } from '../context/NotificationContext';
 
 export default function DispatchManagement() {
+  const { showToast } = useNotification();
   const [pendingLoadings, setPendingLoadings] = useState([]);
   const [dispatches, setDispatches] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -88,9 +90,9 @@ export default function DispatchManagement() {
       setIsConfirmOpen(false);
       setSelectedLoading(null);
       loadData();
-      alert(`Dispatch confirmed! Dispatch Number: ${res.dispatchNumber}. WhatsApp status: ${res.notification?.status || 'Sent'}`);
+      showToast(`Dispatch confirmed! Dispatch Number: ${res.dispatchNumber}. WhatsApp status: ${res.notification?.status || 'Sent'}`, 'success');
     } catch (err) {
-      alert(`Dispatch confirmation failed: ${err.message}`);
+      showToast(`Dispatch confirmation failed: ${err.message}`, 'error');
     } finally {
       setSubmitting(false);
     }

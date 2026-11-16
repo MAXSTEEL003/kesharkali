@@ -6,7 +6,6 @@ import PurchaseOrders from './pages/PurchaseOrders';
 import IndustrySourcing from './pages/IndustrySourcing';
 import StockManagement from './pages/StockManagement';
 import MasterLoadingRegister from './pages/MasterLoadingRegister';
-import DispatchManagement from './pages/DispatchManagement';
 import CustomerNotifications from './pages/CustomerNotifications';
 import ReportsCenter from './pages/ReportsCenter';
 import Customers from './pages/Customers';
@@ -16,6 +15,7 @@ import Warehouses from './pages/Warehouses';
 import Settings from './pages/Settings';
 import SupplierDashboard from './pages/SupplierDashboard';
 import { FirebaseAuthProvider } from './firebase/AuthContext';
+import { NotificationProvider } from './context/NotificationContext';
 
 export default function App() {
   const [activePage, setActivePage] = useState('dashboard');
@@ -29,19 +29,23 @@ export default function App() {
       const tab = page.replace('stock-', '');
       setStockTab(tab === 'dashboard' ? 'overview' : tab);
       setActivePage('stock-management');
+    } else if (page === 'dispatch-management' || page === 'pending-loadings') {
+      setActivePage('master-loading-register');
     } else {
       setActivePage(page);
     }
   };
 
-  const handleQuickAction = (action) => {
-    setQuickActionTrigger({ action, timestamp: Date.now() });
-    if (action === 'po') {
+  const handleQuickAction = (payload) => {
+    const actionName = typeof payload === 'string' ? payload : payload?.action;
+    const triggerData = typeof payload === 'string'
+      ? { action: payload, timestamp: Date.now() }
+      : { ...payload, timestamp: Date.now() };
+    setQuickActionTrigger(triggerData);
+    if (actionName === 'po') {
       setActivePage('purchase-orders');
-    } else if (action === 'loading') {
+    } else if (actionName === 'loading' || actionName === 'dispatch') {
       setActivePage('master-loading-register');
-    } else if (action === 'dispatch') {
-      setActivePage('dispatch-management');
     }
   };
 
@@ -66,10 +70,9 @@ export default function App() {
       case 'stock-valuation':
         return <StockManagement initialTab={stockTab} />;
       case 'master-loading-register':
-        return <MasterLoadingRegister onOpenQuickAction={handleQuickAction} quickActionTrigger={quickActionTrigger} />;
       case 'pending-loadings':
       case 'dispatch-management':
-        return <DispatchManagement />;
+        return <MasterLoadingRegister onOpenQuickAction={handleQuickAction} quickActionTrigger={quickActionTrigger} />;
       case 'customer-notifications':
         return <CustomerNotifications />;
       case 'reports-loading':
@@ -95,13 +98,15 @@ export default function App() {
 
   return (
     <FirebaseAuthProvider>
-      <Layout
-        activePage={activePage}
-        setActivePage={handleNavigate}
-        onOpenQuickAction={handleQuickAction}
-      >
-        {renderPage()}
-      </Layout>
+      <NotificationProvider>
+        <Layout
+          activePage={activePage}
+          setActivePage={handleNavigate}
+          onOpenQuickAction={handleQuickAction}
+        >
+          {renderPage()}
+        </Layout>
+      </NotificationProvider>
     </FirebaseAuthProvider>
   );
 }

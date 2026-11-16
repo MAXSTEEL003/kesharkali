@@ -28,12 +28,15 @@ import {
   FileText,
   Image,
   Download,
-  Check
+  Check,
+  RotateCcw
 } from 'lucide-react';
 import Modal from '../components/Modal';
 import { api } from '../api';
+import { useNotification } from '../context/NotificationContext';
 
 export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }) {
+  const { showToast, confirm } = useNotification();
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [products, setProducts] = useState([]);
@@ -131,7 +134,7 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
     const file = e.target.files[0];
     if (!file) return;
     if (file.size > 15 * 1024 * 1024) {
-      alert('File size exceeds 15MB. Please choose a smaller PDF or image.');
+      showToast('File size exceeds 15MB. Please choose a smaller PDF or image.', 'warning');
       return;
     }
     const reader = new FileReader();
@@ -150,7 +153,7 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
   const handleSaveSubOrderBill = async (e) => {
     e.preventDefault();
     if (!billUploadModal.fileData) {
-      alert('Please select a PDF document or image file to upload.');
+      showToast('Please select a PDF document or image file to upload.', 'warning');
       return;
     }
     try {
@@ -166,29 +169,36 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
         }
       );
       setBillUploadModal(prev => ({ ...prev, isOpen: false, isUploading: false }));
-      alert(`Mill bill uploaded successfully for Sub PO ${billUploadModal.subOrderNo}!`);
+      showToast(`Mill bill uploaded successfully for Sub PO ${billUploadModal.subOrderNo}!`, 'success');
       loadData();
       if (selectedPO) {
         handleViewPODetails(selectedPO);
       }
     } catch (err) {
-      alert(`Failed to upload bill: ${err.message}`);
+      showToast(`Failed to upload bill: ${err.message}`, 'error');
       setBillUploadModal(prev => ({ ...prev, isUploading: false }));
     }
   };
 
   const handleDeleteSubOrderBill = async (poId, subOrderNo) => {
-    if (!confirm(`Are you sure you want to delete the bill document for ${subOrderNo}?`)) return;
+    const ok = await confirm({
+      title: 'Delete Bill Document',
+      message: `Are you sure you want to delete the bill document for ${subOrderNo}?`,
+      confirmText: 'Delete Bill',
+      type: 'danger'
+    });
+    if (!ok) return;
+
     try {
       await api.purchaseOrders.deleteSubOrderBill(poId, subOrderNo);
       setBillPreviewModal(prev => ({ ...prev, isOpen: false }));
-      alert(`Bill document removed for Sub PO ${subOrderNo}.`);
+      showToast(`Bill document removed for Sub PO ${subOrderNo}.`, 'success');
       loadData();
       if (selectedPO) {
         handleViewPODetails(selectedPO);
       }
     } catch (err) {
-      alert(`Failed to delete bill: ${err.message}`);
+      showToast(`Failed to delete bill: ${err.message}`, 'error');
     }
   };
 
@@ -251,8 +261,23 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
   };
 
   useEffect(() => {
-    loadData();
-  }, [statusFilter, buyerFilter, sortOrder]);
+    const timer = setTimeout(() => {
+      loadData();
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [statusFilter, buyerFilter, sortOrder, search]);
+
+  const hasActiveFilters = Boolean(
+    search.trim() || statusFilter || buyerFilter || pendingFilter !== 'all' || sortOrder !== 'new-to-old'
+  );
+
+  const handleClearFilters = () => {
+    setSearch('');
+    setStatusFilter('');
+    setBuyerFilter('');
+    setPendingFilter('all');
+    setSortOrder('new-to-old');
+  };
 
   const pendingCount = useMemo(() => {
     return purchaseOrders.filter(p => Number(p.remaining_quantity ?? (p.ordered_quantity - (p.loaded_quantity || 0))) > 0).length;
@@ -264,16 +289,50 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
 
   const filteredPurchaseOrders = useMemo(() => {
     return purchaseOrders.filter(po => {
+      // 1. Pending filter
       const remaining = Number(po.remaining_quantity ?? (po.ordered_quantity - (po.loaded_quantity || 0)));
-      if (pendingFilter === 'pending-qtl') {
-        return remaining > 0;
+      if (pendingFilter === 'pending-qtl' && remaining <= 0) return false;
+      if (pendingFilter === 'fully-loaded' && remaining > 0) return false;
+
+      // 2. Status filter
+      if (statusFilter && po.status !== statusFilter) return false;
+
+      // 3. Buyer filter
+      if (buyerFilter) {
+        const matchesMainCustomer = String(po.customer_id) === String(buyerFilter);
+        const selectedCustomer = customers.find(c => String(c.id) === String(buyerFilter));
+        const matchesSubCustomer = Boolean(selectedCustomer && po.sub_orders?.some(s => 
+          (s.buyer_name || s.buyerName) === selectedCustomer.name
+        ));
+        if (!matchesMainCustomer && !matchesSubCustomer) return false;
       }
-      if (pendingFilter === 'fully-loaded') {
-        return remaining <= 0;
+
+      // 4. Live search filter (instant client-side response as user types!)
+      if (search.trim()) {
+        const q = search.trim().toLowerCase();
+        const mainMatch = (
+          po.po_number?.toLowerCase().includes(q) ||
+          po.customer_name?.toLowerCase().includes(q) ||
+          po.customer_name_text?.toLowerCase().includes(q) ||
+          po.product_name?.toLowerCase().includes(q) ||
+          po.status?.toLowerCase().includes(q) ||
+          po.sub_order_no?.toLowerCase().includes(q) ||
+          po.delivery_location?.toLowerCase().includes(q) ||
+          po.original_order_id?.toLowerCase().includes(q)
+        );
+        const subMatch = po.sub_orders?.some(s => 
+          (s.sub_order_no || s.subOrderNo)?.toLowerCase().includes(q) ||
+          (s.buyer_name || s.buyerName)?.toLowerCase().includes(q) ||
+          (s.product_name || s.productName)?.toLowerCase().includes(q) ||
+          (s.delivery_location || s.deliveryLocation)?.toLowerCase().includes(q) ||
+          (s.bill_no || s.billNo)?.toLowerCase().includes(q)
+        );
+        if (!mainMatch && !subMatch) return false;
       }
+
       return true;
     });
-  }, [purchaseOrders, pendingFilter]);
+  }, [purchaseOrders, pendingFilter, statusFilter, buyerFilter, search, customers]);
 
   const sortedPurchaseOrders = useMemo(() => {
     return [...filteredPurchaseOrders].sort((a, b) => {
@@ -309,7 +368,7 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
       const res = await api.purchaseOrders.getById(poId);
       setPoDetails(res);
     } catch (err) {
-      alert(`Error loading PO details: ${err.message}`);
+      showToast(`Error loading PO details: ${err.message}`, 'error');
     } finally {
       setLoadingDetails(false);
     }
@@ -331,9 +390,10 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
         expected_delivery_date: '',
         notes: ''
       });
+      showToast('Purchase Order received and registered successfully!', 'success');
       loadData();
     } catch (err) {
-      alert(`Failed to record received PO: ${err.message}`);
+      showToast(`Failed to record received PO: ${err.message}`, 'error');
     }
   };
 
@@ -359,32 +419,49 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
         notes: '',
         override_allowed: false
       });
+      showToast('Mill allocation recorded successfully!', 'success');
       handleViewPODetails(selectedPO);
       loadData();
     } catch (err) {
-      alert(err.message);
+      showToast(err.message, 'error');
     }
   };
 
   const handleRemoveAllocation = async (allocId) => {
-    if (!confirm('Are you sure you want to remove this sourcing allocation?')) return;
+    const ok = await confirm({
+      title: 'Remove Allocation',
+      message: 'Are you sure you want to remove this sourcing allocation?',
+      confirmText: 'Remove Allocation',
+      type: 'danger'
+    });
+    if (!ok) return;
+
     try {
       await api.allocations.delete(allocId);
+      showToast('Sourcing allocation removed.', 'success');
       handleViewPODetails(selectedPO);
       loadData();
     } catch (err) {
-      alert(err.message);
+      showToast(err.message, 'error');
     }
   };
 
   const handleCancelPO = async (poId) => {
-    if (!confirm('Are you sure you want to cancel this purchase order? All pending allocations will be cancelled.')) return;
+    const ok = await confirm({
+      title: 'Cancel Purchase Order',
+      message: 'Are you sure you want to cancel this purchase order? All pending allocations will be cancelled.',
+      confirmText: 'Cancel Purchase Order',
+      type: 'danger'
+    });
+    if (!ok) return;
+
     try {
       await api.purchaseOrders.cancel(poId);
+      showToast('Purchase order cancelled successfully.', 'success');
       loadData();
       if (selectedPO === poId) setSelectedPO(null);
     } catch (err) {
-      alert(err.message);
+      showToast(err.message, 'error');
     }
   };
 
@@ -435,12 +512,34 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
         </div>
 
         {/* Filter Toolbar */}
-        <form onSubmit={handleSearchSubmit} className="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-2.5">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#E8E2DC] pt-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+              <Filter size={13} className="text-[#8F1717]" /> Filter Orders:
+            </span>
+            {hasActiveFilters && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#8F1717]/10 text-[#8F1717] border border-[#8F1717]/20">
+                Filtered ({sortedPurchaseOrders.length} of {purchaseOrders.length})
+              </span>
+            )}
+          </div>
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={handleClearFilters}
+              className="text-[11px] font-semibold text-[#8F1717] hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <RotateCcw size={11} /> Clear All Filters
+            </button>
+          )}
+        </div>
+
+        <form onSubmit={handleSearchSubmit} className="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-2.5">
           <div className="relative">
             <Search size={14} className="absolute left-2.5 top-2.5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search PO#, Buyer, Product..."
+              placeholder="Search PO#, Buyer, Sub-PO..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-8 pr-3 py-1.5 bg-[#FAF9F6] border border-[#E8E2DC] rounded text-xs focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
@@ -496,13 +595,26 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
             <option value="old-to-new">Sort: Oldest to Newest</option>
           </select>
 
-          <button
-            type="submit"
-            className="w-full flex items-center justify-center gap-1 bg-gray-100 hover:bg-gray-200 text-xs font-semibold py-1.5 rounded transition-colors text-[#252525] cursor-pointer"
-          >
-            <Filter size={13} />
-            <span>Apply Filters</span>
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="submit"
+              className="flex-1 flex items-center justify-center gap-1 bg-[#8F1717] hover:bg-[#771212] text-white text-xs font-semibold py-1.5 px-2 rounded transition-colors cursor-pointer"
+            >
+              <Filter size={13} />
+              <span>Apply</span>
+            </button>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={handleClearFilters}
+                className="flex items-center justify-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold py-1.5 px-2.5 rounded transition-colors cursor-pointer"
+                title="Reset all filters"
+              >
+                <RotateCcw size={12} />
+                <span>Reset</span>
+              </button>
+            )}
+          </div>
         </form>
       </div>
 
@@ -1053,10 +1165,10 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
                 <div>
                   <h4 className="text-xs font-bold uppercase tracking-wider text-[#8F1717] flex items-center gap-1.5">
                     <Factory size={15} />
-                    Internal Industry Sourcing Allocations
+                    Industry Sourcing (External Mill Procurement)
                   </h4>
                   <p className="text-[11px] text-[#777777]">
-                    Allocate one customer order across multiple rice mills
+                    When the supplier buys from other suppliers/mills to load into the Keshar Kali brand
                   </p>
                 </div>
                 {poDetails.purchaseOrder.status !== 'Completed' && (
@@ -1072,7 +1184,7 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
                     className="flex items-center gap-1 text-xs font-semibold bg-[#8F1717] hover:bg-[#771212] text-white px-2.5 py-1.5 rounded transition-colors"
                   >
                     <Plus size={13} />
-                    <span>Add Industry</span>
+                    <span>+ Sourced Mill</span>
                   </button>
                 )}
               </div>
@@ -1081,7 +1193,7 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
                 <table className="excel-grid">
                   <thead>
                     <tr>
-                      <th className="text-left">Industry / Rice Mill</th>
+                      <th className="text-left">External Supplier / Mill</th>
                       <th className="text-left">Location</th>
                       <th className="text-right">Allocated QTL</th>
                       <th className="text-right">Purchase Rate</th>
@@ -1096,7 +1208,8 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
                     {poDetails.allocations.length === 0 ? (
                       <tr>
                         <td colSpan={9} className="text-center py-6 text-xs text-[#777777]">
-                          No industry sourcing allocations created yet. Click "Add Industry" above.
+                          <span className="font-semibold text-gray-700 block mb-0.5">Fulfilled directly from Own Mill Production</span>
+                          <span>No external sourcing required. Click "+ Sourced Mill" only when buying stock from another supplier to load under Keshar Kali brand.</span>
                         </td>
                       </tr>
                     ) : (
@@ -1452,12 +1565,12 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
       <Modal
         isOpen={isAllocModalOpen}
         onClose={() => setIsAllocModalOpen(false)}
-        title="Add Industry Sourcing Allocation"
-        subtitle="Commit procurement quantity and rate from a rice mill"
+        title="Add External Industry Sourcing"
+        subtitle="When the supplier buys from other suppliers/mills to load into the Keshar Kali brand"
       >
         <form onSubmit={handleAddAllocation} className="space-y-4 text-xs">
           <div>
-            <label className="block font-semibold text-[#252525] mb-1">Select Industry (Rice Mill) *</label>
+            <label className="block font-semibold text-[#252525] mb-1">Select External Supplier (Rice Mill) *</label>
             <select
               required
               value={allocForm.industry_id}
@@ -1472,7 +1585,7 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
               }}
               className="w-full p-2 bg-white border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
             >
-              <option value="">Select Sourcing Industry</option>
+              <option value="">Select External Supplier / Rice Mill</option>
               {industries.map(ind => (
                 <option key={ind.id} value={ind.id}>
                   {ind.name} ({ind.location}) — Std Rate: ₹{ind.default_purchase_rate}
