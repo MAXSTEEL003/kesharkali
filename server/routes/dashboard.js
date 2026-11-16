@@ -109,9 +109,9 @@ router.get('/', (req, res) => {
 
         // 8. Pending operational tasks
         const pendingPOs = query(`
-            SELECT po.id, po.po_number, c.name as customer_name, po.ordered_quantity, po.po_date, po.status
+            SELECT po.id, po.po_number, COALESCE(c.name, po.customer_name_text, 'Designated Buyer') as customer_name, po.ordered_quantity, po.po_date, po.status
             FROM purchase_orders po
-            JOIN customers c ON po.customer_id = c.id
+            LEFT JOIN customers c ON po.customer_id = c.id
             WHERE po.status IN ('New', 'Allocation Pending', 'Partially Allocated')
             ORDER BY po.po_date ASC LIMIT 5
         `);
@@ -119,11 +119,11 @@ router.get('/', (req, res) => {
         const pendingDispatchLoadings = query(`
             SELECT 
                 le.id, le.loading_number, le.loading_date, le.loading_quantity,
-                po.po_number, c.name as customer_name, le.vehicle_number,
+                po.po_number, COALESCE(c.name, po.customer_name_text, 'Designated Buyer') as customer_name, le.vehicle_number,
                 (le.loading_quantity - COALESCE(SUM(d.dispatch_quantity), 0)) as pending_dispatch_qtl
             FROM loading_entries le
             JOIN purchase_orders po ON le.po_id = po.id
-            JOIN customers c ON po.customer_id = c.id
+            LEFT JOIN customers c ON po.customer_id = c.id
             LEFT JOIN dispatches d ON le.id = d.loading_id
             WHERE le.loading_status = 'Loaded'
             GROUP BY le.id

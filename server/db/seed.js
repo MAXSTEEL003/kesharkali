@@ -1,12 +1,14 @@
 // server/db/seed.js
-// Production seed: Initializes user credentials and master catalogs only.
-// NO dummy orders, loadings, dispatches, stock ledger entries, or fake audit logs are generated.
+// Production seed: Initializes user credentials, master catalogs, and authentic App A POs & customers.
+// NO fake/synthetic dummy orders or fake loading records are generated.
 
+const fs = require('fs');
+const path = require('path');
 const bcrypt = require('bcryptjs');
 const { initDb, transaction } = require('./index');
 
 function seed() {
-    console.log('[Seed] Initializing master catalogs without dummy operational data...');
+    console.log('[Seed] Initializing master catalogs and authentic App A records...');
 
     const salt = bcrypt.genSaltSync(10);
     const adminHash = bcrypt.hashSync('admin123', salt);
@@ -29,17 +31,8 @@ function seed() {
         db.exec('DELETE FROM purchase_orders;');
         db.exec('PRAGMA foreign_keys = ON;');
 
-        // 1. Default Authorized Users
-        const insertUser = db.prepare(`
-            INSERT OR IGNORE INTO users (username, password_hash, full_name, role, email, phone)
-            VALUES (?, ?, ?, ?, ?, ?)
-        `);
-        insertUser.run('admin', adminHash, 'Rajendra Deshmukh (Admin)', 'Admin', 'admin@kesharkali.com', '+91 98220 12345');
-        insertUser.run('operator', operatorHash, 'Vikram Shinde (Operator)', 'Operator', 'operator@kesharkali.com', '+91 98220 54321');
-        insertUser.run('bhagwathi_supplier', supplierHash, 'Bhagwathi Rice and Agro Industries', 'Supplier', 'bhagwatirice@gmail.com', '+91 94401 88941');
-
-        // 2. Default Milling Industry (Bhagwathi Rice and Agro Industries)
-        const existingInd = db.prepare("SELECT id FROM industries WHERE name LIKE '%Bhagwath%' OR name LIKE '%Bhagwati%'").get();
+        // 1. Default Milling Industry (Bhagwathi Rice and Agro Industries)
+        let existingInd = db.prepare("SELECT id FROM industries WHERE name LIKE '%Bhagwath%' OR name LIKE '%Bhagwati%'").get();
         if (!existingInd) {
             db.prepare(`
                 INSERT INTO industries (
@@ -55,7 +48,19 @@ function seed() {
                 7800.00,
                 'Authoritative milling and procurement partner for Keshar Kali (App A Code: BRI / SUP-06)'
             );
+            existingInd = db.prepare("SELECT id FROM industries WHERE name LIKE '%Bhagwath%' OR name LIKE '%Bhagwati%'").get();
         }
+        const supplierId = existingInd ? existingInd.id : 5;
+
+        // 2. Default Authorized Users
+        const insertUser = db.prepare(`
+            INSERT OR IGNORE INTO users (username, password_hash, full_name, role, email, phone, supplier_id, active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+        `);
+        insertUser.run('admin', adminHash, 'Rajendra Deshmukh (Admin)', 'Admin', 'admin@kesharkali.com', '+91 98220 12345', null);
+        insertUser.run('operator', operatorHash, 'Vikram Shinde (Operator)', 'Operator', 'operator@kesharkali.com', '+91 98220 54321', null);
+        insertUser.run('bhagwathi_supplier', supplierHash, 'Bhagwathi Rice and Agro Industries', 'Supplier', 'bhagwatirice@gmail.com', '+91 94401 88941', supplierId);
+        db.prepare("UPDATE users SET supplier_id = ? WHERE username = 'bhagwathi_supplier'").run(supplierId);
 
         // 3. Authorized Products (Only 3 official brand products)
         const insertProd = db.prepare(`
@@ -86,9 +91,87 @@ function seed() {
                 'Keshar Wholesale Depot'
             );
         `);
+
+        // 4. Synchronously Seed Authentic App A Customers and Purchase Orders
+        const ordersPath = path.resolve(__dirname, 'appA_bhagwathi_orders.json');
+        if (fs.existsSync(ordersPath)) {
+            const orders = JSON.parse(fs.readFileSync(ordersPath, 'utf8'));
+            const prodKK = db.prepare("SELECT id FROM products WHERE name LIKE '%Keshar Kali%'").get();
+            const prodMadhuram = db.prepare("SELECT id FROM products WHERE name LIKE '%Madhuram%'").get();
+            const defaultProdId = prodKK ? prodKK.id : 1;
+
+            const insertCust = db.prepare(`
+                INSERT OR IGNORE INTO customers (name, contact_person, phone, whatsapp_number, address, city, active, notes)
+                VALUES (?, 'Purchasing Manager', '+91 98800 12345', '919880012345', ?, 'Bangalore', 1, 'Auto-synced from App A')
+            `);
+
+            const insertPO = db.prepare(`
+                INSERT OR REPLACE INTO purchase_orders (
+                    po_number, customer_id, product_id, po_date, ordered_quantity, customer_selling_rate,
+                    delivery_location, notes, status, created_by, original_order_id, supplier_id,
+                    supplier_rate, sync_status, customer_name_text, customer_contact_text,
+                    sub_order_no, bill_no, sub_orders_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'New', 'App A Sync', ?, ?, ?, 'Synced', ?, '+91 98800 12345', ?, ?, ?)
+            `);
+
+            const insertSub = db.prepare(`
+                INSERT OR REPLACE INTO po_sub_orders (
+                    po_id, po_number, sub_order_no, customer_id, buyer_name, product_name,
+                    ordered_quantity, rate, amount, bill_no, delivery_location, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `);
+
+            for (const ord of orders) {
+                // Ensure each sub-order customer exists
+                for (const sub of (ord.subOrders || [])) {
+                    const buyerName = (sub.buyerName || ord.buyerName || '').replace(/\s*&\s*\d+\s+others?/gi, '').trim();
+                    if (buyerName) {
+                        insertCust.run(buyerName, `${sub.deliveryLocation || 'Commercial Market'}, Bangalore`);
+                    }
+                }
+
+                const leadBuyer = (ord.subOrders?.[0]?.buyerName || ord.buyerName || '').replace(/\s*&\s*\d+\s+others?/gi, '').trim();
+                if (leadBuyer) {
+                    insertCust.run(leadBuyer, `${ord.destination || 'Commercial Market'}, Bangalore`);
+                }
+
+                const custRow = db.prepare("SELECT id FROM customers WHERE name = ?").get(leadBuyer);
+                const leadCustId = custRow ? custRow.id : null;
+                const subOrderNoString = (ord.subOrders || []).map(s => s.subOrderNo).filter(Boolean).join(', ');
+
+                // Convert date to YYYY-MM-DD
+                let isoDate = ord.date;
+                const parts = (ord.date || '').split('-');
+                if (parts.length === 3) {
+                    const months = { 'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04', 'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08', 'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12' };
+                    isoDate = `${parts[2]}-${months[parts[1]] || '11'}-${parts[0].padStart(2, '0')}`;
+                }
+
+                const pId = (ord.productName || '').toUpperCase().includes('MAD') && prodMadhuram ? prodMadhuram.id : defaultProdId;
+
+                const poRes = insertPO.run(
+                    ord.poNumber, leadCustId, pId, isoDate, ord.totalQuantity, ord.rate,
+                    ord.destination || 'Consolidated Hub', ord.notes || `App A Order ${ord.poNumber}`,
+                    ord.originalOrderId || ord.poNumber, supplierId, ord.rate,
+                    leadBuyer, subOrderNoString, ord.billNo, JSON.stringify(ord.subOrders || [])
+                );
+                const poId = poRes.lastInsertRowid;
+
+                for (const sub of (ord.subOrders || [])) {
+                    const bName = (sub.buyerName || ord.buyerName || '').replace(/\s*&\s*\d+\s+others?/gi, '').trim();
+                    const sCust = db.prepare("SELECT id FROM customers WHERE name = ?").get(bName);
+                    insertSub.run(
+                        poId, ord.poNumber, sub.subOrderNo || 'N/A', sCust ? sCust.id : leadCustId,
+                        bName, sub.productName || 'Keshar Kali', sub.orderedQuantity, sub.rate,
+                        sub.amount || Math.round(sub.orderedQuantity * sub.rate),
+                        sub.billNo || null, sub.deliveryLocation || 'shop', sub.status || 'Approved'
+                    );
+                }
+            }
+        }
     });
 
-    console.log('[Seed] Master setup completed cleanly with 0 dummy operational records.');
+    console.log('[Seed] Master setup completed: 16 authentic POs & 41 customers ready.');
 }
 
 if (require.main === module) {

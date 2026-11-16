@@ -53,9 +53,12 @@ async function runTests() {
 
     // 0. Base Master Data Setup
     console.log('Step 0: Initializing master catalogs (Customers, Industries, Products, Warehouses)...');
+    run('DELETE FROM dispatches;');
     run('DELETE FROM loading_entries;');
     run('DELETE FROM industry_allocations;');
+    run('DELETE FROM po_sub_orders;');
     run('DELETE FROM purchase_orders;');
+    run('DELETE FROM users WHERE supplier_id IS NOT NULL;');
     run('DELETE FROM industries;');
     run('DELETE FROM products;');
     run('DELETE FROM warehouses;');
