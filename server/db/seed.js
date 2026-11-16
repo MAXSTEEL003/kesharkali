@@ -121,20 +121,27 @@ function seed() {
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `);
 
+            // Pre-collect unique customers to guarantee exactly 1 record per authentic buyer
+            const uniqueCustomers = new Map();
             for (const ord of orders) {
-                // Ensure each sub-order customer exists
                 for (const sub of (ord.subOrders || [])) {
-                    const buyerName = (sub.buyerName || ord.buyerName || '').replace(/\s*&\s*\d+\s+others?/gi, '').trim();
-                    if (buyerName) {
-                        insertCust.run(buyerName, `${sub.deliveryLocation || 'Commercial Market'}, Bangalore`);
+                    const bName = (sub.buyerName || ord.buyerName || '').replace(/\s*&\s*\d+\s+others?/gi, '').trim();
+                    if (bName && !uniqueCustomers.has(bName)) {
+                        uniqueCustomers.set(bName, `${sub.deliveryLocation || 'Commercial Market'}, Bangalore`);
                     }
                 }
-
                 const leadBuyer = (ord.subOrders?.[0]?.buyerName || ord.buyerName || '').replace(/\s*&\s*\d+\s+others?/gi, '').trim();
-                if (leadBuyer) {
-                    insertCust.run(leadBuyer, `${ord.destination || 'Commercial Market'}, Bangalore`);
+                if (leadBuyer && !uniqueCustomers.has(leadBuyer)) {
+                    uniqueCustomers.set(leadBuyer, `${ord.destination || 'Commercial Market'}, Bangalore`);
                 }
+            }
 
+            for (const [custName, custAddr] of uniqueCustomers.entries()) {
+                insertCust.run(custName, custAddr);
+            }
+
+            for (const ord of orders) {
+                const leadBuyer = (ord.subOrders?.[0]?.buyerName || ord.buyerName || '').replace(/\s*&\s*\d+\s+others?/gi, '').trim();
                 const custRow = db.prepare("SELECT id FROM customers WHERE name = ?").get(leadBuyer);
                 const leadCustId = custRow ? custRow.id : null;
                 const subOrderNoString = (ord.subOrders || []).map(s => s.subOrderNo).filter(Boolean).join(', ');

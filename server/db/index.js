@@ -173,6 +173,29 @@ function initDb() {
         console.warn('[DB Migration] Users role migration note:', uMigErr.message);
     }
 
+    try {
+        const duplicates = db.prepare(`
+            SELECT name, MIN(id) as canonical_id, GROUP_CONCAT(id) as all_ids, COUNT(*) as cnt
+            FROM customers
+            GROUP BY name
+            HAVING cnt > 1
+        `).all();
+
+        for (const dup of duplicates) {
+            const allIds = dup.all_ids.split(',').map(Number);
+            const dupIds = allIds.filter(id => id !== dup.canonical_id);
+            if (dupIds.length > 0) {
+                const placeholders = dupIds.map(() => '?').join(',');
+                db.prepare(`UPDATE purchase_orders SET customer_id = ? WHERE customer_id IN (${placeholders})`).run(dup.canonical_id, ...dupIds);
+                db.prepare(`UPDATE po_sub_orders SET customer_id = ? WHERE customer_id IN (${placeholders})`).run(dup.canonical_id, ...dupIds);
+                db.prepare(`DELETE FROM customers WHERE id IN (${placeholders})`).run(...dupIds);
+            }
+        }
+        db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_name ON customers(name);');
+    } catch (custDedupErr) {
+        console.warn('[DB Migration] Customer deduplication note:', custDedupErr.message);
+    }
+
     // Auto-seed baseline master records if fresh database
     try {
         if (!isSeeding) {

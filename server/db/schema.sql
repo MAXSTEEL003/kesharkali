@@ -33,6 +33,8 @@ CREATE TABLE IF NOT EXISTS customers (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_name ON customers(name);
+
 -- 3. Industries (Rice Mills / Sourcing Partners - STRICTLY INTERNAL)
 CREATE TABLE IF NOT EXISTS industries (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
