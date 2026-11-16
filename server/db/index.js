@@ -37,6 +37,8 @@ function getDb() {
     return dbInstance;
 }
 
+let isSeeding = false;
+
 function initDb() {
     const db = getDb();
     const schemaPath = path.resolve(__dirname, 'schema.sql');
@@ -173,13 +175,18 @@ function initDb() {
 
     // Auto-seed baseline master records if fresh database
     try {
-        const prodCount = db.prepare('SELECT COUNT(*) as count FROM products;').get();
-        if (!prodCount || prodCount.count === 0) {
-            console.log('[DB] Fresh database detected, seeding baseline data...');
-            const { seed } = require('./seed');
-            seed();
+        if (!isSeeding) {
+            const prodCount = db.prepare('SELECT COUNT(*) as count FROM products;').get();
+            if (!prodCount || prodCount.count === 0) {
+                console.log('[DB] Fresh database detected, seeding baseline data...');
+                isSeeding = true;
+                const { seed } = require('./seed');
+                seed();
+                isSeeding = false;
+            }
         }
     } catch (seedErr) {
+        isSeeding = false;
         console.warn('[DB] Auto-seed check notice:', seedErr.message);
     }
 

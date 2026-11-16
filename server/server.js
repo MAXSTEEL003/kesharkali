@@ -136,8 +136,12 @@ if (require.main === module) {
         console.log(`=======================================================`);
 
         try {
-            const { startAppAListener } = require('./services/appAListener');
+            const { startAppAListener, syncAllAppAOrders, syncFromLocalAppAOrders } = require('./services/appAListener');
             startAppAListener();
+            syncAllAppAOrders().catch(err => {
+                console.warn('[App A Listener] Sync error on boot, using local fallback:', err.message);
+                syncFromLocalAppAOrders();
+            });
         } catch (e) {
             console.warn('[App A Listener] Could not start listener on boot:', e.message);
         }

@@ -7,7 +7,6 @@ const { initDb, transaction } = require('./index');
 
 function seed() {
     console.log('[Seed] Initializing master catalogs without dummy operational data...');
-    initDb();
 
     const salt = bcrypt.genSaltSync(10);
     const adminHash = bcrypt.hashSync('admin123', salt);

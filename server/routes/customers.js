@@ -7,6 +7,17 @@ const { logAction } = require('../services/auditService');
 // GET all customers with aggregated operational statistics
 router.get('/', (req, res) => {
     try {
+        // Auto-seed from authentic App A orders if DB is completely empty (e.g. serverless cold boot)
+        const custCount = get('SELECT COUNT(*) as c FROM customers');
+        if (!custCount || custCount.c === 0) {
+            try {
+                const { syncFromLocalAppAOrders } = require('../services/appAListener');
+                syncFromLocalAppAOrders();
+            } catch (err) {
+                console.warn('[Customers Route] Auto-seed check notice:', err.message);
+            }
+        }
+
         const customers = query(`
             SELECT 
                 c.*,

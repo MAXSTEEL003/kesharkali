@@ -57,6 +57,17 @@ router.get('/', (req, res) => {
     try {
         const { buyerId, productId, status, startDate, endDate, search, sortOrder, sort } = req.query;
 
+        // Auto-seed from authentic App A orders if DB is completely empty (e.g. serverless cold boot)
+        const poCount = get('SELECT COUNT(*) as c FROM purchase_orders');
+        if (!poCount || poCount.c === 0) {
+            try {
+                const { syncFromLocalAppAOrders } = require('../services/appAListener');
+                syncFromLocalAppAOrders();
+            } catch (err) {
+                console.warn('[PO Route] Auto-seed check notice:', err.message);
+            }
+        }
+
         let sql = `
             SELECT 
                 po.*,

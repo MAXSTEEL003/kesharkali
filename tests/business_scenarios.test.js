@@ -53,6 +53,13 @@ async function runTests() {
 
     // 0. Base Master Data Setup
     console.log('Step 0: Initializing master catalogs (Customers, Industries, Products, Warehouses)...');
+    run('DELETE FROM loading_entries;');
+    run('DELETE FROM industry_allocations;');
+    run('DELETE FROM purchase_orders;');
+    run('DELETE FROM industries;');
+    run('DELETE FROM products;');
+    run('DELETE FROM warehouses;');
+    run('DELETE FROM customers;');
     run(`INSERT INTO customers (id, name, contact_person, phone, whatsapp_number, address, city, gstin) 
          VALUES (1, 'ABC Traders', 'Anand Agrawal', '+91 98230 11223', '919823011223', 'Kalamna Mandi', 'Nagpur', '27AABCT1234F1Z8')`);
     

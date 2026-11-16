@@ -1,15 +1,28 @@
 // server/services/appAListener.js
-// Real-time synchronization service between App A (Firestore placed_orders) and App B (SQLite / Portal)
+// Real-time synchronization service between App A (Firestore placed_orders) and App B (SQLite + Firebase Cloud)
 
 const { initializeApp, getApps } = require('firebase/app');
-const { getFirestore, collection, onSnapshot, getDocs, doc, getDoc } = require('firebase/firestore');
+const { getFirestore, collection, onSnapshot, getDocs, doc, setDoc } = require('firebase/firestore');
+const fs = require('fs');
+const path = require('path');
 const db = require('../db');
 
+// App A Firestore Configuration (Read-only source)
 const APP_A_FIREBASE_CONFIG = {
     projectId: 'tejascanavssingstore',
     appId: '1:1063501578322:web:03bec37f537e6303ad9f8b',
     apiKey: 'AIzaSyCrSNFnMxwSFIMQamZaNmwy1yWVqBU42l4',
     authDomain: 'tejascanavssingstore.firebaseapp.com'
+};
+
+// App B Firestore Configuration (Target Cloud Database for Keshar Kali Portal)
+const APP_B_FIREBASE_CONFIG = {
+    apiKey: process.env.VITE_FIREBASE_API_KEY || 'AIzaSyBhks0oj5288L3He_JhgH2M7IVtE5rYyUc',
+    authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || 'kesharkaliportal.firebaseapp.com',
+    projectId: process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || 'kesharkaliportal',
+    storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || 'kesharkaliportal.firebasestorage.app',
+    messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '758973369267',
+    appId: process.env.VITE_FIREBASE_APP_ID || '1:758973369267:web:e24c25e878f14b2e39d9c6'
 };
 
 function toIsoDate(dStr) {
@@ -28,21 +41,72 @@ function toIsoDate(dStr) {
     return dStr;
 }
 
-let firestoreInstance = null;
+let firestoreAInstance = null;
+let firestoreBInstance = null;
 let unsubscribeListener = null;
 
 function getAppAFirestore() {
-    if (!firestoreInstance) {
+    if (!firestoreAInstance) {
         const app = getApps().find(a => a.name === 'AppALiveSync') || initializeApp(APP_A_FIREBASE_CONFIG, 'AppALiveSync');
-        firestoreInstance = getFirestore(app);
+        firestoreAInstance = getFirestore(app);
     }
-    return firestoreInstance;
+    return firestoreAInstance;
+}
+
+function getAppBFirestore() {
+    if (!firestoreBInstance) {
+        try {
+            const app = getApps().find(a => a.name === 'AppBLiveSync') || initializeApp(APP_B_FIREBASE_CONFIG, 'AppBLiveSync');
+            firestoreBInstance = getFirestore(app);
+        } catch (e) {
+            console.warn('[Firebase App B] Init error:', e.message);
+        }
+    }
+    return firestoreBInstance;
+}
+
+function sanitizeDocId(str) {
+    return (str || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 }
 
 /**
- * Ingest or update a single placed order from App A into App B
+ * Persist customer record to App B Cloud Firestore
  */
-function ingestAppAOrder(docId, docData) {
+async function saveCustomerToFirebase(custData, docId) {
+    try {
+        const firestoreB = getAppBFirestore();
+        if (!firestoreB) return;
+        const custRef = doc(firestoreB, 'customers', docId);
+        await setDoc(custRef, {
+            ...custData,
+            updated_at: new Date().toISOString()
+        }, { merge: true });
+    } catch (err) {
+        console.warn(`[Firebase App B] Warning saving customer (${docId}):`, err.message);
+    }
+}
+
+/**
+ * Persist purchase order record to App B Cloud Firestore
+ */
+async function savePOToFirebase(poData, docId) {
+    try {
+        const firestoreB = getAppBFirestore();
+        if (!firestoreB) return;
+        const poRef = doc(firestoreB, 'purchase_orders', docId);
+        await setDoc(poRef, {
+            ...poData,
+            updated_at: new Date().toISOString()
+        }, { merge: true });
+    } catch (err) {
+        console.warn(`[Firebase App B] Warning saving PO (${docId}):`, err.message);
+    }
+}
+
+/**
+ * Ingest or update a single placed order from App A into App B (both SQLite and Firebase)
+ */
+async function ingestAppAOrder(docId, docData) {
     try {
         const supplierName = (docData.supplier || '').trim().toLowerCase();
         const isBhagwathi = supplierName.includes('bhagwat') || supplierName.includes('bhagwath') || 
@@ -68,18 +132,30 @@ function ingestAppAOrder(docId, docData) {
 
         // 2. Determine Product ID
         let productId = 1;
+        let productNameClean = 'Keshar Kali';
         const prodNameUpper = (docData.product || docData.brand || '').toUpperCase();
         if (prodNameUpper.includes('MADHURAM') || prodNameUpper.includes('MADURAM')) {
-            const p = db.get("SELECT id FROM products WHERE name LIKE '%Madhuram%'");
-            if (p) productId = p.id;
+            const p = db.get("SELECT id, name FROM products WHERE name LIKE '%Madhuram%'");
+            if (p) {
+                productId = p.id;
+                productNameClean = p.name;
+            } else {
+                productNameClean = 'Madhuram Rice';
+            }
         } else {
-            const p = db.get("SELECT id FROM products WHERE name LIKE '%Keshar Kali%'");
-            if (p) productId = p.id;
+            const p = db.get("SELECT id, name FROM products WHERE name LIKE '%Keshar Kali%'");
+            if (p) {
+                productId = p.id;
+                productNameClean = p.name;
+            }
         }
 
-        // 3. Extract constituent sub-orders and ensure all individual buyers exist in customers table
+        // 3. Extract constituent sub-orders and ensure all individual buyers exist in customers table & Firebase
         const origOrders = docData.originalOrders || [];
-        const subOrders = origOrders.map((o, idx) => {
+        const subOrders = [];
+
+        for (let idx = 0; idx < origOrders.length; idx++) {
+            const o = origOrders[idx];
             const subQty = Number(o.qty || 0);
             const subRate = Number(o.rate || rate);
             let subNo = o.subOrderNo || o.supplierSubOrderNo || '';
@@ -88,7 +164,7 @@ function ingestAppAOrder(docId, docData) {
             }
             const individualBuyer = (o.buyer || buyerName || 'Consolidated Buyer').replace(/\s*&\s*\d+\s+others?/gi, '').trim();
 
-            // Ensure individual customer record exists in App B
+            // Ensure individual customer record exists in App B SQLite
             let subCust = db.get('SELECT id FROM customers WHERE name = ?', [individualBuyer]);
             if (!subCust) {
                 db.run(`
@@ -105,19 +181,34 @@ function ingestAppAOrder(docId, docData) {
                 subCust = db.get('SELECT id FROM customers WHERE name = ?', [individualBuyer]);
             }
 
-            return {
+            // Also save customer to Firebase Firestore
+            const custDocId = 'cust_' + sanitizeDocId(individualBuyer);
+            await saveCustomerToFirebase({
+                id: custDocId,
+                name: individualBuyer,
+                contact_person: 'Purchasing Manager',
+                phone: '+91 98800 12345',
+                whatsapp_number: '919880012345',
+                address: `${o.unloadingPoint || destination || 'Commercial Market'}, Bangalore`,
+                city: 'Bangalore',
+                active: true,
+                notes: 'Auto-synced from App A constituent sub-order',
+                created_at: new Date().toISOString()
+            }, custDocId);
+
+            subOrders.push({
                 subOrderNo: subNo,
                 customerId: subCust ? subCust.id : null,
                 buyerName: individualBuyer,
-                productName: o.product || docData.product || 'KESHAR KALI',
+                productName: o.product || docData.product || productNameClean,
                 orderedQuantity: subQty,
                 rate: subRate,
                 amount: Math.round(subQty * subRate),
                 billNo: docData.supplierBillNos ? (docData.supplierBillNos[o.id] || docData.supplierBillNos[o.subOrderNo] || rawBillNo) : rawBillNo,
                 deliveryLocation: o.unloadingPoint || 'shop',
                 status: o.status || 'Approved'
-            };
-        });
+            });
+        }
 
         const subOrderNoString = subOrders.map(s => s.subOrderNo).filter(Boolean).join(', ');
         let leadCustomerId = subOrders[0]?.customerId || null;
@@ -142,7 +233,22 @@ function ingestAppAOrder(docId, docData) {
             leadCustomerId = cust ? cust.id : null;
         }
 
-        // 4. Upsert Master PO in App B
+        // Also save lead buyer to Firebase Firestore
+        const leadCustDocId = 'cust_' + sanitizeDocId(leadBuyerName);
+        await saveCustomerToFirebase({
+            id: leadCustDocId,
+            name: leadBuyerName,
+            contact_person: 'Purchasing Manager',
+            phone: '+91 98800 12345',
+            whatsapp_number: '919880012345',
+            address: `${destination || 'Commercial Market'}, Bangalore`,
+            city: 'Bangalore',
+            active: true,
+            notes: 'Auto-synced from App A PO',
+            created_at: new Date().toISOString()
+        }, leadCustDocId);
+
+        // 4. Upsert Master PO in App B SQLite
         const existingPO = db.get('SELECT id FROM purchase_orders WHERE po_number = ?', [poNumber]);
         let poId;
         const rawDb = db.getDb();
@@ -221,10 +327,97 @@ function ingestAppAOrder(docId, docData) {
             }
         }
 
+        // 6. Save Complete Master PO document into App B Cloud Firestore
+        const poFirebaseData = {
+            id: poNumber,
+            po_number: poNumber,
+            poNumber: poNumber,
+            customer_id: leadCustDocId,
+            customer_name: leadBuyerName,
+            buyer: leadBuyerName,
+            buyer_name: leadBuyerName,
+            product_id: productId === 2 ? 'prod_kk_10kg' : 'prod_kk_bulk',
+            product_name: productNameClean,
+            product: productNameClean,
+            po_date: isoDate,
+            date: docData.date || isoDate,
+            ordered_quantity: totalQty,
+            qty: totalQty,
+            customer_selling_rate: rate,
+            rate: rate,
+            delivery_location: destination,
+            destination: destination,
+            status: 'New',
+            notes: `Real-time sync from App A placed_orders. Supplier: Bhagwathi Rice`,
+            created_by: 'App A Live Listener',
+            original_order_id: poNumber,
+            supplier_id: supplierId,
+            supplier_name: 'Bhagwathi Rice and Agro Industries',
+            supplier_rate: rate,
+            sync_status: 'Synced',
+            customer_name_text: leadBuyerName,
+            customer_contact_text: '+91 98800 12345',
+            sub_order_no: subOrderNoString,
+            bill_no: rawBillNo,
+            sub_orders: subOrders,
+            subOrders: subOrders,
+            created_at: new Date().toISOString()
+        };
+
+        await savePOToFirebase(poFirebaseData, poNumber);
+
         return true;
     } catch (err) {
         console.error(`[App A Listener] Error syncing order ${docId}:`, err.message);
         return false;
+    }
+}
+
+/**
+ * On-demand sync of all authentic App A orders from local bundled JSON into SQLite and Firebase
+ */
+async function syncFromLocalAppAOrders() {
+    try {
+        const jsonPath = path.resolve(__dirname, '../db/appA_bhagwathi_orders.json');
+        if (!fs.existsSync(jsonPath)) {
+            console.warn('[Local App A Sync] appA_bhagwathi_orders.json not found');
+            return { success: false, error: 'JSON not found' };
+        }
+        const orders = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+        let count = 0;
+
+        for (const item of orders) {
+            const docData = {
+                poNumber: item.poNumber,
+                buyer: item.buyerName,
+                date: item.date,
+                totalQuantity: item.totalQuantity,
+                qty: item.totalQuantity,
+                rate: item.rate,
+                destination: item.destination,
+                billNo: item.billNo,
+                supplier: 'Bhagwati Rice and Agro Industries',
+                product: item.productName,
+                originalOrders: (item.subOrders || []).map(s => ({
+                    buyer: s.buyerName,
+                    qty: s.orderedQuantity,
+                    rate: s.rate,
+                    subOrderNo: s.subOrderNo,
+                    product: s.productName,
+                    unloadingPoint: s.deliveryLocation,
+                    status: s.status,
+                    billNo: s.billNo
+                }))
+            };
+            const ok = await ingestAppAOrder(item.poNumber, docData);
+            if (ok) count++;
+        }
+
+        console.log(`[Local App A Sync] Successfully synced ${count} orders into SQLite and Firebase.`);
+        return { success: true, count };
+    } catch (err) {
+        console.error('[Local App A Sync] Error:', err.message);
+        return { success: false, error: err.message };
     }
 }
 
@@ -238,10 +431,10 @@ function startAppAListener() {
 
         console.log('[App A Listener] Attaching real-time Firestore listener on tejascanavssingstore/placed_orders...');
         unsubscribeListener = onSnapshot(coll, (snapshot) => {
-            snapshot.docChanges().forEach(change => {
+            snapshot.docChanges().forEach(async (change) => {
                 if (change.type === 'added' || change.type === 'modified') {
                     const data = change.doc.data();
-                    ingestAppAOrder(change.doc.id, data);
+                    await ingestAppAOrder(change.doc.id, data);
                 }
             });
         }, (err) => {
@@ -256,7 +449,7 @@ function startAppAListener() {
 }
 
 /**
- * On-demand manual sync of all placed orders from App A
+ * On-demand manual sync of all placed orders directly from App A Firestore
  */
 async function syncAllAppAOrders() {
     try {
@@ -265,21 +458,24 @@ async function syncAllAppAOrders() {
         const snap = await getDocs(coll);
         let syncedCount = 0;
 
-        snap.docs.forEach(docSnap => {
-            const ok = ingestAppAOrder(docSnap.id, docSnap.data());
+        for (const docSnap of snap.docs) {
+            const ok = await ingestAppAOrder(docSnap.id, docSnap.data());
             if (ok) syncedCount++;
-        });
+        }
 
-        console.log(`[App A Manual Sync] Completed. Synced ${syncedCount} orders from App A.`);
+        console.log(`[App A Manual Sync] Completed. Synced ${syncedCount} orders from App A to SQLite & Firebase.`);
         return { success: true, count: syncedCount };
     } catch (err) {
         console.error('[App A Manual Sync] Error:', err.message);
-        return { success: false, error: err.message };
+        console.log('[App A Manual Sync] Falling back to bundled appA_bhagwathi_orders.json...');
+        return await syncFromLocalAppAOrders();
     }
 }
 
 module.exports = {
     startAppAListener,
     syncAllAppAOrders,
-    ingestAppAOrder
+    syncFromLocalAppAOrders,
+    ingestAppAOrder,
+    getAppBFirestore
 };
