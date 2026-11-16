@@ -1138,6 +1138,7 @@ export default function SupplierDashboard() {
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-[#FAF9F6] border-b border-gray-200 text-[#5E1010] font-semibold font-['Space_Grotesk']">
+                    <th className="py-3 px-2 text-center w-20 whitespace-nowrap">SL NO</th>
                     <th
                       className="py-3 px-4 cursor-pointer hover:bg-amber-50/60 transition-colors select-none"
                       onClick={() => setPoSortOrder(prev => prev === 'new-to-old' ? 'old-to-new' : 'new-to-old')}
@@ -1164,7 +1165,7 @@ export default function SupplierDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 bg-white/60">
-                  {filteredPOs.map(po => {
+                  {filteredPOs.map((po, idx) => {
                     const statusClass = 
                       po.status === 'Completed' || po.status === 'Delivered' ? 'bg-emerald-100 text-emerald-800' :
                       po.status === 'Dispatched' ? 'bg-purple-100 text-purple-800' :
@@ -1191,6 +1192,31 @@ export default function SupplierDashboard() {
                     return (
                       <React.Fragment key={po.id}>
                         <tr className={`hover:bg-white transition-colors ${isExpanded ? 'bg-amber-50/30' : ''}`}>
+                          {/* SL NO & Sub-Orders Layers Glance Button */}
+                          <td className="py-3 px-2 text-center font-mono whitespace-nowrap">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <span className="text-xs font-semibold text-gray-700 min-w-[18px] text-right">{idx + 1}</span>
+                              {subOrdersList.length > 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleExpandPO(po.id);
+                                  }}
+                                  className={`p-1 rounded-md transition-all cursor-pointer inline-flex items-center justify-center shadow-2xs ${
+                                    isExpanded 
+                                      ? 'bg-[#8F1717] text-white shadow-xs' 
+                                      : 'text-[#8F1717] bg-red-50 hover:bg-red-100 border border-red-200'
+                                  }`}
+                                  title={isExpanded ? 'Collapse Sub-Orders Glance' : `Quick Glance ${subOrdersList.length} Sub-Orders & Buyers`}
+                                >
+                                  <Layers size={13} />
+                                </button>
+                              ) : (
+                                <span className="w-5 inline-block" />
+                              )}
+                            </div>
+                          </td>
                           <td className="py-3 px-4">
                             <div 
                               className="font-mono font-bold text-sm text-[#8F1717] cursor-pointer hover:underline inline-flex items-center gap-1"
@@ -1326,7 +1352,7 @@ export default function SupplierDashboard() {
                           <td className="py-3 px-4 text-right">
                             <div className="flex items-center justify-end gap-1.5">
                               {/* Quick Glance Toggle */}
-                              {hasMultipleSubs && (
+                              {subOrdersList.length > 0 && (
                                 <button
                                   type="button"
                                   onClick={() => toggleExpandPO(po.id)}
@@ -1378,7 +1404,7 @@ export default function SupplierDashboard() {
                         {/* Inline Accordion for Sub-Orders */}
                         {isExpanded && (
                           <tr className="bg-slate-50/90 border-b border-gray-200">
-                            <td colSpan={11} className="p-0 border-y border-amber-200">
+                            <td colSpan={12} className="p-0 border-y border-amber-200">
                               <div className="bg-gradient-to-r from-amber-50/70 via-white to-blue-50/40 p-4 pl-8">
                                 <div className="flex items-center justify-between mb-2">
                                   <div className="flex items-center gap-2">

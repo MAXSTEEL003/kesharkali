@@ -576,7 +576,7 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
           <table className="excel-grid">
             <thead>
               <tr>
-                <th className="w-12 text-center">#</th>
+                <th className="w-20 text-center whitespace-nowrap">SL NO</th>
                 <th 
                   className="text-left cursor-pointer hover:bg-gray-100/70 select-none transition-colors"
                   onClick={() => setSortOrder(prev => prev === 'new-to-old' ? 'old-to-new' : 'new-to-old')}
@@ -639,22 +639,29 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
                   return (
                     <React.Fragment key={po.id}>
                       <tr className={`hover:bg-amber-50/40 transition-colors ${isExpanded ? 'bg-amber-50/30' : ''}`}>
-                        {/* Index & Expand Chevron */}
-                        <td className="text-center text-[11px] text-[#777777] font-mono">
-                          <div className="flex items-center justify-center gap-1">
-                            {hasMultipleSubs ? (
+                        {/* SL NO & Sub-Orders Layers Glance Button */}
+                        <td className="text-center font-mono py-2 px-2 whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <span className="text-xs font-semibold text-gray-700 min-w-[18px] text-right">{idx + 1}</span>
+                            {subOrdersList.length > 0 ? (
                               <button
                                 type="button"
-                                onClick={() => toggleExpandPO(po.id)}
-                                className="p-0.5 rounded text-gray-500 hover:text-[#8F1717] hover:bg-gray-100 transition-colors cursor-pointer"
-                                title={isExpanded ? 'Collapse sub-orders' : 'Quick glance sub-orders'}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleExpandPO(po.id);
+                                }}
+                                className={`p-1 rounded-md transition-all cursor-pointer inline-flex items-center justify-center shadow-2xs ${
+                                  isExpanded 
+                                    ? 'bg-[#8F1717] text-white shadow-xs' 
+                                    : 'text-[#8F1717] bg-red-50 hover:bg-red-100 border border-red-200'
+                                }`}
+                                title={isExpanded ? 'Collapse Sub-Orders Glance' : `Quick Glance ${subOrdersList.length} Sub-Orders & Buyers`}
                               >
-                                {isExpanded ? <ChevronDown size={14} className="text-[#8F1717]" /> : <ChevronRight size={14} />}
+                                <Layers size={13} />
                               </button>
                             ) : (
-                              <span className="w-3.5 inline-block" />
+                              <span className="w-5 inline-block" />
                             )}
-                            <span>{idx + 1}</span>
                           </div>
                         </td>
 
@@ -747,7 +754,7 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
                         <td className="text-center">
                           <div className="flex items-center justify-center gap-1">
                             {/* Quick Glance Toggle Button */}
-                            {hasMultipleSubs && (
+                            {subOrdersList.length > 0 && (
                               <button
                                 type="button"
                                 onClick={() => toggleExpandPO(po.id)}
