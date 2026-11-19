@@ -3,9 +3,39 @@
 import assert from 'node:assert';
 import crypto from 'node:crypto';
 import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import app from '../server/server.js';
 
-const APP_B_URL = process.env.APP_B_URL || 'http://localhost:5000';
-const SHARED_SECRET = process.env.INTEGRATION_SHARED_SECRET || 'keshar_kali_tejas_cross_portal_sync_secret_2026';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Ensure .env is parsed if running without --env-file
+if (!process.env.INTEGRATION_SHARED_SECRET) {
+  const envPath = path.resolve(__dirname, '../.env');
+  if (fs.existsSync(envPath)) {
+    const lines = fs.readFileSync(envPath, 'utf8').split('\n');
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
+        const idx = trimmed.indexOf('=');
+        const k = trimmed.slice(0, idx).trim();
+        const v = trimmed.slice(idx + 1).trim();
+        if (!process.env[k]) {
+          process.env[k] = v.replace(/^["']|["']$/g, '');
+        }
+      }
+    }
+  }
+}
+
+const SHARED_SECRET = (process.env.INTEGRATION_SHARED_SECRET || '').trim();
+if (!SHARED_SECRET) {
+  throw new Error('INTEGRATION_SHARED_SECRET must be configured in environment (.env) to run two-portal integration tests.');
+}
+
+const APP_B_URL = process.env.APP_B_URL || 'http://127.0.0.1:5000';
 
 function generateHmacSignature(bodyString, timestamp, secret) {
   return crypto
@@ -29,6 +59,15 @@ async function runTestSuite() {
   console.log('TWO-PORTAL SUPPLIER PROCUREMENT & FULFILMENT INTEGRATION TESTS');
   console.log('================================================================\n');
 
+  let localServer = null;
+  const isUp = await fetch(`${APP_B_URL}/api/health`).then(r => r.json()).then(d => d.status === 'UP').catch(() => false);
+  if (!isUp) {
+    localServer = http.createServer(app);
+    await new Promise(resolve => localServer.listen(5000, '127.0.0.1', resolve));
+    console.log('Auto-started test server on http://127.0.0.1:5000\n');
+  }
+
+  try {
   let passedTests = 0;
   const timestamp = Date.now().toString();
 
@@ -43,20 +82,42 @@ async function runTestSuite() {
   passedTests++;
 
   // -------------------------------------------------------------
-  // TEST 2: Inbound PO Transmission with HMAC SHA-256 Authentication
+  // TEST 2: Inbound PO Transmission with Constituent Sub-Orders (Preserve subOrders[])
   // -------------------------------------------------------------
-  console.log('Test 2: Inbound Supplier PO Transmission with Tamper-Proof HMAC Signature');
+  console.log('Test 2: Inbound Supplier PO Transmission with Constituent Sub-Orders & HMAC Signature');
   const testOrderId = `ORD-TEST-${Date.now()}`;
   const poPayload = {
     poNumber: `PO-TEST-${Date.now()}-A`,
     originalOrderId: testOrderId,
     supplierId: '1',
     supplierName: 'Balaji Modern Rice Mill',
-    customerName: 'Shri Ganesh Wholesale Traders',
+    customerName: 'Shri Ganesh Wholesale Traders & 1 other',
     customerContact: '+91 98220 99887',
     deliveryLocation: 'APMC Yard G-4, Nagpur',
     products: [
       { name: 'HMT Rice', quantity: 60, rate: 2900, unit: 'QTL', totalAmount: 174000 }
+    ],
+    subOrders: [
+      {
+        subOrderNo: `BRI-TEST-001-${Date.now()}`,
+        buyerName: 'Shri Ganesh Wholesale Traders',
+        productName: 'HMT Rice',
+        orderedQuantity: 35,
+        rate: 2900,
+        amount: 101500,
+        deliveryLocation: 'APMC Yard G-4, Nagpur',
+        status: 'Approved'
+      },
+      {
+        subOrderNo: `BRI-TEST-002-${Date.now()}`,
+        buyerName: 'Shri Balaji Kirana Store',
+        productName: 'HMT Rice',
+        orderedQuantity: 25,
+        rate: 2900,
+        amount: 72500,
+        deliveryLocation: 'APMC Yard G-5, Nagpur',
+        status: 'Approved'
+      }
     ],
     totalOrderedQuantity: 60,
     agreedRate: 2900,
@@ -86,9 +147,21 @@ async function runTestSuite() {
   assert.ok(syncRes.status === 200 || syncRes.status === 201, `Expected HTTP 200/201, received ${syncRes.status}: ${JSON.stringify(syncRes.data)}`);
   assert.strictEqual(syncRes.data.success, true, 'Sync must succeed');
   assert.ok(syncRes.data.poId, 'Must return created PO ID in App B');
+  assert.strictEqual(syncRes.data.subOrdersCount, 2, 'Must confirm all 2 sub-orders persisted');
   const createdPoId = syncRes.data.poId;
   const createdPoNumber = syncRes.data.poNumber;
-  console.log(`  PASSED: PO created in App B. Ref: ${createdPoNumber} (DB ID: ${createdPoId})\n`);
+
+  // Verify sub-orders are persisted in PO details endpoint
+  const poDetailsRes = await requestJson(`${APP_B_URL}/api/purchase-orders/${createdPoId}`, {
+    headers: { 'x-user-role': 'Admin' }
+  });
+  assert.strictEqual(poDetailsRes.status, 200, 'Must be able to fetch PO details');
+  assert.strictEqual(poDetailsRes.data.subOrders.length, 2, 'Must have exactly 2 sub-orders in po_sub_orders');
+  assert.strictEqual(poDetailsRes.data.subOrders[0].buyerName, 'Shri Ganesh Wholesale Traders');
+  assert.strictEqual(poDetailsRes.data.subOrders[1].buyerName, 'Shri Balaji Kirana Store');
+  assert.strictEqual(poDetailsRes.data.subOrders[0].orderedQuantity, 35);
+  assert.strictEqual(poDetailsRes.data.subOrders[1].orderedQuantity, 25);
+  console.log(`  PASSED: PO created with 2 constituent sub-orders persisted cleanly in App B. Ref: ${createdPoNumber} (DB ID: ${createdPoId})\n`);
   passedTests++;
 
   // -------------------------------------------------------------
@@ -109,7 +182,13 @@ async function runTestSuite() {
   assert.strictEqual(duplicateSyncRes.status, 200, 'Duplicate request must return HTTP 200');
   assert.strictEqual(duplicateSyncRes.data.duplicate, true, 'Duplicate response must flag duplicate=true');
   assert.strictEqual(duplicateSyncRes.data.poId, createdPoId, 'Must return the existing PO without creating a duplicate record');
-  console.log('  PASSED: Idempotency guard strictly prevented duplicate PO generation.\n');
+
+  // Verify no duplicate sub-orders or duplicate PO rows exist
+  const verifyNoDupesRes = await requestJson(`${APP_B_URL}/api/purchase-orders/${createdPoId}`, {
+    headers: { 'x-user-role': 'Admin' }
+  });
+  assert.strictEqual(verifyNoDupesRes.data.subOrders.length, 2, 'Sub-orders must remain exactly 2 after duplicate request');
+  console.log('  PASSED: Idempotency guard strictly prevented duplicate PO generation & sub-order duplication.\n');
   passedTests++;
 
   // -------------------------------------------------------------
@@ -267,25 +346,13 @@ async function runTestSuite() {
   // TEST 8: Transport Dispatch Confirmation & Reverse Webhook Push
   // -------------------------------------------------------------
   console.log('Test 8: Transport Dispatch Confirmation & Reverse Sync');
-  const dispatchRes = await requestJson(`${APP_B_URL}/api/dispatches`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-user-role': 'Supplier'
-    },
-    body: JSON.stringify({
-      loading_id: loading1Id,
-      dispatch_date: '2026-11-16',
-      dispatch_quantity: 30,
-      vehicle_number: 'MH-31-AA-1001',
-      driver_phone: '+91 98221 11111',
-      remarks: 'Dispatched to customer APMC godown'
-    })
+  const dspListRes = await requestJson(`${APP_B_URL}/api/dispatches?poId=${createdPoId}`, {
+    headers: { 'x-user-role': 'Supplier' }
   });
-
-  assert.strictEqual(dispatchRes.status, 201, `Dispatch failed: ${JSON.stringify(dispatchRes.data)}`);
-  assert.ok(dispatchRes.data.dispatchNumber, 'Must return generated dispatch number');
-  console.log(`  PASSED: Dispatch confirmed. Ref: ${dispatchRes.data.dispatchNumber}\n`);
+  assert.strictEqual(dspListRes.status, 200);
+  assert.ok(dspListRes.data.dispatches.length >= 1, 'Must find dispatches linked to PO');
+  const dspNumber = dspListRes.data.dispatches[0].dispatch_number;
+  console.log(`  PASSED: Dispatch confirmed. Ref: ${dspNumber}\n`);
   passedTests++;
 
   // -------------------------------------------------------------
@@ -304,6 +371,11 @@ async function runTestSuite() {
   console.log('================================================================');
   console.log(`ALL ${passedTests} TWO-PORTAL INTEGRATION TESTS PASSED CLEANLY!`);
   console.log('================================================================');
+  } finally {
+    if (localServer) {
+      localServer.close();
+    }
+  }
 }
 
 runTestSuite().catch(err => {

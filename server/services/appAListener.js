@@ -477,5 +477,8 @@ module.exports = {
     syncAllAppAOrders,
     syncFromLocalAppAOrders,
     ingestAppAOrder,
-    getAppBFirestore
+    getAppBFirestore,
+    savePOToFirebase,
+    saveCustomerToFirebase,
+    sanitizeDocId
 };

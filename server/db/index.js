@@ -130,6 +130,9 @@ function initDb() {
         db.exec("ALTER TABLE po_sub_orders ADD COLUMN customer_id INTEGER REFERENCES customers(id);");
     } catch (_) { }
     try {
+        db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_sub_po_subno ON po_sub_orders(po_id, sub_order_no);");
+    } catch (_) { }
+    try {
         db.exec("ALTER TABLE industries ADD COLUMN is_default INTEGER DEFAULT 0;");
     } catch (_) { }
     try {
