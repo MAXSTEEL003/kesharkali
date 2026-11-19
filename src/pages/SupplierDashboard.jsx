@@ -478,12 +478,13 @@ export default function SupplierDashboard() {
     }
   };
   const pendingPOsForAccept = useMemo(() => {
-    return purchaseOrders.filter(p => p.status === 'New' || p.status === 'Pending' || p.status === 'Pending Acceptance');
+    return purchaseOrders.filter(p => p.status === 'New' || p.status === 'Pending' || p.status === 'Pending Acceptance' || p.status === 'Awaiting Settlement');
   }, [purchaseOrders]);
 
   const handleAcceptPO = async (po) => {
     try {
       await api.supplier.acceptPO(po.id, { expectedLoadingDate: po.delivery_date });
+      setPurchaseOrders(prev => prev.map(p => p.id === po.id ? { ...p, status: 'Accepted' } : p));
       setRefreshKey(k => k + 1);
       if (selectedPO && selectedPO.id === po.id) {
         setSelectedPO(prev => ({ ...prev, status: 'Accepted' }));
@@ -510,8 +511,14 @@ export default function SupplierDashboard() {
       });
       setIsAcceptAllModalOpen(false);
       showToast(res.message || `Successfully accepted ${res.count || pendingPOsForAccept.length} purchase orders!`, 'success');
+      setPurchaseOrders(prev => prev.map(p => {
+        if (p.status === 'New' || p.status === 'Pending' || p.status === 'Pending Acceptance' || p.status === 'Awaiting Settlement') {
+          return { ...p, status: 'Accepted' };
+        }
+        return p;
+      }));
       setRefreshKey(k => k + 1);
-      if (selectedPO && (selectedPO.status === 'New' || selectedPO.status === 'Pending' || selectedPO.status === 'Pending Acceptance')) {
+      if (selectedPO && (selectedPO.status === 'New' || selectedPO.status === 'Pending' || selectedPO.status === 'Pending Acceptance' || selectedPO.status === 'Awaiting Settlement')) {
         setSelectedPO(prev => ({ ...prev, status: 'Accepted' }));
       }
     } catch (err) {
@@ -918,13 +925,24 @@ export default function SupplierDashboard() {
           )}
 
           <button
+            type="button"
+            onClick={() => setRefreshKey(k => k + 1)}
+            disabled={loading}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 transition-all shadow-2xs cursor-pointer"
+            title="Refresh dashboard data"
+          >
+            <RefreshCw size={13} className={loading && !syncingWithAppA ? 'animate-spin text-[#8F1717]' : 'text-gray-500'} />
+            <span>Refresh</span>
+          </button>
+
+          <button
             onClick={handleSyncWithAppA}
             disabled={loading || syncingWithAppA}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-white/80 hover:bg-white text-gray-700 border border-gray-200 transition-all shadow-2xs cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-[#FAF9F6] hover:bg-gray-100 text-[#8F1717] border border-[#8F1717]/20 transition-all shadow-2xs cursor-pointer disabled:opacity-50"
             title="Sync with App A (Orders Webapp)"
           >
-            <RefreshCw size={14} className={loading || syncingWithAppA ? 'animate-spin text-[#8F1717]' : ''} />
-            <span>{syncingWithAppA ? 'Syncing...' : 'Sync with App A'}</span>
+            <RefreshCw size={13} className={syncingWithAppA ? 'animate-spin' : ''} />
+            <span>{syncingWithAppA ? 'Syncing...' : 'Sync from Orders App'}</span>
           </button>
 
           <button

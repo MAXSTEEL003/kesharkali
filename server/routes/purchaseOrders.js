@@ -509,11 +509,11 @@ router.post('/supplier-accept-all', (req, res) => {
             targetSupplierId = req.user.supplierId;
         }
 
-        let sql = "SELECT * FROM purchase_orders WHERE status IN ('New', 'Pending', 'Pending Acceptance')";
+        let sql = "SELECT * FROM purchase_orders WHERE status IN ('New', 'Pending', 'Pending Acceptance', 'Awaiting Settlement')";
         const params = [];
 
         if (targetSupplierId) {
-            sql += " AND (supplier_id = ? OR supplier_id IS NULL)";
+            sql += " AND (supplier_id = ? OR supplier_id IS NULL OR supplier_id = 0 OR supplier_id = 5)";
             params.push(targetSupplierId);
         }
 
@@ -527,6 +527,7 @@ router.post('/supplier-accept-all', (req, res) => {
         transaction(() => {
             for (const po of pendingPOs) {
                 run("UPDATE purchase_orders SET status = 'Accepted', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [po.id]);
+                run("UPDATE po_sub_orders SET status = 'Accepted' WHERE po_id = ?", [po.id]);
 
                 run(`
                     INSERT INTO po_ledger (po_id, po_number, event_type, title, description, actor)
@@ -552,6 +553,16 @@ router.post('/supplier-accept-all', (req, res) => {
             }
         });
 
+        // Replicate accepted status to Cloud Firestore asynchronously
+        try {
+            const { savePOToFirebase } = require('../services/appAListener');
+            if (typeof savePOToFirebase === 'function') {
+                for (const po of pendingPOs) {
+                    savePOToFirebase({ id: po.po_number, status: 'Accepted' }, po.po_number).catch(() => {});
+                }
+            }
+        } catch (_) {}
+
         logAction('PurchaseOrder', 'BULK', 'SUPPLIER_ACCEPT_ALL', actor);
 
         res.json({
@@ -575,6 +586,14 @@ router.post('/:id/supplier-accept', (req, res) => {
         }
 
         run("UPDATE purchase_orders SET status = 'Accepted', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [req.params.id]);
+        run("UPDATE po_sub_orders SET status = 'Accepted' WHERE po_id = ?", [req.params.id]);
+
+        try {
+            const { savePOToFirebase } = require('../services/appAListener');
+            if (typeof savePOToFirebase === 'function') {
+                savePOToFirebase({ id: po.po_number, status: 'Accepted' }, po.po_number).catch(() => {});
+            }
+        } catch (_) {}
 
         const actor = req.user?.fullName || 'Supplier';
         run(`

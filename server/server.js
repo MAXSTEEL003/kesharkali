@@ -135,15 +135,14 @@ if (require.main === module) {
         console.log(`Server listening on http://localhost:${PORT}`);
         console.log(`=======================================================`);
 
-        try {
-            const { startAppAListener, syncAllAppAOrders, syncFromLocalAppAOrders } = require('./services/appAListener');
-            startAppAListener();
-            syncAllAppAOrders().catch(err => {
-                console.warn('[App A Listener] Sync error on boot, using local fallback:', err.message);
-                syncFromLocalAppAOrders();
-            });
-        } catch (e) {
-            console.warn('[App A Listener] Could not start listener on boot:', e.message);
+        // On-demand sync via UI Refresh / Sync button is preferred over continuous auto-sync
+        if (process.env.ENABLE_AUTO_SYNC === 'true') {
+            try {
+                const { startAppAListener } = require('./services/appAListener');
+                startAppAListener();
+            } catch (e) {
+                console.warn('[App A Listener] Could not start listener on boot:', e.message);
+            }
         }
     });
 }

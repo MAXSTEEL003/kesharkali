@@ -249,7 +249,7 @@ async function ingestAppAOrder(docId, docData) {
         }, leadCustDocId);
 
         // 4. Upsert Master PO in App B SQLite
-        const existingPO = db.get('SELECT id FROM purchase_orders WHERE po_number = ?', [poNumber]);
+        const existingPO = db.get('SELECT id, status FROM purchase_orders WHERE po_number = ?', [poNumber]);
         let poId;
         const rawDb = db.getDb();
 
@@ -347,7 +347,7 @@ async function ingestAppAOrder(docId, docData) {
             rate: rate,
             delivery_location: destination,
             destination: destination,
-            status: 'New',
+            status: (existingPO && existingPO.status) ? existingPO.status : 'New',
             notes: `Real-time sync from App A placed_orders. Supplier: Bhagwathi Rice`,
             created_by: 'App A Live Listener',
             original_order_id: poNumber,

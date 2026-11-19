@@ -22,7 +22,8 @@ import {
   PlusCircle,
   Inbox,
   PackageCheck,
-  Scale
+  Scale,
+  RefreshCw
 } from 'lucide-react';
 import { getRole, setRole } from '../api';
 
@@ -284,6 +285,16 @@ export default function Layout({ activePage, setActivePage, children, onOpenQuic
               <Clock size={12} className="text-[#8F1717]" />
               <span>{time} IST</span>
             </div>
+
+            {/* Quick Refresh Page Trigger */}
+            <button
+              onClick={() => window.location.reload()}
+              className="flex items-center gap-1.5 text-xs text-[#555555] hover:text-[#8F1717] bg-white/50 hover:bg-white/80 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-white/60 shadow-xs transition-colors cursor-pointer"
+              title="Refresh Application Data"
+            >
+              <RefreshCw size={13} />
+              <span className="hidden md:inline">Refresh</span>
+            </button>
 
             {/* Quick Actions Dropdown / Modal Trigger */}
             <button

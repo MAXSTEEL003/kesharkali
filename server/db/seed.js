@@ -22,20 +22,23 @@ function seed() {
 
     try {
         transaction((db) => {
-            // Clear any old operational tables cleanly
-            db.exec('DELETE FROM audit_logs;');
-            db.exec('DELETE FROM whatsapp_notifications;');
-            db.exec('DELETE FROM stock_adjustments;');
-            db.exec('DELETE FROM stock_transfers;');
-            db.exec('DELETE FROM stock_reservations;');
-            db.exec('DELETE FROM stock_ledger;');
-            db.exec('DELETE FROM supplier_documents;');
-            db.exec('DELETE FROM po_ledger;');
-            db.exec('DELETE FROM dispatches;');
-            db.exec('DELETE FROM loading_entries;');
-            db.exec('DELETE FROM industry_allocations;');
-            db.exec('DELETE FROM po_sub_orders;');
-            db.exec('DELETE FROM purchase_orders;');
+            const existingPOCount = db.prepare('SELECT COUNT(*) as c FROM purchase_orders').get()?.c || 0;
+            if (existingPOCount === 0) {
+                // Clear any old operational tables cleanly on first seed
+                db.exec('DELETE FROM audit_logs;');
+                db.exec('DELETE FROM whatsapp_notifications;');
+                db.exec('DELETE FROM stock_adjustments;');
+                db.exec('DELETE FROM stock_transfers;');
+                db.exec('DELETE FROM stock_reservations;');
+                db.exec('DELETE FROM stock_ledger;');
+                db.exec('DELETE FROM supplier_documents;');
+                db.exec('DELETE FROM po_ledger;');
+                db.exec('DELETE FROM dispatches;');
+                db.exec('DELETE FROM loading_entries;');
+                db.exec('DELETE FROM industry_allocations;');
+                db.exec('DELETE FROM po_sub_orders;');
+                db.exec('DELETE FROM purchase_orders;');
+            }
 
         // 1. Default Milling Industry (Bhagwathi Rice and Agro Industries)
         let existingInd = db.prepare("SELECT id FROM industries WHERE name LIKE '%Bhagwath%' OR name LIKE '%Bhagwati%'").get();
@@ -114,7 +117,7 @@ function seed() {
             `);
 
             const insertPO = db.prepare(`
-                INSERT OR REPLACE INTO purchase_orders (
+                INSERT OR IGNORE INTO purchase_orders (
                     po_number, customer_id, product_id, po_date, ordered_quantity, customer_selling_rate,
                     delivery_location, notes, status, created_by, original_order_id, supplier_id,
                     supplier_rate, sync_status, customer_name_text, customer_contact_text,
@@ -123,7 +126,7 @@ function seed() {
             `);
 
             const insertSub = db.prepare(`
-                INSERT OR REPLACE INTO po_sub_orders (
+                INSERT OR IGNORE INTO po_sub_orders (
                     po_id, po_number, sub_order_no, customer_id, buyer_name, product_name,
                     ordered_quantity, rate, amount, bill_no, delivery_location, status
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

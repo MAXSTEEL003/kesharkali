@@ -29,7 +29,8 @@ import {
   Image,
   Download,
   Check,
-  RotateCcw
+  RotateCcw,
+  RefreshCw
 } from 'lucide-react';
 import Modal from '../components/Modal';
 import { api } from '../api';
@@ -257,6 +258,21 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const [syncingWithAppA, setSyncingWithAppA] = useState(false);
+
+  const handleSyncWithAppA = async () => {
+    try {
+      setSyncingWithAppA(true);
+      const res = await api.integration.syncAppA();
+      showToast(res.message || `Successfully synchronized with Orders App! ${res.count || 0} orders processed.`, 'success');
+      await loadData();
+    } catch (err) {
+      showToast(`Sync with Orders App failed: ${err.message}`, 'error');
+    } finally {
+      setSyncingWithAppA(false);
     }
   };
 
@@ -499,10 +515,32 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={loadData}
+              disabled={loading}
+              className="flex items-center gap-1.5 text-xs font-semibold bg-white hover:bg-gray-50 text-gray-700 px-3 py-1.5 rounded-md border border-[#E8E2DC] shadow-2xs transition-colors cursor-pointer"
+              title="Refresh Purchase Orders list"
+            >
+              <RefreshCw size={13} className={loading ? 'animate-spin text-[#8F1717]' : 'text-gray-500'} />
+              <span>Refresh</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSyncWithAppA}
+              disabled={loading || syncingWithAppA}
+              className="flex items-center gap-1.5 text-xs font-semibold bg-[#FAF9F6] hover:bg-gray-100 text-[#8F1717] px-3 py-1.5 rounded-md border border-[#8F1717]/30 shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
+              title="Fetch and synchronize latest authentic placed orders from Orders Webapp"
+            >
+              <RefreshCw size={13} className={syncingWithAppA ? 'animate-spin' : ''} />
+              <span>{syncingWithAppA ? 'Syncing...' : 'Sync from Orders App'}</span>
+            </button>
+
             <button
               onClick={() => setIsReceiveOpen(true)}
-              className="flex items-center gap-1.5 text-xs font-semibold bg-[#8F1717] hover:bg-[#771212] text-white px-3.5 py-1.5 rounded-md shadow-xs transition-colors"
+              className="flex items-center gap-1.5 text-xs font-semibold bg-[#8F1717] hover:bg-[#771212] text-white px-3.5 py-1.5 rounded-md shadow-xs transition-colors cursor-pointer"
               title="Record incoming customer purchase order received by Keshar Kali"
             >
               <Inbox size={14} />
