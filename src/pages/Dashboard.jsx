@@ -14,14 +14,18 @@ import {
   Inbox,
   FileSpreadsheet,
   Layers,
-  Scale
+  Scale,
+  RefreshCw
 } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import { api } from '../api';
+import { useNotification } from '../context/NotificationContext';
 
 export default function Dashboard({ setActivePage, onOpenQuickAction }) {
+  const { showToast } = useNotification();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState(null);
 
   const loadData = async () => {
@@ -34,6 +38,19 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSync = async () => {
+    try {
+      setSyncing(true);
+      const res = await api.integration.syncAppA();
+      showToast(res.message || `Synchronized successfully! ${res.count || 0} orders processed.`, 'success');
+      await loadData();
+    } catch (err) {
+      showToast(`Sync failed: ${err.message}`, 'error');
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -85,6 +102,28 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          <button 
+            type="button"
+            onClick={loadData}
+            disabled={loading || syncing}
+            className="flex items-center gap-1.5 text-xs font-semibold bg-white/70 hover:bg-white text-gray-700 px-3 py-2 rounded-xl border border-[#E8E2DC] transition-all shadow-xs cursor-pointer"
+            title="Refresh dashboard statistics"
+          >
+            <RefreshCw size={13} className={loading && !syncing ? 'animate-spin text-[#8F1717]' : 'text-gray-500'} />
+            <span>Refresh</span>
+          </button>
+
+          <button 
+            type="button"
+            onClick={handleSync}
+            disabled={loading || syncing}
+            className="flex items-center gap-1.5 text-xs font-semibold bg-[#FAF9F6] hover:bg-gray-100 text-[#8F1717] px-3.5 py-2 rounded-xl border border-[#8F1717]/30 transition-all shadow-xs cursor-pointer disabled:opacity-50"
+            title="Sync latest orders from Orders Webapp"
+          >
+            <RefreshCw size={13} className={syncing ? 'animate-spin' : ''} />
+            <span>{syncing ? 'Syncing...' : 'Sync'}</span>
+          </button>
+
           <button 
             onClick={() => onOpenQuickAction('po')}
             className="flex items-center gap-1.5 text-xs font-semibold bg-gradient-to-r from-[#8F1717] to-[#771212] hover:from-[#771212] hover:to-[#5E1010] text-white px-3.5 py-2 rounded-xl shadow-[0_0_12px_rgba(143,23,23,0.3)] hover:shadow-[0_0_18px_rgba(143,23,23,0.5)] border border-[#C69A3B]/40 transition-all"

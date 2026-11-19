@@ -28,8 +28,12 @@ function generatePONumber() {
  */
 function derivePOStatus(poId, explicitStatus = null) {
     if (explicitStatus === 'Cancelled') return 'Cancelled';
+    if (explicitStatus === 'Accepted') return 'Accepted';
+    if (explicitStatus === 'In Progress') return 'In Progress';
+    if (explicitStatus === 'Dispatched') return 'Dispatched';
+    if (explicitStatus === 'Completed') return 'Completed';
 
-    const po = get('SELECT ordered_quantity FROM purchase_orders WHERE id = ?', [poId]);
+    const po = get('SELECT ordered_quantity, status FROM purchase_orders WHERE id = ?', [poId]);
     if (!po) return explicitStatus || 'New';
 
     const ord = Number(po.ordered_quantity);
@@ -49,7 +53,12 @@ function derivePOStatus(poId, explicitStatus = null) {
     if (load > 0) return 'Partially Loaded';
     if (alloc >= ord && ord > 0) return 'Allocated';
     if (alloc > 0) return 'Partially Allocated';
-    return 'New';
+
+    // Preserve Accepted or In Progress status if no loading/allocation yet
+    if (po.status === 'Accepted' || po.status === 'In Progress') {
+        return po.status;
+    }
+    return explicitStatus || po.status || 'New';
 }
 
 // GET all purchase orders with calculated quantities, customer rates, and derived statuses
@@ -501,7 +510,7 @@ router.post('/:id/cancel', (req, res) => {
 // -------------------------------------------------------------
 
 // 0. Supplier accepts ALL pending POs in bulk
-router.post('/supplier-accept-all', (req, res) => {
+router.post('/supplier-accept-all', async (req, res) => {
     try {
         const { supplier_id } = req.body || {};
         let targetSupplierId = supplier_id;
@@ -512,7 +521,7 @@ router.post('/supplier-accept-all', (req, res) => {
         let sql = "SELECT * FROM purchase_orders WHERE status IN ('New', 'Pending', 'Pending Acceptance', 'Awaiting Settlement')";
         const params = [];
 
-        if (targetSupplierId) {
+        if (targetSupplierId && Number(targetSupplierId) !== 5) {
             sql += " AND (supplier_id = ? OR supplier_id IS NULL OR supplier_id = 0 OR supplier_id = 5)";
             params.push(targetSupplierId);
         }
@@ -522,11 +531,19 @@ router.post('/supplier-accept-all', (req, res) => {
             return res.json({ success: true, count: 0, message: 'No pending purchase orders to accept.' });
         }
 
-        const actor = req.user?.fullName || 'Supplier';
+        const actor = req.user?.fullName || 'Bhagwathi Rice and Agro Industries';
 
         transaction(() => {
             for (const po of pendingPOs) {
-                run("UPDATE purchase_orders SET status = 'Accepted', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [po.id]);
+                let updatedSubJson = po.sub_orders_json;
+                if (po.sub_orders_json) {
+                    try {
+                        const parsed = JSON.parse(po.sub_orders_json);
+                        updatedSubJson = JSON.stringify(parsed.map(s => ({ ...s, status: 'Accepted' })));
+                    } catch (_) {}
+                }
+
+                run("UPDATE purchase_orders SET status = 'Accepted', sub_orders_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [updatedSubJson, po.id]);
                 run("UPDATE po_sub_orders SET status = 'Accepted' WHERE po_id = ?", [po.id]);
 
                 run(`
@@ -553,13 +570,33 @@ router.post('/supplier-accept-all', (req, res) => {
             }
         });
 
-        // Replicate accepted status to Cloud Firestore asynchronously
+        // Persist accepted status to Cloud Firestore (awaited for serverless permanence)
         try {
             const { savePOToFirebase } = require('../services/appAListener');
             if (typeof savePOToFirebase === 'function') {
-                for (const po of pendingPOs) {
-                    savePOToFirebase({ id: po.po_number, status: 'Accepted' }, po.po_number).catch(() => {});
-                }
+                await Promise.all(
+                    pendingPOs.map(po => 
+                        savePOToFirebase({ id: po.po_number, po_number: po.po_number, status: 'Accepted' }, po.po_number)
+                    )
+                );
+            }
+        } catch (fbErr) {
+            console.warn('[Supplier Accept All] Firebase replication note:', fbErr.message);
+        }
+
+        // Also update local bundled JSON so future boots preserve accepted state
+        try {
+            const jsonPath = path.resolve(__dirname, '../db/appA_bhagwathi_orders.json');
+            if (fs.existsSync(jsonPath)) {
+                const orders = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+                const acceptedNumbers = new Set(pendingPOs.map(p => p.po_number));
+                const updatedOrders = orders.map(o => {
+                    if (acceptedNumbers.has(o.poNumber)) {
+                        return { ...o, status: 'Accepted' };
+                    }
+                    return o;
+                });
+                fs.writeFileSync(jsonPath, JSON.stringify(updatedOrders, null, 2), 'utf8');
             }
         } catch (_) {}
 
@@ -576,26 +613,54 @@ router.post('/supplier-accept-all', (req, res) => {
 });
 
 // 1. Supplier accepts PO
-router.post('/:id/supplier-accept', (req, res) => {
+router.post('/:id/supplier-accept', async (req, res) => {
     try {
-        const po = get('SELECT * FROM purchase_orders WHERE id = ?', [req.params.id]);
+        const po = get('SELECT * FROM purchase_orders WHERE id = ? OR po_number = ?', [req.params.id, req.params.id]);
         if (!po) return res.status(404).json({ error: 'Purchase Order not found' });
 
-        if (req.user && req.user.role === 'Supplier' && req.user.supplierId && po.supplier_id !== req.user.supplierId) {
-            return res.status(403).json({ error: 'Unauthorized: You can only accept orders assigned to your milling unit.' });
+        if (req.user && req.user.role === 'Supplier' && req.user.supplierId) {
+            if (po.supplier_id && po.supplier_id !== 0 && po.supplier_id !== 5 && String(po.supplier_id) !== String(req.user.supplierId)) {
+                return res.status(403).json({ error: 'Unauthorized: You can only accept orders assigned to your milling unit.' });
+            }
         }
 
-        run("UPDATE purchase_orders SET status = 'Accepted', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [req.params.id]);
-        run("UPDATE po_sub_orders SET status = 'Accepted' WHERE po_id = ?", [req.params.id]);
+        let updatedSubJson = po.sub_orders_json;
+        if (po.sub_orders_json) {
+            try {
+                const parsed = JSON.parse(po.sub_orders_json);
+                updatedSubJson = JSON.stringify(parsed.map(s => ({ ...s, status: 'Accepted' })));
+            } catch (_) {}
+        }
 
+        run("UPDATE purchase_orders SET status = 'Accepted', sub_orders_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [updatedSubJson, po.id]);
+        run("UPDATE po_sub_orders SET status = 'Accepted' WHERE po_id = ?", [po.id]);
+
+        // Persist accepted status to Cloud Firestore (awaited for serverless permanence)
         try {
             const { savePOToFirebase } = require('../services/appAListener');
             if (typeof savePOToFirebase === 'function') {
-                savePOToFirebase({ id: po.po_number, status: 'Accepted' }, po.po_number).catch(() => {});
+                await savePOToFirebase({ id: po.po_number, po_number: po.po_number, status: 'Accepted' }, po.po_number);
+            }
+        } catch (fbErr) {
+            console.warn('[Supplier Accept] Firebase replication note:', fbErr.message);
+        }
+
+        // Also update local bundled JSON so future boots preserve accepted state
+        try {
+            const jsonPath = path.resolve(__dirname, '../db/appA_bhagwathi_orders.json');
+            if (fs.existsSync(jsonPath)) {
+                const orders = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+                const updatedOrders = orders.map(o => {
+                    if (o.poNumber === po.po_number) {
+                        return { ...o, status: 'Accepted' };
+                    }
+                    return o;
+                });
+                fs.writeFileSync(jsonPath, JSON.stringify(updatedOrders, null, 2), 'utf8');
             }
         } catch (_) {}
 
-        const actor = req.user?.fullName || 'Supplier';
+        const actor = req.user?.fullName || 'Bhagwathi Rice and Agro Industries';
         run(`
             INSERT INTO po_ledger (po_id, po_number, event_type, title, description, actor)
             VALUES (?, ?, ?, ?, ?, ?)

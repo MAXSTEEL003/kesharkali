@@ -253,6 +253,8 @@ async function ingestAppAOrder(docId, docData) {
         let poId;
         const rawDb = db.getDb();
 
+        const initialStatus = docData.status || (existingPO && existingPO.status) || 'Accepted';
+
         if (!existingPO) {
             const insertStmt = rawDb.prepare(`
                 INSERT INTO purchase_orders (
@@ -265,7 +267,7 @@ async function ingestAppAOrder(docId, docData) {
             const res = insertStmt.run(
                 poNumber, leadCustomerId, productId, isoDate, totalQty, rate,
                 destination, `Real-time sync from App A placed_orders. Supplier: Bhagwathi Rice`,
-                'New', 'App A Live Listener', poNumber, supplierId,
+                initialStatus, 'App A Live Listener', poNumber, supplierId,
                 rate, 'Synced', leadBuyerName, '+91 98800 12345',
                 subOrderNoString, rawBillNo, JSON.stringify(subOrders)
             );
@@ -322,7 +324,7 @@ async function ingestAppAOrder(docId, docData) {
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `).run(
                     poId, poNumber, s.subOrderNo, s.customerId || leadCustomerId, s.buyerName, s.productName,
-                    s.orderedQuantity, s.rate, s.amount, s.billNo, s.deliveryLocation, s.status
+                    s.orderedQuantity, s.rate, s.amount, s.billNo, s.deliveryLocation, s.status || initialStatus
                 );
             }
         }
@@ -347,7 +349,7 @@ async function ingestAppAOrder(docId, docData) {
             rate: rate,
             delivery_location: destination,
             destination: destination,
-            status: (existingPO && existingPO.status) ? existingPO.status : 'New',
+            status: (existingPO && existingPO.status) ? existingPO.status : initialStatus,
             notes: `Real-time sync from App A placed_orders. Supplier: Bhagwathi Rice`,
             created_by: 'App A Live Listener',
             original_order_id: poNumber,
@@ -472,10 +474,42 @@ async function syncAllAppAOrders() {
     }
 }
 
+/**
+ * Hydrate/reconcile accepted PO statuses from App B Cloud Firestore (kesharkaliportal)
+ */
+async function syncAcceptedStatusesFromFirestore() {
+    try {
+        const firestoreB = getAppBFirestore();
+        if (!firestoreB) return 0;
+        const snap = await getDocs(collection(firestoreB, 'purchase_orders'));
+        let updatedCount = 0;
+        for (const docSnap of snap.docs) {
+            const data = docSnap.data();
+            const poNum = data.po_number || data.poNumber || docSnap.id;
+            const status = data.status;
+            if (status && status !== 'New' && status !== 'Pending' && status !== 'Awaiting Settlement') {
+                const res = db.run(
+                    "UPDATE purchase_orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE po_number = ? AND status IN ('New', 'Pending', 'Pending Acceptance', 'Awaiting Settlement')",
+                    [status, poNum]
+                );
+                if (res && res.changes > 0) {
+                    db.run("UPDATE po_sub_orders SET status = ? WHERE po_number = ?", [status, poNum]);
+                    updatedCount++;
+                }
+            }
+        }
+        return updatedCount;
+    } catch (err) {
+        console.warn('[Firebase App B] syncAcceptedStatuses notice:', err.message);
+        return 0;
+    }
+}
+
 module.exports = {
     startAppAListener,
     syncAllAppAOrders,
     syncFromLocalAppAOrders,
+    syncAcceptedStatusesFromFirestore,
     ingestAppAOrder,
     getAppBFirestore,
     savePOToFirebase,

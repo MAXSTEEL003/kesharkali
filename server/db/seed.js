@@ -122,7 +122,7 @@ function seed() {
                     delivery_location, notes, status, created_by, original_order_id, supplier_id,
                     supplier_rate, sync_status, customer_name_text, customer_contact_text,
                     sub_order_no, bill_no, sub_orders_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'New', 'App A Sync', ?, ?, ?, 'Synced', ?, '+91 98800 12345', ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'App A Sync', ?, ?, ?, 'Synced', ?, '+91 98800 12345', ?, ?, ?)
             `);
 
             const insertSub = db.prepare(`
@@ -177,6 +177,7 @@ function seed() {
                 const poRes = insertPO.run(
                     ord.poNumber, leadCustId, pId, isoDate, ord.totalQuantity, ord.rate,
                     ord.destination || 'Consolidated Hub', ord.notes || `App A Order ${ord.poNumber}`,
+                    ord.status || 'Accepted',
                     ord.originalOrderId || ord.poNumber, supplierId, ord.rate,
                     leadBuyer, subOrderNoString, ord.billNo, JSON.stringify(ord.subOrders || [])
                 );

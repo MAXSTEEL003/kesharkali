@@ -532,10 +532,10 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
               onClick={handleSyncWithAppA}
               disabled={loading || syncingWithAppA}
               className="flex items-center gap-1.5 text-xs font-semibold bg-[#FAF9F6] hover:bg-gray-100 text-[#8F1717] px-3 py-1.5 rounded-md border border-[#8F1717]/30 shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
-              title="Fetch and synchronize latest authentic placed orders from Orders Webapp"
+              title="Sync with Orders Webapp"
             >
               <RefreshCw size={13} className={syncingWithAppA ? 'animate-spin' : ''} />
-              <span>{syncingWithAppA ? 'Syncing...' : 'Sync from Orders App'}</span>
+              <span>{syncingWithAppA ? 'Syncing...' : 'Sync'}</span>
             </button>
 
             <button

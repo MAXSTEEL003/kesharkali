@@ -330,7 +330,7 @@ export default function SupplierDashboard() {
   // Derived KPI Metrics
   const metrics = useMemo(() => {
     const total = purchaseOrders.length;
-    const newCount = purchaseOrders.filter(p => p.status === 'New' || p.status === 'Pending' || p.status === 'Pending Acceptance').length;
+    const newCount = purchaseOrders.filter(p => p.status === 'New' || p.status === 'Pending' || p.status === 'Pending Acceptance' || p.status === 'Awaiting Settlement').length;
     const accepted = purchaseOrders.filter(p => p.status === 'Accepted' || p.status === 'In Progress').length;
     const partiallyLoaded = purchaseOrders.filter(p => p.status === 'Partially Loaded').length;
     const loaded = purchaseOrders.filter(p => p.status === 'Loaded').length;
@@ -939,10 +939,10 @@ export default function SupplierDashboard() {
             onClick={handleSyncWithAppA}
             disabled={loading || syncingWithAppA}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-[#FAF9F6] hover:bg-gray-100 text-[#8F1717] border border-[#8F1717]/20 transition-all shadow-2xs cursor-pointer disabled:opacity-50"
-            title="Sync with App A (Orders Webapp)"
+            title="Sync with Orders App"
           >
             <RefreshCw size={13} className={syncingWithAppA ? 'animate-spin' : ''} />
-            <span>{syncingWithAppA ? 'Syncing...' : 'Sync from Orders App'}</span>
+            <span>{syncingWithAppA ? 'Syncing...' : 'Sync'}</span>
           </button>
 
           <button
@@ -1078,7 +1078,7 @@ export default function SupplierDashboard() {
             </div>
 
             <div className="space-y-2.5">
-              {purchaseOrders.filter(p => p.status === 'New' || p.status === 'Pending' || p.status === 'Pending Acceptance').slice(0, 5).map(po => (
+              {purchaseOrders.filter(p => p.status === 'New' || p.status === 'Pending' || p.status === 'Pending Acceptance' || p.status === 'Awaiting Settlement').slice(0, 5).map(po => (
                 <div key={po.id} className="p-3.5 bg-white/70 hover:bg-white rounded-2xl border border-amber-200/60 shadow-2xs flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-700 flex items-center justify-center shrink-0">
@@ -1138,7 +1138,7 @@ export default function SupplierDashboard() {
                 </div>
               ))}
 
-              {purchaseOrders.filter(p => p.status === 'New' || p.status === 'Pending' || p.status === 'Pending Acceptance').length === 0 && (
+              {purchaseOrders.filter(p => p.status === 'New' || p.status === 'Pending' || p.status === 'Pending Acceptance' || p.status === 'Awaiting Settlement').length === 0 && (
                 <div className="text-center py-8 text-xs text-gray-400">
                   <CheckCircle2 size={24} className="mx-auto text-emerald-500 mb-1" />
                   All incoming Purchase Orders have been reviewed and accepted.
@@ -1530,7 +1530,7 @@ export default function SupplierDashboard() {
                                 </button>
                               )}
 
-                              {(po.status === 'New' || po.status === 'Pending Acceptance') && (
+                              {(po.status === 'New' || po.status === 'Pending Acceptance' || po.status === 'Pending' || po.status === 'Awaiting Settlement') && (
                                 <button
                                   onClick={() => handleAcceptPO(po)}
                                   className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-semibold"
@@ -2159,7 +2159,7 @@ export default function SupplierDashboard() {
                 <Printer size={14} />
                 <span>Print Document</span>
               </button>
-              {(selectedPO.status === 'New' || selectedPO.status === 'Pending Acceptance') && (
+              {(selectedPO.status === 'New' || selectedPO.status === 'Pending Acceptance' || selectedPO.status === 'Pending' || selectedPO.status === 'Awaiting Settlement') && (
                 <button
                   onClick={() => { handleAcceptPO(selectedPO); setIsPODetailOpen(false); }}
                   className="px-4 py-1.5 bg-[#8F1717] hover:bg-[#771212] text-white rounded-xl font-semibold shadow-xs"
