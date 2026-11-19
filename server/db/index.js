@@ -199,12 +199,19 @@ function initDb() {
         console.warn('[DB Migration] Customer deduplication note:', custDedupErr.message);
     }
 
-    // Auto-seed baseline master records if fresh database
+    // Auto-seed baseline master records if fresh database or if older seed needs upgrade
     try {
         if (!isSeeding) {
             const prodCount = db.prepare('SELECT COUNT(*) as count FROM products;').get();
-            if (!prodCount || prodCount.count === 0) {
-                console.log('[DB] Fresh database detected, seeding baseline data...');
+            const poCount = db.prepare('SELECT COUNT(*) as count FROM purchase_orders;').get();
+            const ordersJsonPath = path.resolve(__dirname, 'appA_bhagwathi_orders.json');
+            let bundledCount = 0;
+            if (fs.existsSync(ordersJsonPath)) {
+                try { bundledCount = JSON.parse(fs.readFileSync(ordersJsonPath, 'utf8')).length; } catch (_) {}
+            }
+
+            if (!prodCount || prodCount.count === 0 || (bundledCount > 0 && (!poCount || poCount.count < bundledCount))) {
+                console.log(`[DB] Baseline data check: seeding/updating authentic App A POs (bundled: ${bundledCount}, current: ${poCount ? poCount.count : 0})...`);
                 isSeeding = true;
                 const { seed } = require('./seed');
                 seed();

@@ -98,12 +98,22 @@ router.post('/receive-po', verifyHmacSignature, (req, res) => {
             productNameClean = product ? product.name : 'Keshar Kali';
 
             // 2. Resolve Supplier / Industry
-            supplierId = parseInt(poData.supplierId, 10);
-            if (isNaN(supplierId) || supplierId <= 0) {
+            let parsedSupId = parseInt(poData.supplierId, 10);
+            let ind = (!isNaN(parsedSupId) && parsedSupId > 0)
+                ? db.prepare('SELECT id FROM industries WHERE id = ?').get(parsedSupId)
+                : null;
+
+            if (!ind) {
                 const sName = (poData.supplierName || '').trim();
-                const ind = db.prepare('SELECT id FROM industries WHERE name LIKE ? LIMIT 1').get(`%${sName}%`);
-                supplierId = ind ? ind.id : (sName.toLowerCase().includes('bhagwat') ? 5 : 1);
+                ind = db.prepare('SELECT id FROM industries WHERE name LIKE ? LIMIT 1').get(`%${sName}%`);
             }
+            if (!ind) {
+                ind = db.prepare("SELECT id FROM industries WHERE is_default = 1 OR name LIKE '%Bhagwat%' LIMIT 1").get();
+            }
+            if (!ind) {
+                ind = db.prepare('SELECT id FROM industries ORDER BY id ASC LIMIT 1').get();
+            }
+            supplierId = ind ? ind.id : 5;
 
             // 3. Extract and map constituent sub-orders (Preserve individual sub-orders)
             const rawSubOrders = (Array.isArray(poData.subOrders) && poData.subOrders.length > 0)

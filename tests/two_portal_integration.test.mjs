@@ -161,6 +161,7 @@ async function runTestSuite() {
   assert.strictEqual(poDetailsRes.data.subOrders[1].buyerName, 'Shri Balaji Kirana Store');
   assert.strictEqual(poDetailsRes.data.subOrders[0].orderedQuantity, 35);
   assert.strictEqual(poDetailsRes.data.subOrders[1].orderedQuantity, 25);
+  const targetIndustryId = poDetailsRes.data.supplier_id || 5;
   console.log(`  PASSED: PO created with 2 constituent sub-orders persisted cleanly in App B. Ref: ${createdPoNumber} (DB ID: ${createdPoId})\n`);
   passedTests++;
 
@@ -242,7 +243,7 @@ async function runTestSuite() {
     },
     body: JSON.stringify({
       po_id: createdPoId,
-      industry_id: 1,
+      industry_id: targetIndustryId,
       product_id: 1,
       fulfillment_type: 'Direct',
       loading_location: 'Balaji Mill Yard A',
@@ -268,7 +269,7 @@ async function runTestSuite() {
     },
     body: JSON.stringify({
       po_id: createdPoId,
-      industry_id: 1,
+      industry_id: targetIndustryId,
       product_id: 1,
       fulfillment_type: 'Direct',
       loading_location: 'Balaji Mill Yard A',
@@ -292,7 +293,7 @@ async function runTestSuite() {
     },
     body: JSON.stringify({
       po_id: createdPoId,
-      industry_id: 1,
+      industry_id: targetIndustryId,
       product_id: 1,
       fulfillment_type: 'Direct',
       loading_location: 'Balaji Mill Yard A',

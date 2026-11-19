@@ -5,7 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
-const { initDb, transaction } = require('./index');
+const { initDb, transaction, getDb } = require('./index');
 
 function seed() {
     console.log('[Seed] Initializing master catalogs and authentic App A records...');
@@ -14,22 +14,28 @@ function seed() {
     const adminHash = bcrypt.hashSync('admin123', salt);
     const operatorHash = bcrypt.hashSync('operator123', salt);
     const supplierHash = bcrypt.hashSync('Bhagwathi@2026', salt);
+    let totalOrders = 0;
+    let totalCustomers = 0;
 
-    transaction((db) => {
-        // Clear any old dummy operational data
-        db.exec('PRAGMA foreign_keys = OFF;');
-        db.exec('DELETE FROM audit_logs;');
-        db.exec('DELETE FROM whatsapp_notifications;');
-        db.exec('DELETE FROM stock_adjustments;');
-        db.exec('DELETE FROM stock_transfers;');
-        db.exec('DELETE FROM stock_reservations;');
-        db.exec('DELETE FROM stock_ledger;');
-        db.exec('DELETE FROM dispatches;');
-        db.exec('DELETE FROM loading_entries;');
-        db.exec('DELETE FROM industry_allocations;');
-        db.exec('DELETE FROM po_sub_orders;');
-        db.exec('DELETE FROM purchase_orders;');
-        db.exec('PRAGMA foreign_keys = ON;');
+    const rawDb = getDb();
+    try { rawDb.exec('PRAGMA foreign_keys = OFF;'); } catch (_) {}
+
+    try {
+        transaction((db) => {
+            // Clear any old operational tables cleanly
+            db.exec('DELETE FROM audit_logs;');
+            db.exec('DELETE FROM whatsapp_notifications;');
+            db.exec('DELETE FROM stock_adjustments;');
+            db.exec('DELETE FROM stock_transfers;');
+            db.exec('DELETE FROM stock_reservations;');
+            db.exec('DELETE FROM stock_ledger;');
+            db.exec('DELETE FROM supplier_documents;');
+            db.exec('DELETE FROM po_ledger;');
+            db.exec('DELETE FROM dispatches;');
+            db.exec('DELETE FROM loading_entries;');
+            db.exec('DELETE FROM industry_allocations;');
+            db.exec('DELETE FROM po_sub_orders;');
+            db.exec('DELETE FROM purchase_orders;');
 
         // 1. Default Milling Industry (Bhagwathi Rice and Agro Industries)
         let existingInd = db.prepare("SELECT id FROM industries WHERE name LIKE '%Bhagwath%' OR name LIKE '%Bhagwati%'").get();
@@ -96,8 +102,10 @@ function seed() {
         const ordersPath = path.resolve(__dirname, 'appA_bhagwathi_orders.json');
         if (fs.existsSync(ordersPath)) {
             const orders = JSON.parse(fs.readFileSync(ordersPath, 'utf8'));
-            const prodKK = db.prepare("SELECT id FROM products WHERE name LIKE '%Keshar Kali%'").get();
+            totalOrders = orders.length;
+            const prodKK = db.prepare("SELECT id FROM products WHERE name LIKE '%Keshar Kali%' AND name NOT LIKE '%10 kg%' AND name NOT LIKE '%5 kg%'").get();
             const prodMadhuram = db.prepare("SELECT id FROM products WHERE name LIKE '%Madhuram%'").get();
+            const prod10KG = db.prepare("SELECT id FROM products WHERE name LIKE '%10 kg%' OR code LIKE '%10KG%'").get();
             const defaultProdId = prodKK ? prodKK.id : 1;
 
             const insertCust = db.prepare(`
@@ -136,6 +144,7 @@ function seed() {
                 }
             }
 
+            totalCustomers = uniqueCustomers.size;
             for (const [custName, custAddr] of uniqueCustomers.entries()) {
                 insertCust.run(custName, custAddr);
             }
@@ -154,7 +163,13 @@ function seed() {
                     isoDate = `${parts[2]}-${months[parts[1]] || '11'}-${parts[0].padStart(2, '0')}`;
                 }
 
-                const pId = (ord.productName || '').toUpperCase().includes('MAD') && prodMadhuram ? prodMadhuram.id : defaultProdId;
+                const prodUpper = (ord.productName || '').toUpperCase();
+                let pId = defaultProdId;
+                if (prodUpper.includes('MAD') && prodMadhuram) {
+                    pId = prodMadhuram.id;
+                } else if ((prodUpper.includes('10KG') || prodUpper.includes('10 KG')) && prod10KG) {
+                    pId = prod10KG.id;
+                }
 
                 const poRes = insertPO.run(
                     ord.poNumber, leadCustId, pId, isoDate, ord.totalQuantity, ord.rate,
@@ -177,8 +192,11 @@ function seed() {
             }
         }
     });
+} finally {
+        try { rawDb.exec('PRAGMA foreign_keys = ON;'); } catch (_) {}
+    }
 
-    console.log('[Seed] Master setup completed: 16 authentic POs & 41 customers ready.');
+    console.log(`[Seed] Master setup completed: ${totalOrders} authentic POs & ${totalCustomers} customers ready.`);
 }
 
 if (require.main === module) {

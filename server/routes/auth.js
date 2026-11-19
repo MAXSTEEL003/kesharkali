@@ -16,7 +16,12 @@ function authMiddleware(req, res, next) {
     const roleOverride = req.headers['x-user-role'];
     const supplierIdHeader = req.headers['x-supplier-id'];
     if (roleOverride) {
-        let supId = supplierIdHeader ? parseInt(supplierIdHeader, 10) : (roleOverride === 'Supplier' ? 1 : null);
+        let defaultSupplierId = 5;
+        if (roleOverride === 'Supplier') {
+            const supUser = get("SELECT supplier_id FROM users WHERE role = 'Supplier' AND supplier_id IS NOT NULL LIMIT 1");
+            if (supUser && supUser.supplier_id) defaultSupplierId = supUser.supplier_id;
+        }
+        let supId = supplierIdHeader ? parseInt(supplierIdHeader, 10) : (roleOverride === 'Supplier' ? defaultSupplierId : null);
         req.user = {
             id: roleOverride === 'Admin' ? 1 : roleOverride === 'Supplier' ? 3 : 2,
             username: roleOverride.toLowerCase(),
