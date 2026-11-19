@@ -60,6 +60,14 @@ function markPOsAcceptedInStorage(poNumbers) {
   } catch (_) {}
 }
 
+function isPOAccepted(po) {
+  if (!po) return false;
+  if (po.is_accepted === 1 || po.is_accepted === true || po.isAccepted) return true;
+  if (po.accepted_at) return true;
+  const current = getLocalAcceptedPOs();
+  return current.has(po.po_number);
+}
+
 export default function SupplierDashboard() {
   const [activeTab, setActiveTabState] = useState(() => {
     try {
@@ -337,15 +345,20 @@ export default function SupplierDashboard() {
 
         if (isMounted) {
           const localAccepted = getLocalAcceptedPOs();
+          const serverAcceptedNumbers = [];
           const reconciledPOs = (poRes.purchaseOrders || []).map(p => {
-            if (localAccepted.has(p.po_number)) {
-              return { 
-                ...p, 
-                status: (p.status === 'New' || p.status === 'Pending Acceptance' || p.status === 'Awaiting Settlement' || p.status === 'Pending') ? 'Accepted' : p.status 
-              };
+            const accepted = p.is_accepted === 1 || p.is_accepted === true || Boolean(p.accepted_at) || localAccepted.has(p.po_number);
+            if (accepted && p.po_number) {
+              serverAcceptedNumbers.push(p.po_number);
             }
-            return p;
+            return { 
+              ...p, 
+              is_accepted: accepted ? 1 : 0
+            };
           });
+          if (serverAcceptedNumbers.length > 0) {
+            markPOsAcceptedInStorage(serverAcceptedNumbers);
+          }
           setPurchaseOrders(reconciledPOs);
           setLoadings(loadRes.loadingEntries || []);
           setDispatches(dspRes.dispatches || []);
@@ -370,10 +383,34 @@ export default function SupplierDashboard() {
   // Derived KPI Metrics
   const metrics = useMemo(() => {
     const total = purchaseOrders.length;
-    const newCount = purchaseOrders.filter(p => p.status === 'New' || p.status === 'Pending' || p.status === 'Pending Acceptance' || p.status === 'Awaiting Settlement').length;
-    const accepted = purchaseOrders.filter(p => p.status === 'Accepted' || p.status === 'In Progress').length;
-    const partiallyLoaded = purchaseOrders.filter(p => p.status === 'Partially Loaded').length;
-    const loaded = purchaseOrders.filter(p => p.status === 'Loaded').length;
+    // Orders are considered pending until loaded (remaining > 0 or loading < ordered, and not cancelled)
+    const pendingPOs = purchaseOrders.filter(p => {
+      if (p.status === 'Cancelled') return false;
+      const remaining = Number(p.remaining_quantity ?? (p.ordered_quantity - (p.loaded_quantity || 0)));
+      return remaining > 0;
+    });
+    const pendingCount = pendingPOs.length;
+
+    // Unaccepted orders: pending orders not yet acknowledged by mill
+    const unacceptedCount = pendingPOs.filter(p => !isPOAccepted(p)).length;
+
+    // Orders confirmed/accepted by mill
+    const accepted = purchaseOrders.filter(p => isPOAccepted(p)).length;
+
+    // Partially loaded: loading > 0 and loading < ordered
+    const partiallyLoaded = purchaseOrders.filter(p => {
+      const load = Number(p.loaded_quantity || 0);
+      const ord = Number(p.ordered_quantity || 0);
+      return load > 0 && load < ord;
+    }).length;
+
+    // Fully loaded: loading >= ordered
+    const loaded = purchaseOrders.filter(p => {
+      const load = Number(p.loaded_quantity || 0);
+      const ord = Number(p.ordered_quantity || 0);
+      return ord > 0 && load >= ord;
+    }).length;
+
     const dispatched = purchaseOrders.filter(p => p.status === 'Dispatched' || p.status === 'Completed').length;
     const totalQtlOrdered = purchaseOrders.reduce((sum, p) => sum + (Number(p.ordered_quantity) || 0), 0);
     const totalQtlLoaded = loadings.reduce((sum, l) => sum + (Number(l.loading_quantity) || 0), 0);
@@ -381,7 +418,9 @@ export default function SupplierDashboard() {
 
     return {
       total,
-      newCount,
+      pendingCount,
+      unacceptedCount,
+      newCount: unacceptedCount,
       accepted,
       partiallyLoaded,
       loaded,
@@ -394,11 +433,11 @@ export default function SupplierDashboard() {
 
   // Pending & Fully Loaded Counts for Quick Filter Pills
   const pendingCount = useMemo(() => {
-    return purchaseOrders.filter(p => Number(p.remaining_quantity ?? (p.ordered_quantity - (p.loaded_quantity || 0))) > 0).length;
+    return purchaseOrders.filter(p => p.status !== 'Cancelled' && Number(p.remaining_quantity ?? (p.ordered_quantity - (p.loaded_quantity || 0))) > 0).length;
   }, [purchaseOrders]);
 
   const fullyLoadedCount = useMemo(() => {
-    return purchaseOrders.filter(p => Number(p.remaining_quantity ?? (p.ordered_quantity - (p.loaded_quantity || 0))) <= 0).length;
+    return purchaseOrders.filter(p => p.status !== 'Cancelled' && Number(p.remaining_quantity ?? (p.ordered_quantity - (p.loaded_quantity || 0))) <= 0).length;
   }, [purchaseOrders]);
 
   // Filtered & Chronologically Sorted POs
@@ -436,7 +475,10 @@ export default function SupplierDashboard() {
         );
 
       const matchStatus = poStatusFilter === 'ALL' || 
-        (poStatusFilter === 'New' && (po.status === 'New' || po.status === 'Pending Acceptance' || po.status === 'Pending')) ||
+        (poStatusFilter === 'Pending' && remaining > 0) ||
+        (poStatusFilter === 'Loaded' && remaining <= 0) ||
+        (poStatusFilter === 'New' && !isPOAccepted(po)) ||
+        (poStatusFilter === 'Accepted' && isPOAccepted(po)) ||
         po.status === poStatusFilter;
       return matchSearch && matchStatus;
     });
@@ -518,15 +560,15 @@ export default function SupplierDashboard() {
     }
   };
   const pendingPOsForAccept = useMemo(() => {
-    return purchaseOrders.filter(p => p.status === 'New' || p.status === 'Pending' || p.status === 'Pending Acceptance' || p.status === 'Awaiting Settlement');
+    return purchaseOrders.filter(p => p.status !== 'Cancelled' && !isPOAccepted(p));
   }, [purchaseOrders]);
 
   const handleAcceptPO = async (po) => {
     try {
       markPOsAcceptedInStorage([po.po_number]);
-      setPurchaseOrders(prev => prev.map(p => (p.id === po.id || p.po_number === po.po_number) ? { ...p, status: 'Accepted' } : p));
+      setPurchaseOrders(prev => prev.map(p => (p.id === po.id || p.po_number === po.po_number) ? { ...p, is_accepted: 1 } : p));
       if (selectedPO && (selectedPO.id === po.id || selectedPO.po_number === po.po_number)) {
-        setSelectedPO(prev => ({ ...prev, status: 'Accepted' }));
+        setSelectedPO(prev => ({ ...prev, is_accepted: 1 }));
       }
       showToast(`PO ${po.po_number} accepted successfully. Fulfilment status synced to Orders Portal.`, 'success');
       await api.supplier.acceptPO(po.id || po.po_number, { expectedLoadingDate: po.delivery_date });
@@ -537,7 +579,7 @@ export default function SupplierDashboard() {
 
   const handleOpenAcceptAll = () => {
     if (pendingPOsForAccept.length === 0) {
-      showToast('There are no pending purchase orders to accept.', 'info');
+      showToast('All pending purchase orders have already been accepted.', 'info');
       return;
     }
     setIsAcceptAllModalOpen(true);
@@ -550,18 +592,19 @@ export default function SupplierDashboard() {
       markPOsAcceptedInStorage(numbers);
       setIsAcceptAllModalOpen(false);
       setPurchaseOrders(prev => prev.map(p => {
-        if (p.status === 'New' || p.status === 'Pending' || p.status === 'Pending Acceptance' || p.status === 'Awaiting Settlement') {
-          return { ...p, status: 'Accepted' };
+        if (!isPOAccepted(p)) {
+          return { ...p, is_accepted: 1 };
         }
         return p;
       }));
-      if (selectedPO && (selectedPO.status === 'New' || selectedPO.status === 'Pending' || selectedPO.status === 'Pending Acceptance' || selectedPO.status === 'Awaiting Settlement')) {
-        setSelectedPO(prev => ({ ...prev, status: 'Accepted' }));
+      if (selectedPO && !isPOAccepted(selectedPO)) {
+        setSelectedPO(prev => ({ ...prev, is_accepted: 1 }));
       }
       showToast(`Successfully accepted all ${numbers.length} purchase orders!`, 'success');
       await api.supplier.acceptAllPOs({
         supplier_id: currentSupplierId ? Number(currentSupplierId) : undefined
       });
+      setRefreshKey(k => k + 1);
     } catch (err) {
       showToast(`Error accepting all POs: ${err.message}`, 'error');
     } finally {
@@ -622,6 +665,23 @@ export default function SupplierDashboard() {
     } finally {
       setLoadingLedger(false);
     }
+  };
+
+  const handleOpenLoadingForPO = (po) => {
+    setSelectedPO(po);
+    const sub = (po.sub_orders && po.sub_orders.length > 0) ? po.sub_orders[0] : null;
+    const remQty = Number(po.remaining_quantity ?? (po.ordered_quantity - (po.loaded_quantity || 0)));
+    setLoadingForm({
+      poId: String(po.id),
+      subOrderNo: sub ? (sub.sub_order_no || sub.subOrderNo) : (po.sub_order_no || ''),
+      loadingDate: new Date().toISOString().split('T')[0],
+      loadingLocation: po.delivery_location || 'Mill Facility',
+      vehicleNumber: '',
+      driverPhone: '',
+      loadingQuantity: remQty > 0 ? remQty.toFixed(2) : String(po.ordered_quantity || ''),
+      remarks: `Mill loading for PO ${po.po_number}`
+    });
+    setIsLoadingModalOpen(true);
   };
 
   const handleOpenLoadForSub = (po, sub) => {
@@ -953,7 +1013,7 @@ export default function SupplierDashboard() {
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
-          {metrics.newCount > 0 && (
+          {metrics.unacceptedCount > 0 ? (
             <button
               onClick={handleOpenAcceptAll}
               disabled={loading || acceptingAll}
@@ -961,8 +1021,13 @@ export default function SupplierDashboard() {
               title="Accept all pending purchase orders at once"
             >
               <CheckCheck size={14} />
-              <span>{acceptingAll ? 'Accepting All...' : `Accept All POs (${metrics.newCount})`}</span>
+              <span>{acceptingAll ? 'Accepting All...' : `Accept All POs (${metrics.unacceptedCount})`}</span>
             </button>
+          ) : (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800">
+              <CheckCheck size={14} className="text-emerald-600" />
+              <span>All POs Confirmed</span>
+            </div>
           )}
 
           <button
@@ -1008,7 +1073,7 @@ export default function SupplierDashboard() {
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-black/5">
         {[
           { id: 'overview', label: 'Overview', icon: Layers },
-          { id: 'pos', label: 'Purchase Orders', icon: Inbox, count: metrics.newCount },
+          { id: 'pos', label: 'Purchase Orders', icon: Inbox, count: metrics.pendingCount },
           { id: 'stock', label: 'Stock Ledger', icon: Warehouse },
           { id: 'loading', label: 'Loading Register', icon: Truck },
           { id: 'documents', label: 'Bills & Documents', icon: FileText, count: documents.length }
@@ -1052,21 +1117,21 @@ export default function SupplierDashboard() {
           {/* Stat Cards Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
             <div className="glass-card rounded-2xl p-4 border border-white/60 shadow-2xs">
-              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">New POs</span>
-              <div className="text-2xl font-bold tabular-nums font-['Plus_Jakarta_Sans',sans-serif] tracking-tight text-[#8F1717]">{metrics.newCount}</div>
-              <span className="text-[10px] text-amber-600 font-medium mt-1 block">Awaiting confirmation</span>
+              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">Pending Orders</span>
+              <div className="text-2xl font-bold tabular-nums font-['Plus_Jakarta_Sans',sans-serif] tracking-tight text-[#8F1717]">{metrics.pendingCount}</div>
+              <span className="text-[10px] text-amber-600 font-medium mt-1 block">Awaiting Mill Loading</span>
             </div>
 
             <div className="glass-card rounded-2xl p-4 border border-white/60 shadow-2xs">
               <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">Accepted</span>
               <div className="text-2xl font-bold tabular-nums font-['Plus_Jakarta_Sans',sans-serif] tracking-tight text-emerald-600">{metrics.accepted}</div>
-              <span className="text-[10px] text-gray-400 font-medium mt-1 block">Scheduled for loading</span>
+              <span className="text-[10px] text-gray-400 font-medium mt-1 block">Confirmed Orders</span>
             </div>
 
             <div className="glass-card rounded-2xl p-4 border border-white/60 shadow-2xs">
               <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">Partially Loaded</span>
               <div className="text-2xl font-bold tabular-nums font-['Plus_Jakarta_Sans',sans-serif] tracking-tight text-blue-600">{metrics.partiallyLoaded}</div>
-              <span className="text-[10px] text-blue-500 font-medium mt-1 block">In vehicle queue</span>
+              <span className="text-[10px] text-blue-500 font-medium mt-1 block">Pending Completion</span>
             </div>
 
             <div className="glass-card rounded-2xl p-4 border border-white/60 shadow-2xs">
@@ -1095,10 +1160,10 @@ export default function SupplierDashboard() {
                 <h2 className="text-sm font-bold text-[#252525]">
                   Pending Purchase Orders
                 </h2>
-                <p className="text-[11px] text-gray-500">Incoming purchase orders awaiting confirmation</p>
+                <p className="text-[11px] text-gray-500">Incoming purchase orders awaiting mill loading ({metrics.pendingCount} pending)</p>
               </div>
               <div className="flex items-center gap-2.5">
-                {metrics.newCount > 0 && (
+                {metrics.unacceptedCount > 0 ? (
                   <button
                     onClick={handleOpenAcceptAll}
                     disabled={acceptingAll}
@@ -1106,8 +1171,13 @@ export default function SupplierDashboard() {
                     title="Accept all pending purchase orders"
                   >
                     <CheckCheck size={13} />
-                    <span>{acceptingAll ? 'Accepting...' : `Accept All POs (${metrics.newCount})`}</span>
+                    <span>{acceptingAll ? 'Accepting...' : `Accept All POs (${metrics.unacceptedCount})`}</span>
                   </button>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold rounded-xl">
+                    <Check size={12} className="text-emerald-600" />
+                    <span>All POs Accepted</span>
+                  </span>
                 )}
                 <button
                   onClick={() => setActiveTab('pos')}
@@ -1119,70 +1189,104 @@ export default function SupplierDashboard() {
             </div>
 
             <div className="space-y-2.5">
-              {purchaseOrders.filter(p => p.status === 'New' || p.status === 'Pending' || p.status === 'Pending Acceptance' || p.status === 'Awaiting Settlement').slice(0, 5).map(po => (
-                <div key={po.id} className="p-3.5 bg-white/70 hover:bg-white rounded-2xl border border-amber-200/60 shadow-2xs flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-700 flex items-center justify-center shrink-0">
-                      <Inbox size={18} />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-sm tracking-tight text-[#8F1717]">{po.po_number}</span>
-                        {po.sub_order_no && (
-                          <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-semibold">
-                            Sub No: {po.sub_order_no}
-                          </span>
-                        )}
-                        {po.original_order_id && (
-                          <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                            Ref: {po.original_order_id}
-                          </span>
-                        )}
-                        <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full uppercase">
-                          {po.status === 'Pending Acceptance' ? 'Awaiting Acceptance' : po.status}
-                        </span>
-                      </div>
-                      <div className="text-xs text-gray-600 mt-1">
-                        <strong className="tabular-nums font-semibold text-[#252525]">{po.ordered_quantity} QTL</strong> • {po.product_name} • Date: <span className="tabular-nums font-medium">{formatDateDMY(po.po_date)}</span> • Consignee: {po.customer_name_text || po.customer_name || 'Designated Buyer'}
-                      </div>
-                    </div>
-                  </div>
+              {purchaseOrders
+                .filter(p => p.status !== 'Cancelled' && Number(p.remaining_quantity ?? (p.ordered_quantity - (p.loaded_quantity || 0))) > 0)
+                .slice(0, 5)
+                .map(po => {
+                  const remQty = Number(po.remaining_quantity ?? (po.ordered_quantity - (po.loaded_quantity || 0)));
+                  const loadQty = Number(po.loaded_quantity || 0);
+                  const ordQty = Number(po.ordered_quantity || 0);
+                  const accepted = isPOAccepted(po);
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleAcceptPO(po)}
-                      className="px-3 py-1.5 bg-[#8F1717] hover:bg-[#771212] text-white text-xs font-semibold rounded-xl flex items-center gap-1 shadow-2xs"
-                    >
-                      <Check size={14} />
-                      <span>Accept PO</span>
-                    </button>
-                    <button
-                      onClick={() => handleOpenPODetail(po)}
-                      className="px-3 py-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 text-xs font-semibold rounded-xl flex items-center gap-1"
-                    >
-                      <Eye size={13} />
-                      <span>Details</span>
-                    </button>
-                    <button
-                      onClick={() => handleOpenQuery(po)}
-                      className="px-3 py-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 text-xs font-semibold rounded-xl"
-                    >
-                      Raise Query
-                    </button>
-                    <button
-                      onClick={() => handleOpenReschedule(po)}
-                      className="px-3 py-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 text-xs font-semibold rounded-xl"
-                    >
-                      Reschedule
-                    </button>
-                  </div>
-                </div>
-              ))}
+                  return (
+                    <div key={po.id} className="p-3.5 bg-white/70 hover:bg-white rounded-2xl border border-amber-200/60 shadow-2xs flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-700 flex items-center justify-center shrink-0">
+                          <Inbox size={18} />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-sm tracking-tight text-[#8F1717]">{po.po_number}</span>
+                            {po.sub_order_no && (
+                              <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-semibold">
+                                Sub No: {po.sub_order_no}
+                              </span>
+                            )}
+                            {po.original_order_id && (
+                              <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                                Ref: {po.original_order_id}
+                              </span>
+                            )}
+                            {/* Operational Status Badge: Pending */}
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                              loadQty > 0 ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'
+                            }`}>
+                              {loadQty > 0 ? `Pending (${loadQty.toFixed(0)}/${ordQty.toFixed(0)} QTL)` : 'Pending'}
+                            </span>
+                            {/* Acceptance Badge */}
+                            {accepted ? (
+                              <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-semibold flex items-center gap-0.5">
+                                <Check size={11} /> Accepted
+                              </span>
+                            ) : (
+                              <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full font-semibold">
+                                New
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-600 mt-1">
+                            <strong className="tabular-nums font-semibold text-[#252525]">{po.ordered_quantity} QTL</strong> • {po.product_name} • Date: <span className="tabular-nums font-medium">{formatDateDMY(po.po_date)}</span> • Consignee: {po.customer_name_text || po.customer_name || 'Designated Buyer'}
+                          </div>
+                        </div>
+                      </div>
 
-              {purchaseOrders.filter(p => p.status === 'New' || p.status === 'Pending' || p.status === 'Pending Acceptance' || p.status === 'Awaiting Settlement').length === 0 && (
+                      <div className="flex items-center gap-2">
+                        {!accepted ? (
+                          <button
+                            onClick={() => handleAcceptPO(po)}
+                            className="px-3 py-1.5 bg-[#8F1717] hover:bg-[#771212] text-white text-xs font-semibold rounded-xl flex items-center gap-1 shadow-2xs cursor-pointer"
+                          >
+                            <Check size={14} />
+                            <span>Accept PO</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleOpenLoadingForPO(po)}
+                            className="px-3 py-1.5 bg-gradient-to-r from-[#8F1717] to-[#771212] hover:opacity-95 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                            title="Direct Mill Truck Loading for this PO"
+                          >
+                            <Truck size={13} className="text-[#C69A3B]" />
+                            <span>Load Order</span>
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleOpenPODetail(po)}
+                          className="px-3 py-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 text-xs font-semibold rounded-xl flex items-center gap-1"
+                        >
+                          <Eye size={13} />
+                          <span>Details</span>
+                        </button>
+                        <button
+                          onClick={() => handleOpenQuery(po)}
+                          className="px-3 py-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 text-xs font-semibold rounded-xl"
+                        >
+                          Raise Query
+                        </button>
+                        <button
+                          onClick={() => handleOpenReschedule(po)}
+                          className="px-3 py-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 text-xs font-semibold rounded-xl"
+                        >
+                          Reschedule
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+              {purchaseOrders.filter(p => p.status !== 'Cancelled' && Number(p.remaining_quantity ?? (p.ordered_quantity - (p.loaded_quantity || 0))) > 0).length === 0 && (
                 <div className="text-center py-8 text-xs text-gray-400">
                   <CheckCircle2 size={24} className="mx-auto text-emerald-500 mb-1" />
-                  All incoming Purchase Orders have been reviewed and accepted.
+                  All Purchase Orders have been fully loaded and dispatched!
                 </div>
               )}
             </div>
@@ -1310,7 +1414,7 @@ export default function SupplierDashboard() {
                 </button>
               </div>
               <div className="flex items-center gap-2">
-                {metrics.newCount > 0 && (
+                {metrics.unacceptedCount > 0 && (
                   <button
                     type="button"
                     onClick={handleOpenAcceptAll}
@@ -1319,7 +1423,7 @@ export default function SupplierDashboard() {
                     title="Accept all pending purchase orders in bulk"
                   >
                     <CheckCheck size={13} />
-                    <span>{acceptingAll ? 'Accepting...' : `Accept All POs (${metrics.newCount})`}</span>
+                    <span>{acceptingAll ? 'Accepting...' : `Accept All POs (${metrics.unacceptedCount})`}</span>
                   </button>
                 )}
                 <button
@@ -1550,8 +1654,17 @@ export default function SupplierDashboard() {
                           </td>
                           <td className="py-3 px-4 text-center">
                             <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${statusClass}`}>
-                              {po.status}
+                              {Number(po.remaining_quantity ?? (po.ordered_quantity - (po.loaded_quantity || 0))) > 0
+                                ? (Number(po.loaded_quantity || 0) > 0 
+                                    ? `Pending (${Number(po.loaded_quantity).toFixed(0)}/${Number(po.ordered_quantity).toFixed(0)} QTL)`
+                                    : 'Pending')
+                                : po.status}
                             </span>
+                            {isPOAccepted(po) && (
+                              <span className="block text-[9px] text-emerald-700 font-medium mt-0.5">
+                                ✓ Confirmed
+                              </span>
+                            )}
                           </td>
                           <td className="py-3 px-4 text-right">
                             <div className="flex items-center justify-end gap-1.5">
@@ -1571,13 +1684,22 @@ export default function SupplierDashboard() {
                                 </button>
                               )}
 
-                              {(po.status === 'New' || po.status === 'Pending Acceptance' || po.status === 'Pending' || po.status === 'Awaiting Settlement') && (
+                              {!isPOAccepted(po) ? (
                                 <button
                                   onClick={() => handleAcceptPO(po)}
-                                  className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-semibold"
-                                  title="Accept PO"
+                                  className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-semibold cursor-pointer shadow-2xs"
+                                  title="Accept and confirm this PO"
                                 >
                                   Accept
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleOpenLoadingForPO(po)}
+                                  className="px-2.5 py-1 bg-[#8F1717] hover:bg-[#771212] text-white rounded-lg text-[11px] font-semibold flex items-center gap-1 shadow-2xs cursor-pointer"
+                                  title="Direct Mill Truck Loading for this PO"
+                                >
+                                  <Truck size={12} className="text-[#C69A3B]" />
+                                  <span>Load</span>
                                 </button>
                               )}
                               <button
@@ -2200,12 +2322,20 @@ export default function SupplierDashboard() {
                 <Printer size={14} />
                 <span>Print Document</span>
               </button>
-              {(selectedPO.status === 'New' || selectedPO.status === 'Pending Acceptance' || selectedPO.status === 'Pending' || selectedPO.status === 'Awaiting Settlement') && (
+              {!isPOAccepted(selectedPO) ? (
                 <button
                   onClick={() => { handleAcceptPO(selectedPO); setIsPODetailOpen(false); }}
                   className="px-4 py-1.5 bg-[#8F1717] hover:bg-[#771212] text-white rounded-xl font-semibold shadow-xs"
                 >
                   Accept PO
+                </button>
+              ) : (
+                <button
+                  onClick={() => { setIsPODetailOpen(false); handleOpenLoadingForPO(selectedPO); }}
+                  className="px-4 py-1.5 bg-gradient-to-r from-[#8F1717] to-[#771212] hover:opacity-95 text-white rounded-xl font-semibold shadow-xs flex items-center gap-1.5"
+                >
+                  <Truck size={14} className="text-[#C69A3B]" />
+                  <span>Load This Order</span>
                 </button>
               )}
             </div>

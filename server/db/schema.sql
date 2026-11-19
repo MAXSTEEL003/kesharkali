@@ -92,7 +92,8 @@ CREATE TABLE IF NOT EXISTS purchase_orders (
     delivery_location TEXT NOT NULL,
     expected_delivery_date DATE,
     notes TEXT,
-    status TEXT NOT NULL DEFAULT 'New' CHECK(status IN (
+    status TEXT NOT NULL DEFAULT 'Pending' CHECK(status IN (
+        'Pending',
         'New',
         'Allocation Pending',
         'Partially Allocated',
@@ -107,7 +108,8 @@ CREATE TABLE IF NOT EXISTS purchase_orders (
         'Dispatched',
         'Delivered',
         'Completed',
-        'Cancelled'
+        'Cancelled',
+        'Awaiting Settlement'
     )),
     original_order_id TEXT,
     supplier_id INTEGER REFERENCES industries(id),

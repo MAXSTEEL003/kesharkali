@@ -26,20 +26,21 @@ function generatePONumber() {
 /**
  * Derive accurate operational status for a PO based on real transactions
  */
+/**
+ * Derive accurate operational status for a PO based on real transactions.
+ * Strict Business Rules:
+ * 1. Until an order is loaded, it is considered Pending.
+ * 2. If loading QTL is less than PO QTL, it is still considered Pending.
+ * 3. When loading QTL >= PO QTL, it is Loaded.
+ * 4. When dispatch QTL >= PO QTL, it is Completed (or Dispatched).
+ */
 function derivePOStatus(poId, explicitStatus = null) {
     if (explicitStatus === 'Cancelled') return 'Cancelled';
-    if (explicitStatus === 'Accepted') return 'Accepted';
-    if (explicitStatus === 'In Progress') return 'In Progress';
-    if (explicitStatus === 'Dispatched') return 'Dispatched';
-    if (explicitStatus === 'Completed') return 'Completed';
 
     const po = get('SELECT ordered_quantity, status FROM purchase_orders WHERE id = ?', [poId]);
-    if (!po) return explicitStatus || 'New';
+    if (!po) return explicitStatus || 'Pending';
 
     const ord = Number(po.ordered_quantity);
-
-    const allocRow = get(`SELECT COALESCE(SUM(allocated_quantity), 0) as total FROM industry_allocations WHERE po_id = ? AND status != 'Cancelled'`, [poId]);
-    const alloc = Number(allocRow?.total || 0);
 
     const loadRow = get(`SELECT COALESCE(SUM(loading_quantity), 0) as total FROM loading_entries WHERE po_id = ? AND loading_status != 'Cancelled'`, [poId]);
     const load = Number(loadRow?.total || 0);
@@ -48,17 +49,11 @@ function derivePOStatus(poId, explicitStatus = null) {
     const dsp = Number(dspRow?.total || 0);
 
     if (dsp >= ord && ord > 0) return 'Completed';
-    if (dsp > 0) return 'Partially Dispatched';
+    if (dsp > 0 && dsp >= load && load >= ord) return 'Dispatched';
     if (load >= ord && ord > 0) return 'Loaded';
-    if (load > 0) return 'Partially Loaded';
-    if (alloc >= ord && ord > 0) return 'Allocated';
-    if (alloc > 0) return 'Partially Allocated';
 
-    // Preserve Accepted or In Progress status if no loading/allocation yet
-    if (po.status === 'Accepted' || po.status === 'In Progress') {
-        return po.status;
-    }
-    return explicitStatus || po.status || 'New';
+    // Strict Rule: Until loaded, and if loading QTL < PO QTL, it is considered Pending
+    return 'Pending';
 }
 
 // GET all purchase orders with calculated quantities, customer rates, and derived statuses
@@ -145,8 +140,22 @@ router.get('/', (req, res) => {
             params.push(productId);
         }
         if (status) {
-            sql += ' AND po.status = ?';
-            params.push(status);
+            if (status === 'Pending') {
+                sql += ` AND po.status != 'Cancelled' AND (
+                    po.id NOT IN (
+                        SELECT po_id FROM loading_entries WHERE loading_status != 'Cancelled'
+                    ) OR (
+                        SELECT COALESCE(SUM(loading_quantity), 0) FROM loading_entries WHERE po_id = po.id AND loading_status != 'Cancelled'
+                    ) < po.ordered_quantity
+                )`;
+            } else if (status === 'Loaded') {
+                sql += ` AND po.status != 'Cancelled' AND (
+                    SELECT COALESCE(SUM(loading_quantity), 0) FROM loading_entries WHERE po_id = po.id AND loading_status != 'Cancelled'
+                ) >= po.ordered_quantity AND po.ordered_quantity > 0`;
+            } else {
+                sql += ' AND po.status = ?';
+                params.push(status);
+            }
         }
         if (startDate) {
             sql += ' AND po.po_date >= ?';
@@ -184,33 +193,53 @@ router.get('/', (req, res) => {
 
         const pos = query(sql, params);
         for (const p of pos) {
+            const ord = Number(p.ordered_quantity || 0);
+            const load = Number(p.loaded_quantity || 0);
+            const dsp = Number(p.dispatched_quantity || 0);
+            if (p.status !== 'Cancelled') {
+                if (dsp >= ord && ord > 0) {
+                    p.status = 'Completed';
+                } else if (dsp > 0 && dsp >= load && load >= ord) {
+                    p.status = 'Dispatched';
+                } else if (load >= ord && ord > 0) {
+                    p.status = 'Loaded';
+                } else {
+                    p.status = 'Pending';
+                }
+            }
+
             if (p.sub_orders_json) {
                 try {
                     const rawList = JSON.parse(p.sub_orders_json);
-                    p.sub_orders = rawList.map(s => ({
-                        id: s.id,
-                        sub_order_no: s.sub_order_no || s.subOrderNo,
-                        subOrderNo: s.sub_order_no || s.subOrderNo,
-                        buyer_name: s.buyer_name || s.buyerName,
-                        buyerName: s.buyer_name || s.buyerName,
-                        product_name: s.product_name || s.productName,
-                        productName: s.product_name || s.productName,
-                        ordered_quantity: s.ordered_quantity ?? s.orderedQuantity,
-                        orderedQuantity: s.ordered_quantity ?? s.orderedQuantity,
-                        rate: s.rate,
-                        amount: s.amount,
-                        bill_no: s.bill_no ?? s.billNo,
-                        billNo: s.bill_no ?? s.billNo,
-                        bill_url: s.bill_url || s.billUrl || null,
-                        billUrl: s.bill_url || s.billUrl || null,
-                        bill_file_name: s.bill_file_name || s.billFileName || null,
-                        billFileName: s.bill_file_name || s.billFileName || null,
-                        bill_uploaded_at: s.bill_uploaded_at || s.billUploadedAt || null,
-                        billUploadedAt: s.bill_uploaded_at || s.billUploadedAt || null,
-                        delivery_location: s.delivery_location || s.deliveryLocation,
-                        deliveryLocation: s.delivery_location || s.deliveryLocation,
-                        status: s.status
-                    }));
+                    p.sub_orders = rawList.map(s => {
+                        const sOrd = Number(s.ordered_quantity ?? s.orderedQuantity ?? 0);
+                        const sLoad = Number(s.loaded_quantity ?? s.loadedQuantity ?? 0);
+                        const sStatus = s.status === 'Cancelled' ? 'Cancelled' : ((sLoad >= sOrd && sOrd > 0) ? 'Loaded' : 'Pending');
+                        return {
+                            id: s.id,
+                            sub_order_no: s.sub_order_no || s.subOrderNo,
+                            subOrderNo: s.sub_order_no || s.subOrderNo,
+                            buyer_name: s.buyer_name || s.buyerName,
+                            buyerName: s.buyer_name || s.buyerName,
+                            product_name: s.product_name || s.productName,
+                            productName: s.product_name || s.productName,
+                            ordered_quantity: s.ordered_quantity ?? s.orderedQuantity,
+                            orderedQuantity: s.ordered_quantity ?? s.orderedQuantity,
+                            rate: s.rate,
+                            amount: s.amount,
+                            bill_no: s.bill_no ?? s.billNo,
+                            billNo: s.bill_no ?? s.billNo,
+                            bill_url: s.bill_url || s.billUrl || null,
+                            billUrl: s.bill_url || s.billUrl || null,
+                            bill_file_name: s.bill_file_name || s.billFileName || null,
+                            billFileName: s.bill_file_name || s.billFileName || null,
+                            bill_uploaded_at: s.bill_uploaded_at || s.billUploadedAt || null,
+                            billUploadedAt: s.bill_uploaded_at || s.billUploadedAt || null,
+                            delivery_location: s.delivery_location || s.deliveryLocation,
+                            deliveryLocation: s.delivery_location || s.deliveryLocation,
+                            status: sStatus
+                        };
+                    });
                 } catch (_) {
                     p.sub_orders = [];
                 }
@@ -355,6 +384,20 @@ router.get('/:id', (req, res) => {
         const totalLoaded = loadings.reduce((sum, l) => sum + (Number(l.loading_quantity) || 0), 0);
         const totalDispatched = dispatches.reduce((sum, d) => sum + (Number(d.dispatch_quantity) || 0), 0);
         const remainingQty = Math.max(0, po.ordered_quantity - totalLoaded);
+
+        // Strict Rule: Until fully loaded, and if loading QTL < PO QTL, it is considered Pending!
+        if (po.status !== 'Cancelled') {
+            const ord = Number(po.ordered_quantity || 0);
+            if (totalDispatched >= ord && ord > 0) {
+                po.status = 'Completed';
+            } else if (totalDispatched > 0 && totalDispatched >= totalLoaded && totalLoaded >= ord) {
+                po.status = 'Dispatched';
+            } else if (totalLoaded >= ord && ord > 0) {
+                po.status = 'Loaded';
+            } else {
+                po.status = 'Pending';
+            }
+        }
 
         // Weighted average procurement cost
         const totalProcurementCost = allocations.reduce((sum, a) => sum + (Number(a.purchase_amount) || 0), 0);
@@ -518,7 +561,7 @@ router.post('/supplier-accept-all', async (req, res) => {
             targetSupplierId = req.user.supplierId;
         }
 
-        let sql = "SELECT * FROM purchase_orders WHERE status IN ('New', 'Pending', 'Pending Acceptance', 'Awaiting Settlement')";
+        let sql = "SELECT * FROM purchase_orders WHERE (is_accepted = 0 OR is_accepted IS NULL) AND status != 'Cancelled'";
         const params = [];
 
         if (targetSupplierId && Number(targetSupplierId) !== 5) {
@@ -528,7 +571,7 @@ router.post('/supplier-accept-all', async (req, res) => {
 
         const pendingPOs = query(sql, params);
         if (pendingPOs.length === 0) {
-            return res.json({ success: true, count: 0, message: 'No pending purchase orders to accept.' });
+            return res.json({ success: true, count: 0, message: 'All pending purchase orders have already been accepted.' });
         }
 
         const actor = req.user?.fullName || 'Bhagwathi Rice and Agro Industries';
@@ -543,7 +586,7 @@ router.post('/supplier-accept-all', async (req, res) => {
                     } catch (_) {}
                 }
 
-                run("UPDATE purchase_orders SET status = 'Accepted', sub_orders_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [updatedSubJson, po.id]);
+                run("UPDATE purchase_orders SET is_accepted = 1, accepted_at = CURRENT_TIMESTAMP, sub_orders_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [updatedSubJson, po.id]);
                 run("UPDATE po_sub_orders SET status = 'Accepted' WHERE po_id = ?", [po.id]);
 
                 run(`
@@ -576,7 +619,7 @@ router.post('/supplier-accept-all', async (req, res) => {
             if (typeof savePOToFirebase === 'function') {
                 await Promise.all(
                     pendingPOs.map(po => 
-                        savePOToFirebase({ id: po.po_number, po_number: po.po_number, status: 'Accepted' }, po.po_number)
+                        savePOToFirebase({ id: po.po_number, po_number: po.po_number, is_accepted: 1, status: 'Accepted' }, po.po_number)
                     )
                 );
             }
@@ -592,7 +635,7 @@ router.post('/supplier-accept-all', async (req, res) => {
                 const acceptedNumbers = new Set(pendingPOs.map(p => p.po_number));
                 const updatedOrders = orders.map(o => {
                     if (acceptedNumbers.has(o.poNumber)) {
-                        return { ...o, status: 'Accepted' };
+                        return { ...o, is_accepted: 1, status: 'Accepted' };
                     }
                     return o;
                 });
@@ -632,14 +675,14 @@ router.post('/:id/supplier-accept', async (req, res) => {
             } catch (_) {}
         }
 
-        run("UPDATE purchase_orders SET status = 'Accepted', sub_orders_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [updatedSubJson, po.id]);
+        run("UPDATE purchase_orders SET is_accepted = 1, accepted_at = CURRENT_TIMESTAMP, sub_orders_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [updatedSubJson, po.id]);
         run("UPDATE po_sub_orders SET status = 'Accepted' WHERE po_id = ?", [po.id]);
 
         // Persist accepted status to Cloud Firestore (awaited for serverless permanence)
         try {
             const { savePOToFirebase } = require('../services/appAListener');
             if (typeof savePOToFirebase === 'function') {
-                await savePOToFirebase({ id: po.po_number, po_number: po.po_number, status: 'Accepted' }, po.po_number);
+                await savePOToFirebase({ id: po.po_number, po_number: po.po_number, is_accepted: 1, status: 'Accepted' }, po.po_number);
             }
         } catch (fbErr) {
             console.warn('[Supplier Accept] Firebase replication note:', fbErr.message);
@@ -652,7 +695,7 @@ router.post('/:id/supplier-accept', async (req, res) => {
                 const orders = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
                 const updatedOrders = orders.map(o => {
                     if (o.poNumber === po.po_number) {
-                        return { ...o, status: 'Accepted' };
+                        return { ...o, is_accepted: 1, status: 'Accepted' };
                     }
                     return o;
                 });

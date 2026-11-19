@@ -330,7 +330,16 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
       if (pendingFilter === 'fully-loaded' && remaining > 0) return false;
 
       // 2. Status filter
-      if (statusFilter && po.status !== statusFilter) return false;
+      if (statusFilter) {
+        const effectiveStatus = (remaining > 0 && po.status !== 'Cancelled') ? 'Pending' : po.status;
+        if (statusFilter === 'Pending') {
+          if (effectiveStatus !== 'Pending') return false;
+        } else if (statusFilter === 'Loaded') {
+          if (remaining > 0 || po.status !== 'Loaded') return false;
+        } else if (po.status !== statusFilter) {
+          return false;
+        }
+      }
 
       // 3. Buyer filter
       if (buyerFilter) {
@@ -500,21 +509,40 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
     }
   };
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status, po = null) => {
+    let effectiveStatus = status;
+    let label = status;
+
+    if (po) {
+      const rem = Number(po.remaining_quantity ?? (po.ordered_quantity - (po.loaded_quantity || 0)));
+      const load = Number(po.loaded_quantity || 0);
+      const ord = Number(po.ordered_quantity || 0);
+      if (po.status !== 'Cancelled') {
+        if (rem > 0) {
+          effectiveStatus = 'Pending';
+          label = load > 0 ? `Pending (${load.toFixed(0)}/${ord.toFixed(0)} QTL)` : 'Pending';
+        } else if (ord > 0 && rem <= 0) {
+          effectiveStatus = 'Loaded';
+          label = 'Loaded';
+        }
+      }
+    }
+
     const badges = {
+      'Pending': 'bg-amber-100 text-amber-900 border-amber-300 font-semibold',
       'New': 'bg-blue-100 text-blue-800 border-blue-200',
       'Partially Allocated': 'bg-amber-100 text-amber-800 border-amber-200',
       'Allocated': 'bg-purple-100 text-purple-800 border-purple-200',
       'Partially Loaded': 'bg-indigo-100 text-indigo-800 border-indigo-200',
-      'Loaded': 'bg-cyan-100 text-cyan-800 border-cyan-200',
+      'Loaded': 'bg-indigo-100 text-indigo-800 border-indigo-200 font-semibold',
       'Partially Dispatched': 'bg-orange-100 text-orange-800 border-orange-200',
       'Dispatched': 'bg-teal-100 text-teal-800 border-teal-200',
       'Completed': 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold',
       'Cancelled': 'bg-gray-100 text-gray-700 border-gray-300'
     };
     return (
-      <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold border ${badges[status] || 'bg-gray-100 text-gray-800'}`}>
-        {status}
+      <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold border ${badges[effectiveStatus] || 'bg-gray-100 text-gray-800'}`}>
+        {label}
       </span>
     );
   };
@@ -609,6 +637,7 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
             className="w-full px-2.5 py-1.5 bg-[#FAF9F6] border border-[#E8E2DC] rounded text-xs focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
           >
             <option value="">All Statuses</option>
+            <option value="Pending">Pending (Awaiting Loading)</option>
             <option value="New">New</option>
             <option value="Partially Allocated">Partially Allocated</option>
             <option value="Allocated">Allocated</option>
@@ -919,7 +948,7 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
                         <td className="text-right tabular-nums text-amber-700 font-bold">{Number(po.remaining_quantity).toFixed(2)}</td>
                         <td className="text-right tabular-nums font-medium">₹{Number(po.customer_selling_rate).toLocaleString('en-IN')}</td>
                         <td className="text-right tabular-nums font-semibold">₹{Number(po.order_value).toLocaleString('en-IN')}</td>
-                        <td className="text-center">{getStatusBadge(po.status)}</td>
+                        <td className="text-center">{getStatusBadge(po.status, po)}</td>
                         <td className="text-center">
                           <div className="flex items-center justify-center gap-1">
                             {/* Quick Glance Toggle Button */}

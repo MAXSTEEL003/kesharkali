@@ -93,6 +93,67 @@ function initDb() {
         db.exec('ALTER TABLE purchase_orders ADD COLUMN sub_orders_json TEXT;');
     } catch (_) { }
     try {
+        db.exec('ALTER TABLE purchase_orders ADD COLUMN is_accepted INTEGER DEFAULT 0;');
+    } catch (_) { }
+    try {
+        db.exec('ALTER TABLE purchase_orders ADD COLUMN accepted_at DATETIME;');
+    } catch (_) { }
+
+    // Migrate CHECK constraint if existing table rejects 'Pending'
+    try {
+        db.exec("UPDATE purchase_orders SET status = 'Pending' WHERE 1=0;");
+    } catch (checkErr) {
+        if (checkErr.message && checkErr.message.includes('CHECK constraint')) {
+            try {
+                db.exec('PRAGMA foreign_keys = OFF;');
+                db.exec(`
+                    CREATE TABLE IF NOT EXISTS purchase_orders_v2 (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        po_number TEXT UNIQUE NOT NULL,
+                        customer_id INTEGER NOT NULL REFERENCES customers(id),
+                        product_id INTEGER NOT NULL REFERENCES products(id),
+                        po_date DATE NOT NULL,
+                        ordered_quantity REAL NOT NULL,
+                        customer_selling_rate REAL NOT NULL,
+                        delivery_location TEXT NOT NULL,
+                        expected_delivery_date DATE,
+                        notes TEXT,
+                        status TEXT NOT NULL DEFAULT 'Pending',
+                        original_order_id TEXT,
+                        supplier_id INTEGER REFERENCES industries(id),
+                        supplier_rate REAL DEFAULT 0,
+                        supplier_notes TEXT,
+                        query_text TEXT,
+                        revised_date DATE,
+                        customer_name_text TEXT,
+                        customer_contact_text TEXT,
+                        sub_order_no TEXT,
+                        bill_no TEXT,
+                        sub_orders_json TEXT,
+                        is_accepted INTEGER DEFAULT 0,
+                        accepted_at DATETIME,
+                        sync_status TEXT DEFAULT 'Pending',
+                        created_by TEXT,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    );
+                    INSERT OR IGNORE INTO purchase_orders_v2 SELECT 
+                        id, po_number, customer_id, product_id, po_date, ordered_quantity, customer_selling_rate,
+                        delivery_location, expected_delivery_date, notes, status, original_order_id, supplier_id,
+                        supplier_rate, supplier_notes, query_text, revised_date, customer_name_text, customer_contact_text,
+                        sub_order_no, bill_no, sub_orders_json, is_accepted, accepted_at, sync_status, created_by,
+                        created_at, updated_at
+                    FROM purchase_orders;
+                    DROP TABLE purchase_orders;
+                    ALTER TABLE purchase_orders_v2 RENAME TO purchase_orders;
+                    PRAGMA foreign_keys = ON;
+                `);
+            } catch (migErr) {
+                console.warn('[DB] Migration of purchase_orders notice:', migErr.message);
+            }
+        }
+    }
+    try {
         db.exec(`
             CREATE TABLE IF NOT EXISTS po_sub_orders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -218,18 +279,28 @@ function initDb() {
                 isSeeding = false;
             }
 
-            // Guarantee existing orders from authentic App A bundle match their Accepted status
+            // Rule: Until loaded, orders are considered Pending (even if accepted or partially loaded)
             if (fs.existsSync(ordersJsonPath)) {
                 try {
                     const bundledOrders = JSON.parse(fs.readFileSync(ordersJsonPath, 'utf8'));
                     for (const bo of bundledOrders) {
-                        if (bo.status === 'Accepted' && bo.poNumber) {
-                            db.prepare("UPDATE purchase_orders SET status = 'Accepted' WHERE po_number = ? AND status IN ('New', 'Pending', 'Pending Acceptance', 'Awaiting Settlement')").run(bo.poNumber);
-                            db.prepare("UPDATE po_sub_orders SET status = 'Accepted' WHERE po_number = ? AND status IN ('New', 'Pending', 'Pending Acceptance', 'Awaiting Settlement')").run(bo.poNumber);
+                        if (bo.poNumber && bo.status === 'Accepted') {
+                            db.prepare("UPDATE purchase_orders SET is_accepted = 1 WHERE po_number = ?").run(bo.poNumber);
                         }
                     }
                 } catch (_) {}
             }
+
+            // Reconcile status: if loading QTL < ordered QTL -> Pending; if loading QTL >= ordered QTL -> Loaded
+            db.prepare(`
+                UPDATE purchase_orders 
+                SET status = CASE 
+                    WHEN (SELECT COALESCE(SUM(dispatch_quantity), 0) FROM dispatches WHERE po_id = purchase_orders.id) >= ordered_quantity AND ordered_quantity > 0 THEN 'Completed'
+                    WHEN (SELECT COALESCE(SUM(loading_quantity), 0) FROM loading_entries WHERE po_id = purchase_orders.id AND loading_status != 'Cancelled') >= ordered_quantity AND ordered_quantity > 0 THEN 'Loaded'
+                    ELSE 'Pending'
+                END
+                WHERE status != 'Cancelled'
+            `).run();
         }
     } catch (seedErr) {
         isSeeding = false;
