@@ -553,7 +553,7 @@ export default function MasterLoadingRegister({ onOpenQuickAction, quickActionTr
   // Define columns for Excel-style Grid
   const columns = [
     { key: 'loading_number', label: 'Loading ID', width: '110px' },
-    { key: 'loading_date', label: 'Date', width: '100px', align: 'center', render: (val) => <span className="font-mono text-xs">{formatDateDMY(val)}</span> },
+    { key: 'loading_date', label: 'Date', width: '100px', align: 'center', render: (val) => <span className="tabular-nums text-xs">{formatDateDMY(val)}</span> },
     { key: 'po_number', label: 'PO #', width: '105px' },
     { 
       key: 'sub_order_no', 
@@ -561,7 +561,7 @@ export default function MasterLoadingRegister({ onOpenQuickAction, quickActionTr
       width: '105px', 
       align: 'center',
       render: (val) => val ? (
-        <span className="font-mono text-[11px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+        <span className="tabular-nums text-[11px] font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
           {val}
         </span>
       ) : (
@@ -619,28 +619,28 @@ export default function MasterLoadingRegister({ onOpenQuickAction, quickActionTr
       width: '130px', 
       align: 'center',
       editable: true,
-      render: (val) => <span className="font-mono font-semibold text-[#8F1717]">{val}</span>
+      render: (val) => <span className="tabular-nums font-semibold text-[#8F1717]">{val}</span>
     },
     { 
       key: 'loading_quantity', 
       label: 'Loading QTL', 
       width: '105px', 
       align: 'right',
-      render: (val) => <span className="font-mono font-bold">{Number(val).toFixed(2)}</span>
+      render: (val) => <span className="tabular-nums font-bold">{Number(val).toFixed(2)}</span>
     },
     { 
       key: 'purchase_rate', 
       label: 'Purchase Rate', 
       width: '115px', 
       align: 'right',
-      render: (val) => <span className="font-mono">₹{Number(val).toFixed(2)}</span>
+      render: (val) => <span className="tabular-nums">₹{Number(val).toFixed(2)}</span>
     },
     { 
       key: 'loading_amount', 
       label: 'Loading Amount', 
       width: '125px', 
       align: 'right',
-      render: (val) => <span className="font-mono font-bold text-gray-800">₹{Number(val).toLocaleString('en-IN')}</span>
+      render: (val) => <span className="tabular-nums font-bold text-gray-800">₹{Number(val).toLocaleString('en-IN')}</span>
     },
     { 
       key: 'dispatch_status', 
@@ -729,25 +729,25 @@ export default function MasterLoadingRegister({ onOpenQuickAction, quickActionTr
           <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             <div className="bg-[#FAF9F6] p-2.5 rounded border border-[#E8E2DC] text-center sm:text-left">
               <div className="text-[10px] font-semibold text-gray-500 uppercase">Today's Loading</div>
-              <div className="text-sm font-bold font-mono text-[#8F1717]">{summary.todayLoading.qtl} QTL</div>
+              <div className="text-sm font-bold tabular-nums text-[#8F1717]">{summary.todayLoading.qtl} QTL</div>
               <div className="text-[10px] text-gray-400">{summary.todayLoading.count} trucks loaded today</div>
             </div>
 
             <div className="bg-[#FAF9F6] p-2.5 rounded border border-[#E8E2DC] text-center sm:text-left">
               <div className="text-[10px] font-semibold text-gray-500 uppercase">Total Loaded to Date</div>
-              <div className="text-sm font-bold font-mono text-[#252525]">{summary.totalLoading.qtl} QTL</div>
+              <div className="text-sm font-bold tabular-nums text-[#252525]">{summary.totalLoading.qtl} QTL</div>
               <div className="text-[10px] text-gray-400">₹{summary.totalLoading.amount.toLocaleString('en-IN')}</div>
             </div>
 
             <div className="bg-[#FAF9F6] p-2.5 rounded border border-[#E8E2DC] text-center sm:text-left">
               <div className="text-[10px] font-semibold text-gray-500 uppercase">Pending Mill Loading</div>
-              <div className="text-sm font-bold font-mono text-amber-700">{summary.pendingLoading.qtl} QTL</div>
+              <div className="text-sm font-bold tabular-nums text-amber-700">{summary.pendingLoading.qtl} QTL</div>
               <div className="text-[10px] text-amber-600">Awaiting mill bagging/trucks</div>
             </div>
 
             <div className="bg-[#FAF9F6] p-2.5 rounded border border-[#E8E2DC] text-center sm:text-left">
               <div className="text-[10px] font-semibold text-gray-500 uppercase">Today's Loaded & Dispatched</div>
-              <div className="text-sm font-bold font-mono text-emerald-700">{summary.todayDispatch?.qtl || summary.todayLoading?.qtl} QTL</div>
+              <div className="text-sm font-bold tabular-nums text-emerald-700">{summary.todayDispatch?.qtl || summary.todayLoading?.qtl} QTL</div>
               <div className="text-[10px] text-emerald-600">{summary.todayLoading?.count || 0} truck(s) dispatched</div>
             </div>
           </div>

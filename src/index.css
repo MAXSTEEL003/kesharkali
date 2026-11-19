@@ -28,6 +28,12 @@
   }
 }
 
+/* Executive clean tabular numbers */
+.tabular-nums {
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.01em;
+}
+
 /* Translucent Glassmorphic Panels & Surfaces */
 .glass-panel {
   background: rgba(255, 255, 255, 0.45) !important;

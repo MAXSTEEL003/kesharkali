@@ -61,7 +61,20 @@ function markPOsAcceptedInStorage(poNumbers) {
 }
 
 export default function SupplierDashboard() {
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTabState] = useState(() => {
+    try {
+      return localStorage.getItem('kk_supplier_tab') || 'overview';
+    } catch (_) {
+      return 'overview';
+    }
+  });
+
+  const setActiveTab = (tab) => {
+    setActiveTabState(tab);
+    try {
+      localStorage.setItem('kk_supplier_tab', tab);
+    } catch (_) {}
+  };
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -1040,37 +1053,37 @@ export default function SupplierDashboard() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
             <div className="glass-card rounded-2xl p-4 border border-white/60 shadow-2xs">
               <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">New POs</span>
-              <div className="text-2xl font-bold font-mono text-[#8F1717]">{metrics.newCount}</div>
+              <div className="text-2xl font-bold tabular-nums font-['Plus_Jakarta_Sans',sans-serif] tracking-tight text-[#8F1717]">{metrics.newCount}</div>
               <span className="text-[10px] text-amber-600 font-medium mt-1 block">Awaiting confirmation</span>
             </div>
 
             <div className="glass-card rounded-2xl p-4 border border-white/60 shadow-2xs">
               <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">Accepted</span>
-              <div className="text-2xl font-bold font-mono text-emerald-600">{metrics.accepted}</div>
+              <div className="text-2xl font-bold tabular-nums font-['Plus_Jakarta_Sans',sans-serif] tracking-tight text-emerald-600">{metrics.accepted}</div>
               <span className="text-[10px] text-gray-400 font-medium mt-1 block">Scheduled for loading</span>
             </div>
 
             <div className="glass-card rounded-2xl p-4 border border-white/60 shadow-2xs">
               <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">Partially Loaded</span>
-              <div className="text-2xl font-bold font-mono text-blue-600">{metrics.partiallyLoaded}</div>
+              <div className="text-2xl font-bold tabular-nums font-['Plus_Jakarta_Sans',sans-serif] tracking-tight text-blue-600">{metrics.partiallyLoaded}</div>
               <span className="text-[10px] text-blue-500 font-medium mt-1 block">In vehicle queue</span>
             </div>
 
             <div className="glass-card rounded-2xl p-4 border border-white/60 shadow-2xs">
               <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">Loaded (100%)</span>
-              <div className="text-2xl font-bold font-mono text-indigo-600">{metrics.loaded}</div>
+              <div className="text-2xl font-bold tabular-nums font-['Plus_Jakarta_Sans',sans-serif] tracking-tight text-indigo-600">{metrics.loaded}</div>
               <span className="text-[10px] text-gray-400 font-medium mt-1 block">Ready for transit</span>
             </div>
 
             <div className="glass-card rounded-2xl p-4 border border-white/60 shadow-2xs">
               <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">Dispatched</span>
-              <div className="text-2xl font-bold font-mono text-purple-600">{metrics.dispatched}</div>
+              <div className="text-2xl font-bold tabular-nums font-['Plus_Jakarta_Sans',sans-serif] tracking-tight text-purple-600">{metrics.dispatched}</div>
               <span className="text-[10px] text-gray-400 font-medium mt-1 block">On road / Delivered</span>
             </div>
 
             <div className="glass-card rounded-2xl p-4 border border-white/60 shadow-2xs">
               <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">Total Ordered</span>
-              <div className="text-2xl font-bold font-mono text-[#252525]">{metrics.totalQtlOrdered} <span className="text-xs">QTL</span></div>
+              <div className="text-2xl font-bold tabular-nums font-['Plus_Jakarta_Sans',sans-serif] tracking-tight text-[#252525]">{metrics.totalQtlOrdered} <span className="text-xs">QTL</span></div>
               <span className="text-[10px] text-emerald-600 font-medium mt-1 block">{metrics.totalQtlLoaded} QTL Loaded</span>
             </div>
           </div>
@@ -1079,10 +1092,10 @@ export default function SupplierDashboard() {
           <div className="glass-panel rounded-3xl p-5 shadow-2xs border border-white/60">
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
               <div>
-                <h2 className="text-sm font-bold text-[#252525] font-['Space_Grotesk']">
-                  Purchase Orders Requiring Immediate Action
+                <h2 className="text-sm font-bold text-[#252525]">
+                  Pending Purchase Orders
                 </h2>
-                <p className="text-[11px] text-gray-500">Incoming purchase orders synchronized from Orders Webapp (App A)</p>
+                <p className="text-[11px] text-gray-500">Incoming purchase orders awaiting confirmation</p>
               </div>
               <div className="flex items-center gap-2.5">
                 {metrics.newCount > 0 && (
@@ -1114,14 +1127,14 @@ export default function SupplierDashboard() {
                     </div>
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-sm font-mono text-[#8F1717]">{po.po_number}</span>
+                        <span className="font-bold text-sm tracking-tight text-[#8F1717]">{po.po_number}</span>
                         {po.sub_order_no && (
-                          <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-mono font-bold">
+                          <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-semibold">
                             Sub No: {po.sub_order_no}
                           </span>
                         )}
                         {po.original_order_id && (
-                          <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-mono">
+                          <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
                             Ref: {po.original_order_id}
                           </span>
                         )}
@@ -1130,7 +1143,7 @@ export default function SupplierDashboard() {
                         </span>
                       </div>
                       <div className="text-xs text-gray-600 mt-1">
-                        <strong>{po.ordered_quantity} QTL</strong> • {po.product_name} • Date: <span className="font-mono">{formatDateDMY(po.po_date)}</span> • Consignee: {po.customer_name_text || po.customer_name || 'Designated Buyer'}
+                        <strong className="tabular-nums font-semibold text-[#252525]">{po.ordered_quantity} QTL</strong> • {po.product_name} • Date: <span className="tabular-nums font-medium">{formatDateDMY(po.po_date)}</span> • Consignee: {po.customer_name_text || po.customer_name || 'Designated Buyer'}
                       </div>
                     </div>
                   </div>
@@ -1384,7 +1397,7 @@ export default function SupplierDashboard() {
                       <React.Fragment key={po.id}>
                         <tr className={`hover:bg-white transition-colors ${isExpanded ? 'bg-amber-50/30' : ''}`}>
                           {/* SL NO & Sub-Orders Layers Glance Button */}
-                          <td className="py-3 px-2 text-center font-mono whitespace-nowrap">
+                          <td className="py-3 px-2 text-center tabular-nums whitespace-nowrap">
                             <div className="flex items-center justify-center gap-1.5">
                               <span className="text-xs font-semibold text-gray-700 min-w-[18px] text-right">{idx + 1}</span>
                               {subOrdersList.length > 0 ? (
@@ -1410,7 +1423,7 @@ export default function SupplierDashboard() {
                           </td>
                           <td className="py-3 px-4">
                             <div 
-                              className="font-mono font-bold text-sm text-[#8F1717] cursor-pointer hover:underline inline-flex items-center gap-1"
+                              className="font-bold text-sm tracking-tight text-[#8F1717] cursor-pointer hover:underline inline-flex items-center gap-1 tabular-nums"
                               onClick={() => handleOpenPODetail(po)}
                               title="Click to view full PO details"
                             >
@@ -1425,7 +1438,7 @@ export default function SupplierDashboard() {
                                   return (
                                     <span 
                                       key={sIdx} 
-                                      className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200"
+                                      className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 tabular-nums"
                                       title={`${sNo}: ${s.buyer_name || s.buyerName} (${Number(s.ordered_quantity || s.orderedQuantity || 0).toFixed(1)} QTL)`}
                                     >
                                       {sNo}
@@ -1436,7 +1449,7 @@ export default function SupplierDashboard() {
                             ) : (
                               po.sub_order_no && (
                                 <div className="mt-1">
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 tabular-nums">
                                     Sub No: {po.sub_order_no}
                                   </span>
                                 </div>
@@ -1445,7 +1458,7 @@ export default function SupplierDashboard() {
                           </td>
 
                           {/* PO Date */}
-                          <td className="py-3 px-3 font-mono text-center text-xs text-gray-600 whitespace-nowrap">
+                          <td className="py-3 px-3 tabular-nums text-center text-xs text-gray-600 whitespace-nowrap">
                             {formatDateDMY(po.po_date)}
                           </td>
 
@@ -1454,7 +1467,7 @@ export default function SupplierDashboard() {
                             {subOrdersList.length <= 1 ? (
                               <div>
                                 <span className="font-semibold text-gray-900 block">{uniqueBuyers[0] || po.customer_name_text || po.customer_name}</span>
-                                <span className="text-[10px] text-gray-400 font-mono block">
+                                <span className="text-[10px] text-gray-400 tabular-nums block">
                                   {po.original_order_id ? `App A: ${po.original_order_id}` : 'Direct Consignee'}
                                 </span>
                               </div>
@@ -1462,9 +1475,9 @@ export default function SupplierDashboard() {
                               <div className="space-y-1">
                                 {subOrdersList.map((s, sIdx) => (
                                   <div key={sIdx} className="text-xs">
-                                    <span className="font-mono text-blue-700 font-bold text-[10px] mr-1">{s.sub_order_no || s.subOrderNo}:</span>
+                                    <span className="tabular-nums text-blue-700 font-bold text-[10px] mr-1">{s.sub_order_no || s.subOrderNo}:</span>
                                     <span className="font-semibold text-gray-900">{s.buyer_name || s.buyerName}</span>
-                                    <span className="text-gray-500 font-mono text-[10px] ml-1">({Number(s.ordered_quantity || s.orderedQuantity || 0).toFixed(1)} QTL)</span>
+                                    <span className="text-gray-500 tabular-nums text-[10px] ml-1">({Number(s.ordered_quantity || s.orderedQuantity || 0).toFixed(1)} QTL)</span>
                                   </div>
                                 ))}
                               </div>
@@ -1472,9 +1485,9 @@ export default function SupplierDashboard() {
                               <div className="space-y-1">
                                 {subOrdersList.slice(0, 2).map((s, sIdx) => (
                                   <div key={sIdx} className="text-xs">
-                                    <span className="font-mono text-blue-700 font-bold text-[10px] mr-1">{s.sub_order_no || s.subOrderNo}:</span>
+                                    <span className="tabular-nums text-blue-700 font-bold text-[10px] mr-1">{s.sub_order_no || s.subOrderNo}:</span>
                                     <span className="font-semibold text-gray-900">{s.buyer_name || s.buyerName}</span>
-                                    <span className="text-gray-500 font-mono text-[10px] ml-1">({Number(s.ordered_quantity || s.orderedQuantity || 0).toFixed(1)} QTL)</span>
+                                    <span className="text-gray-500 tabular-nums text-[10px] ml-1">({Number(s.ordered_quantity || s.orderedQuantity || 0).toFixed(1)} QTL)</span>
                                   </div>
                                 ))}
                                 <button
@@ -1502,7 +1515,7 @@ export default function SupplierDashboard() {
                             <span className="font-semibold text-gray-800">{po.product_name}</span>
                             <span className="block text-[10px] text-gray-400">{po.product_variety || 'Grade A'}</span>
                           </td>
-                          <td className="py-3 px-4 font-mono font-bold text-gray-800 text-right">
+                          <td className="py-3 px-4 tabular-nums font-bold text-gray-800 text-right">
                             <div>{Number(po.ordered_quantity || 0).toFixed(2)}</div>
                             {subOrdersList.length > 1 && (
                               <span className="text-[10px] text-gray-400 font-normal font-sans block">
@@ -1510,10 +1523,10 @@ export default function SupplierDashboard() {
                               </span>
                             )}
                           </td>
-                          <td className="py-3 px-4 font-mono font-bold text-indigo-700 text-right">
+                          <td className="py-3 px-4 tabular-nums font-bold text-indigo-700 text-right">
                             {Number(po.loaded_quantity || 0).toFixed(2)}
                           </td>
-                          <td className={`py-3 px-4 font-mono font-bold text-right ${
+                          <td className={`py-3 px-4 tabular-nums font-bold text-right ${
                             Number(po.remaining_quantity ?? (po.ordered_quantity - (po.loaded_quantity || 0))) > 0 ? 'text-amber-700' : 'text-emerald-700'
                           }`}>
                             {Number(po.remaining_quantity ?? (po.ordered_quantity - (po.loaded_quantity || 0))).toFixed(2)}
@@ -1521,9 +1534,9 @@ export default function SupplierDashboard() {
                           <td className="py-3 px-4 text-center">
                             {po.bill_no ? (
                               po.bill_no === 'Pending Loading' ? (
-                                <span className="text-[10px] font-mono text-gray-400 italic">Pending</span>
+                                <span className="text-[10px] tabular-nums text-gray-400 italic">Pending</span>
                               ) : (
-                                <span className="font-mono font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px]">
+                                <span className="tabular-nums font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px]">
                                   #{po.bill_no}
                                 </span>
                               )
@@ -1531,7 +1544,7 @@ export default function SupplierDashboard() {
                               <span className="text-gray-400 text-xs">—</span>
                             )}
                           </td>
-                          <td className="py-3 px-4 font-mono text-gray-700 font-semibold text-right">
+                          <td className="py-3 px-4 tabular-nums text-gray-700 font-semibold text-right">
                             ₹{Number(po.supplier_rate || po.customer_selling_rate || 0).toLocaleString('en-IN')}
                             <span className="block text-[10px] text-gray-400 font-normal">/ QTL</span>
                           </td>

@@ -78,7 +78,7 @@ export default function StatCard({
       </div>
 
       <div className="mt-2 flex items-baseline gap-2">
-        <span className={`text-xl font-bold tracking-tight ${style.value} tabular-nums font-['Space_Grotesk',sans-serif]`}>
+        <span className={`text-2xl font-bold tracking-tight ${style.value} tabular-nums font-['Plus_Jakarta_Sans',sans-serif]`}>
           {value}
         </span>
       </div>

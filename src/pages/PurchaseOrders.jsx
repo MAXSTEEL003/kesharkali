@@ -809,7 +809,7 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
                     <React.Fragment key={po.id}>
                       <tr className={`hover:bg-amber-50/40 transition-colors ${isExpanded ? 'bg-amber-50/30' : ''}`}>
                         {/* SL NO & Sub-Orders Layers Glance Button */}
-                        <td className="text-center font-mono py-2 px-2 whitespace-nowrap">
+                        <td className="text-center tabular-nums py-2 px-2 whitespace-nowrap">
                           <div className="flex items-center justify-center gap-1.5">
                             <span className="text-xs font-semibold text-gray-700 min-w-[18px] text-right">{idx + 1}</span>
                             {subOrdersList.length > 0 ? (
@@ -837,7 +837,7 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
                         {/* PO Number + Sub Numbers Glance */}
                         <td className="font-semibold text-[#8F1717]">
                           <div 
-                            className="font-mono font-bold cursor-pointer hover:underline inline-flex items-center gap-1"
+                            className="font-bold cursor-pointer hover:underline inline-flex items-center gap-1 tabular-nums tracking-tight"
                             onClick={() => handleViewPODetails(po.id)}
                             title="Click to view full PO sourcing & allocations"
                           >
@@ -852,7 +852,7 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
                                 return (
                                   <span 
                                     key={sIdx} 
-                                    className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200"
+                                    className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 tabular-nums"
                                     title={`${sNo}: ${s.buyer_name || s.buyerName} (${Number(s.ordered_quantity || s.orderedQuantity || 0).toFixed(1)} QTL)`}
                                   >
                                     {sNo}
@@ -862,7 +862,7 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
                             </div>
                           ) : (
                             po.sub_order_no && (
-                              <div className="text-[10px] text-blue-700 font-mono font-semibold mt-0.5">
+                              <div className="text-[10px] text-blue-700 font-semibold tabular-nums mt-0.5">
                                 Sub: {po.sub_order_no}
                               </div>
                             )
@@ -870,7 +870,7 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
                         </td>
 
                         {/* PO Date */}
-                        <td className="text-center text-xs font-mono">{formatDateDMY(po.po_date)}</td>
+                        <td className="text-center text-xs tabular-nums">{formatDateDMY(po.po_date)}</td>
 
                         {/* Buyer / Customer Easy Glance */}
                         <td>
@@ -880,9 +880,9 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
                             <div className="space-y-1">
                               {subOrdersList.map((s, sIdx) => (
                                 <div key={sIdx} className="text-xs">
-                                  <span className="font-mono text-blue-700 font-bold text-[10px] mr-1">{s.sub_order_no || s.subOrderNo}:</span>
+                                  <span className="tabular-nums text-blue-700 font-bold text-[10px] mr-1">{s.sub_order_no || s.subOrderNo}:</span>
                                   <span className="font-semibold text-gray-900">{s.buyer_name || s.buyerName}</span>
-                                  <span className="text-gray-500 font-mono text-[10px] ml-1">({Number(s.ordered_quantity || s.orderedQuantity || 0).toFixed(1)} QTL)</span>
+                                  <span className="text-gray-500 tabular-nums text-[10px] ml-1">({Number(s.ordered_quantity || s.orderedQuantity || 0).toFixed(1)} QTL)</span>
                                 </div>
                               ))}
                             </div>
@@ -890,9 +890,9 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
                             <div className="space-y-1">
                               {subOrdersList.slice(0, 2).map((s, sIdx) => (
                                 <div key={sIdx} className="text-xs">
-                                  <span className="font-mono text-blue-700 font-bold text-[10px] mr-1">{s.sub_order_no || s.subOrderNo}:</span>
+                                  <span className="tabular-nums text-blue-700 font-bold text-[10px] mr-1">{s.sub_order_no || s.subOrderNo}:</span>
                                   <span className="font-semibold text-gray-900">{s.buyer_name || s.buyerName}</span>
-                                  <span className="text-gray-500 font-mono text-[10px] ml-1">({Number(s.ordered_quantity || s.orderedQuantity || 0).toFixed(1)} QTL)</span>
+                                  <span className="text-gray-500 tabular-nums text-[10px] ml-1">({Number(s.ordered_quantity || s.orderedQuantity || 0).toFixed(1)} QTL)</span>
                                 </div>
                               ))}
                               <button
@@ -914,11 +914,11 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
                         </td>
 
                         <td>{po.product_name}</td>
-                        <td className="text-right font-mono font-bold">{Number(po.ordered_quantity).toFixed(2)}</td>
-                        <td className="text-right font-mono text-indigo-700 font-bold">{Number(po.loaded_quantity).toFixed(2)}</td>
-                        <td className="text-right font-mono text-amber-700 font-bold">{Number(po.remaining_quantity).toFixed(2)}</td>
-                        <td className="text-right font-mono">₹{Number(po.customer_selling_rate).toLocaleString('en-IN')}</td>
-                        <td className="text-right font-mono font-semibold">₹{Number(po.order_value).toLocaleString('en-IN')}</td>
+                        <td className="text-right tabular-nums font-bold">{Number(po.ordered_quantity).toFixed(2)}</td>
+                        <td className="text-right tabular-nums text-indigo-700 font-bold">{Number(po.loaded_quantity).toFixed(2)}</td>
+                        <td className="text-right tabular-nums text-amber-700 font-bold">{Number(po.remaining_quantity).toFixed(2)}</td>
+                        <td className="text-right tabular-nums font-medium">₹{Number(po.customer_selling_rate).toLocaleString('en-IN')}</td>
+                        <td className="text-right tabular-nums font-semibold">₹{Number(po.order_value).toLocaleString('en-IN')}</td>
                         <td className="text-center">{getStatusBadge(po.status)}</td>
                         <td className="text-center">
                           <div className="flex items-center justify-center gap-1">

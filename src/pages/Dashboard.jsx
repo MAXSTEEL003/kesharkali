@@ -90,14 +90,11 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
       {/* Top Banner with Quick Actions Strip */}
       <div className="glass-panel rounded-2xl p-5 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-lg font-bold text-[#252525] font-['Space_Grotesk'] flex items-center gap-2">
-            Operational Command Center
-            <span className="text-xs bg-emerald-500/15 text-emerald-800 border border-emerald-500/30 font-semibold px-2.5 py-0.5 rounded-full shadow-xs">
-              Live Reconciled
-            </span>
+          <h1 className="text-xl font-bold text-[#252525] tracking-tight">
+            Dashboard
           </h1>
-          <p className="text-xs text-[#777777]">
-            Real-time procurement, loading, dispatches, and warehouse stock accounting
+          <p className="text-xs text-gray-500 mt-0.5">
+            Operations and dispatch overview
           </p>
         </div>
 
@@ -188,33 +185,19 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
         />
       </div>
 
-      {/* Row 2: Stock Position & Valuation Bar */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <StatCard 
-          label="Total Warehouse Stock" 
-          value={`${metrics.totalPhysicalStock.toLocaleString('en-IN')} QTL`} 
-          subtext="Audited Physical Inventory" 
-          icon={Warehouse} 
-          color="red"
-          onClick={() => setActivePage('stock-dashboard')}
-        />
-        <StatCard 
-          label="Available For Sale" 
-          value={`${metrics.totalPhysicalStock.toLocaleString('en-IN')} QTL`} 
-          subtext="Ready for Customer Dispatch" 
-          icon={CheckCircle2} 
-          color="green"
-          onClick={() => setActivePage('stock-dashboard')}
-        />
-        <StatCard 
-          label="Total Stock Valuation" 
-          value={`₹${(metrics.totalStockValue || 0).toLocaleString('en-IN')}`} 
-          subtext="Weighted Average Purchase Cost"
-          icon={TrendingUp} 
-          color="gold"
-          onClick={() => setActivePage('stock-valuation')}
-        />
-      </div>
+      {/* Stock Position Bar (only shown when physical stock exists) */}
+      {metrics.totalPhysicalStock > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <StatCard 
+            label="Total Warehouse Stock" 
+            value={`${metrics.totalPhysicalStock.toLocaleString('en-IN')} QTL`} 
+            subtext="Physical Inventory" 
+            icon={Warehouse} 
+            color="red"
+            onClick={() => setActivePage('stock-dashboard')}
+          />
+        </div>
+      )}
 
       {/* Low Stock Alerts (if any) */}
       {lowStockProducts && lowStockProducts.length > 0 && (
@@ -275,7 +258,7 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
                     <tr key={po.id} className="hover:bg-amber-50/40">
                       <td className="py-2.5 px-3 font-semibold text-[#8F1717]">{po.po_number}</td>
                       <td className="py-2.5 px-3 text-[#252525]">{po.customer_name}</td>
-                      <td className="py-2.5 px-3 text-right font-mono font-bold">{po.ordered_quantity}</td>
+                      <td className="py-2.5 px-3 text-right tabular-nums font-semibold">{po.ordered_quantity}</td>
                       <td className="py-2.5 px-3 text-center">
                         <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800">
                           {po.status}
@@ -335,8 +318,8 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
                         <div className="font-medium text-[#252525]">{ld.customer_name}</div>
                         <div className="text-[10px] text-gray-500">{ld.po_number}</div>
                       </td>
-                      <td className="py-2.5 px-3 font-mono text-xs">{ld.vehicle_number}</td>
-                      <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-700">
+                      <td className="py-2.5 px-3 tabular-nums text-xs text-gray-700">{ld.vehicle_number}</td>
+                      <td className="py-2.5 px-3 text-right tabular-nums font-bold text-emerald-700">
                         {ld.loading_quantity} QTL
                       </td>
                       <td className="py-2.5 px-3 text-center">
@@ -369,7 +352,7 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
                 <div key={idx} className="space-y-1">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-semibold text-[#252525]">{ind.industry_name}</span>
-                    <span className="font-mono font-bold text-[#8F1717]">{ind.total_loaded_qtl} QTL</span>
+                    <span className="tabular-nums font-bold text-[#8F1717]">{ind.total_loaded_qtl} QTL</span>
                   </div>
                   <div className="h-2 w-full bg-gray-100/70 rounded-full overflow-hidden">
                     <div 
@@ -398,7 +381,7 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
                 </div>
                 <div className="flex items-center gap-4 text-right">
                   <div>
-                    <div className="font-mono font-bold text-emerald-700 text-sm">{p.physicalStock} QTL</div>
+                    <div className="tabular-nums font-bold text-emerald-700 text-sm">{p.physicalStock} QTL</div>
                     <div className="text-[10px] text-gray-400">In Stock</div>
                   </div>
                 </div>
