@@ -43,6 +43,23 @@ import { api, getRole, getSupplierId, setSupplierId } from '../api';
 import Modal from '../components/Modal';
 import { formatDateDMY } from '../utils/date';
 
+function getLocalAcceptedPOs() {
+  try {
+    const raw = localStorage.getItem('kk_accepted_pos');
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch (_) {
+    return new Set();
+  }
+}
+
+function markPOsAcceptedInStorage(poNumbers) {
+  try {
+    const current = getLocalAcceptedPOs();
+    (poNumbers || []).forEach(n => { if (n) current.add(n); });
+    localStorage.setItem('kk_accepted_pos', JSON.stringify(Array.from(current)));
+  } catch (_) {}
+}
+
 export default function SupplierDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
@@ -306,7 +323,17 @@ export default function SupplierDashboard() {
         ]);
 
         if (isMounted) {
-          setPurchaseOrders(poRes.purchaseOrders || []);
+          const localAccepted = getLocalAcceptedPOs();
+          const reconciledPOs = (poRes.purchaseOrders || []).map(p => {
+            if (localAccepted.has(p.po_number)) {
+              return { 
+                ...p, 
+                status: (p.status === 'New' || p.status === 'Pending Acceptance' || p.status === 'Awaiting Settlement' || p.status === 'Pending') ? 'Accepted' : p.status 
+              };
+            }
+            return p;
+          });
+          setPurchaseOrders(reconciledPOs);
           setLoadings(loadRes.loadingEntries || []);
           setDispatches(dspRes.dispatches || []);
           setDocuments(docRes.documents || []);
@@ -483,13 +510,13 @@ export default function SupplierDashboard() {
 
   const handleAcceptPO = async (po) => {
     try {
-      await api.supplier.acceptPO(po.id, { expectedLoadingDate: po.delivery_date });
-      setPurchaseOrders(prev => prev.map(p => p.id === po.id ? { ...p, status: 'Accepted' } : p));
-      setRefreshKey(k => k + 1);
-      if (selectedPO && selectedPO.id === po.id) {
+      markPOsAcceptedInStorage([po.po_number]);
+      setPurchaseOrders(prev => prev.map(p => (p.id === po.id || p.po_number === po.po_number) ? { ...p, status: 'Accepted' } : p));
+      if (selectedPO && (selectedPO.id === po.id || selectedPO.po_number === po.po_number)) {
         setSelectedPO(prev => ({ ...prev, status: 'Accepted' }));
       }
       showToast(`PO ${po.po_number} accepted successfully. Fulfilment status synced to Orders Portal.`, 'success');
+      await api.supplier.acceptPO(po.id || po.po_number, { expectedLoadingDate: po.delivery_date });
     } catch (err) {
       showToast(`Error accepting PO: ${err.message}`, 'error');
     }
@@ -506,21 +533,22 @@ export default function SupplierDashboard() {
   const handleConfirmAcceptAll = async () => {
     setAcceptingAll(true);
     try {
-      const res = await api.supplier.acceptAllPOs({
-        supplier_id: currentSupplierId ? Number(currentSupplierId) : undefined
-      });
+      const numbers = pendingPOsForAccept.map(p => p.po_number);
+      markPOsAcceptedInStorage(numbers);
       setIsAcceptAllModalOpen(false);
-      showToast(res.message || `Successfully accepted ${res.count || pendingPOsForAccept.length} purchase orders!`, 'success');
       setPurchaseOrders(prev => prev.map(p => {
         if (p.status === 'New' || p.status === 'Pending' || p.status === 'Pending Acceptance' || p.status === 'Awaiting Settlement') {
           return { ...p, status: 'Accepted' };
         }
         return p;
       }));
-      setRefreshKey(k => k + 1);
       if (selectedPO && (selectedPO.status === 'New' || selectedPO.status === 'Pending' || selectedPO.status === 'Pending Acceptance' || selectedPO.status === 'Awaiting Settlement')) {
         setSelectedPO(prev => ({ ...prev, status: 'Accepted' }));
       }
+      showToast(`Successfully accepted all ${numbers.length} purchase orders!`, 'success');
+      await api.supplier.acceptAllPOs({
+        supplier_id: currentSupplierId ? Number(currentSupplierId) : undefined
+      });
     } catch (err) {
       showToast(`Error accepting all POs: ${err.message}`, 'error');
     } finally {

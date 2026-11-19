@@ -217,6 +217,19 @@ function initDb() {
                 seed();
                 isSeeding = false;
             }
+
+            // Guarantee existing orders from authentic App A bundle match their Accepted status
+            if (fs.existsSync(ordersJsonPath)) {
+                try {
+                    const bundledOrders = JSON.parse(fs.readFileSync(ordersJsonPath, 'utf8'));
+                    for (const bo of bundledOrders) {
+                        if (bo.status === 'Accepted' && bo.poNumber) {
+                            db.prepare("UPDATE purchase_orders SET status = 'Accepted' WHERE po_number = ? AND status IN ('New', 'Pending', 'Pending Acceptance', 'Awaiting Settlement')").run(bo.poNumber);
+                            db.prepare("UPDATE po_sub_orders SET status = 'Accepted' WHERE po_number = ? AND status IN ('New', 'Pending', 'Pending Acceptance', 'Awaiting Settlement')").run(bo.poNumber);
+                        }
+                    }
+                } catch (_) {}
+            }
         }
     } catch (seedErr) {
         isSeeding = false;

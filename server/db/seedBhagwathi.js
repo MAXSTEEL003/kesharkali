@@ -132,7 +132,7 @@ function seedBhagwathi() {
             ord.subOrderNo = 'BRI-0001, BRI-0002';
         }
 
-        const appBStatus = ord.status === 'Approved' ? 'Accepted' : 'Pending Acceptance';
+        const appBStatus = ord.status || 'Accepted';
 
         let cust = db.get('SELECT id FROM customers WHERE name = ?', [ord.buyerName]);
         if (!cust) {

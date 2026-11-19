@@ -36,6 +36,15 @@ import Modal from '../components/Modal';
 import { api } from '../api';
 import { useNotification } from '../context/NotificationContext';
 
+function getLocalAcceptedPOs() {
+  try {
+    const raw = localStorage.getItem('kk_accepted_pos');
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch (_) {
+    return new Set();
+  }
+}
+
 export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }) {
   const { showToast, confirm } = useNotification();
   const [purchaseOrders, setPurchaseOrders] = useState([]);
@@ -248,7 +257,17 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
         api.industries.getAll(),
         api.warehouses.getAll()
       ]);
-      setPurchaseOrders(posRes.purchaseOrders || []);
+      const localAccepted = getLocalAcceptedPOs();
+      const reconciledPOs = (posRes.purchaseOrders || []).map(p => {
+        if (localAccepted.has(p.po_number)) {
+          return {
+            ...p,
+            status: (p.status === 'New' || p.status === 'Pending Acceptance' || p.status === 'Awaiting Settlement' || p.status === 'Pending') ? 'Accepted' : p.status
+          };
+        }
+        return p;
+      });
+      setPurchaseOrders(reconciledPOs);
       setCustomers(custRes.customers || []);
       setProducts(prodRes.products || []);
       setIndustries(indRes.industries || []);

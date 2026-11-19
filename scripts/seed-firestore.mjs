@@ -109,7 +109,7 @@ orders.forEach(ord => {
     rate: ord.rate,
     delivery_location: ord.destination || 'Consolidated Hub',
     destination: ord.destination || 'Consolidated Hub',
-    status: 'New',
+    status: ord.status || 'Accepted',
     notes: ord.notes || 'Authentic order from App A placed_orders',
     created_by: 'App A Sync',
     original_order_id: ord.poNumber,
