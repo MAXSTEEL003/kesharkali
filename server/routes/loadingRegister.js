@@ -185,18 +185,18 @@ router.get('/summary', (req, res) => {
             WHERE loading_status != 'Cancelled'
         `);
 
-        // Pending loading across all active allocations
+        // Pending loading across all active purchase orders (ordered minus loaded)
         const pendingLoad = get(`
             SELECT 
-                MAX(0, COALESCE(SUM(ia.allocated_quantity), 0) - COALESCE(SUM(le_sub.loaded), 0)) as pending_qtl
-            FROM industry_allocations ia
+                COALESCE(SUM(MAX(0, po.ordered_quantity - COALESCE(le.loaded, 0))), 0) as pending_qtl
+            FROM purchase_orders po
             LEFT JOIN (
-                SELECT allocation_id, SUM(loading_quantity) as loaded
+                SELECT po_id, SUM(loading_quantity) as loaded
                 FROM loading_entries
                 WHERE loading_status != 'Cancelled'
-                GROUP BY allocation_id
-            ) le_sub ON ia.id = le_sub.allocation_id
-            WHERE ia.status != 'Cancelled'
+                GROUP BY po_id
+            ) le ON po.id = le.po_id
+            WHERE po.status != 'Cancelled'
         `);
 
         // Today's dispatch

@@ -415,6 +415,13 @@ export default function SupplierDashboard() {
     const totalQtlOrdered = purchaseOrders.reduce((sum, p) => sum + (Number(p.ordered_quantity) || 0), 0);
     const totalQtlLoaded = loadings.reduce((sum, l) => sum + (Number(l.loading_quantity) || 0), 0);
     const totalQtlDispatched = dispatches.reduce((sum, d) => sum + (Number(d.dispatch_quantity) || 0), 0);
+    const pendingLoadingQtl = purchaseOrders
+      .filter(p => p.status !== 'Cancelled')
+      .reduce((sum, p) => {
+        const ord = Number(p.ordered_quantity || 0);
+        const ld = Number(p.loaded_quantity || 0);
+        return sum + Math.max(0, ord - ld);
+      }, 0);
 
     return {
       total,
@@ -427,7 +434,8 @@ export default function SupplierDashboard() {
       dispatched,
       totalQtlOrdered,
       totalQtlLoaded,
-      totalQtlDispatched
+      totalQtlDispatched,
+      pendingLoadingQtl
     };
   }, [purchaseOrders, loadings, dispatches]);
 
@@ -1117,9 +1125,11 @@ export default function SupplierDashboard() {
           {/* Stat Cards Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
             <div className="glass-card rounded-2xl p-4 border border-white/60 shadow-2xs">
-              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">Pending Orders</span>
-              <div className="text-2xl font-bold tabular-nums font-['Plus_Jakarta_Sans',sans-serif] tracking-tight text-[#8F1717]">{metrics.pendingCount}</div>
-              <span className="text-[10px] text-amber-600 font-medium mt-1 block">Awaiting Mill Loading</span>
+              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block mb-1">Pending Mill Loading</span>
+              <div className="text-2xl font-bold tabular-nums font-['Plus_Jakarta_Sans',sans-serif] tracking-tight text-[#8F1717]">
+                {metrics.pendingLoadingQtl.toLocaleString('en-IN', { maximumFractionDigits: 1 })} <span className="text-xs">QTL</span>
+              </div>
+              <span className="text-[10px] text-amber-600 font-medium mt-1 block">{metrics.pendingCount} Orders Awaiting Loading</span>
             </div>
 
             <div className="glass-card rounded-2xl p-4 border border-white/60 shadow-2xs">
@@ -1160,7 +1170,7 @@ export default function SupplierDashboard() {
                 <h2 className="text-sm font-bold text-[#252525]">
                   Pending Purchase Orders
                 </h2>
-                <p className="text-[11px] text-gray-500">Incoming purchase orders awaiting mill loading ({metrics.pendingCount} pending)</p>
+                <p className="text-[11px] text-gray-500">Incoming purchase orders awaiting mill loading ({metrics.pendingCount} POs • {metrics.pendingLoadingQtl.toLocaleString('en-IN', { maximumFractionDigits: 1 })} QTL pending)</p>
               </div>
               <div className="flex items-center gap-2.5">
                 {metrics.unacceptedCount > 0 ? (
@@ -1221,7 +1231,7 @@ export default function SupplierDashboard() {
                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
                               loadQty > 0 ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'
                             }`}>
-                              {loadQty > 0 ? `Pending (${loadQty.toFixed(0)}/${ordQty.toFixed(0)} QTL)` : 'Pending'}
+                              {loadQty > 0 ? `Pending (${loadQty.toFixed(0)}/${ordQty.toFixed(0)} QTL loaded)` : `${remQty.toFixed(1)} QTL Pending`}
                             </span>
                             {/* Acceptance Badge */}
                             {accepted ? (
@@ -1235,7 +1245,7 @@ export default function SupplierDashboard() {
                             )}
                           </div>
                           <div className="text-xs text-gray-600 mt-1">
-                            <strong className="tabular-nums font-semibold text-[#252525]">{po.ordered_quantity} QTL</strong> • {po.product_name} • Date: <span className="tabular-nums font-medium">{formatDateDMY(po.po_date)}</span> • Consignee: {po.customer_name_text || po.customer_name || 'Designated Buyer'}
+                            <strong className="tabular-nums font-semibold text-[#252525]">{po.ordered_quantity} QTL ordered</strong> • <span className="tabular-nums font-bold text-amber-700">{remQty.toFixed(1)} QTL pending loading</span> • {po.product_name} • Date: <span className="tabular-nums font-medium">{formatDateDMY(po.po_date)}</span> • Consignee: {po.customer_name_text || po.customer_name || 'Designated Buyer'}
                           </div>
                         </div>
                       </div>

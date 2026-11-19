@@ -1,6 +1,6 @@
 // src/pages/Products.jsx
 import React, { useState, useEffect, useMemo } from 'react';
-import { Layers, Plus, AlertTriangle, CheckCircle2, Search, RotateCcw, Filter } from 'lucide-react';
+import { Layers, Plus, AlertTriangle, CheckCircle2, Search, RotateCcw, Filter, Edit } from 'lucide-react';
 import Modal from '../components/Modal';
 import { api } from '../api';
 import { useNotification } from '../context/NotificationContext';
@@ -10,12 +10,25 @@ export default function Products() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
 
   // Filters
   const [search, setSearch] = useState('');
   const [stockStatusFilter, setStockStatusFilter] = useState('all'); // 'all' | 'low-stock' | 'normal'
 
   const [form, setForm] = useState({
+    code: '',
+    name: '',
+    brand: 'Keshar Kali',
+    variety: '',
+    unit: 'QTL',
+    min_stock_threshold: '50',
+    standard_selling_rate: ''
+  });
+
+  const [editForm, setEditForm] = useState({
+    id: null,
     code: '',
     name: '',
     brand: 'Keshar Kali',
@@ -84,6 +97,43 @@ export default function Products() {
       loadData();
     } catch (err) {
       showToast(err.message, 'error');
+    }
+  };
+
+  const handleOpenEdit = (p) => {
+    setEditingProduct(p);
+    setEditForm({
+      id: p.id,
+      code: p.code || '',
+      name: p.name || '',
+      brand: p.brand || 'Keshar Kali',
+      variety: p.variety || '',
+      unit: p.unit || 'QTL',
+      min_stock_threshold: String(p.min_stock_threshold ?? 50),
+      standard_selling_rate: String(p.standard_selling_rate ?? '')
+    });
+    setIsEditOpen(true);
+  };
+
+  const handleUpdateProduct = async (e) => {
+    e.preventDefault();
+    if (!editForm.id) return;
+    try {
+      await api.products.update(editForm.id, {
+        code: editForm.code.trim().toUpperCase(),
+        name: editForm.name.trim(),
+        brand: editForm.brand.trim() || 'Keshar Kali',
+        variety: editForm.variety.trim(),
+        unit: editForm.unit,
+        min_stock_threshold: Number(editForm.min_stock_threshold) || 0,
+        standard_selling_rate: Number(editForm.standard_selling_rate) || 0
+      });
+      setIsEditOpen(false);
+      setEditingProduct(null);
+      showToast('Product specifications updated successfully!', 'success');
+      loadData();
+    } catch (err) {
+      showToast(`Update error: ${err.message}`, 'error');
     }
   };
 
@@ -173,12 +223,13 @@ export default function Products() {
                 <th className="text-right">Physical Stock</th>
                 <th className="text-right bg-[#700f0f]">Available Stock</th>
                 <th className="text-center">Status</th>
+                <th className="text-center w-24">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="py-8 text-center text-gray-400 text-xs">
+                  <td colSpan={12} className="py-8 text-center text-gray-400 text-xs">
                     {hasActiveFilters ? (
                       <div>
                         <p className="font-semibold text-gray-600 mb-1">No products match your filter.</p>
@@ -219,6 +270,16 @@ export default function Products() {
                           HEALTHY
                         </span>
                       )}
+                    </td>
+                    <td className="text-center">
+                      <button
+                        onClick={() => handleOpenEdit(p)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[#8F1717] hover:text-white bg-red-50 hover:bg-[#8F1717] border border-red-200 hover:border-[#8F1717] rounded-lg transition-all cursor-pointer shadow-2xs"
+                        title="Edit product specifications and benchmark rates"
+                      >
+                        <Edit size={12} />
+                        <span>Edit</span>
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -321,6 +382,122 @@ export default function Products() {
               className="px-5 py-2 font-semibold bg-[#8F1717] text-white rounded hover:bg-[#771212] shadow-xs"
             >
               Save Product Variety
+            </button>
+          </div>
+        </form>
+      </Modal>
+      {/* Edit Product Modal */}
+      <Modal
+        isOpen={isEditOpen}
+        onClose={() => {
+          setIsEditOpen(false);
+          setEditingProduct(null);
+        }}
+        title="Edit Rice Product Variety"
+        subtitle={editingProduct ? `Updating specifications for ${editingProduct.name} (${editingProduct.code})` : 'Modify product specifications'}
+      >
+        <form onSubmit={handleUpdateProduct} className="space-y-4 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block font-semibold text-[#252525] mb-1">Product Code *</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. PROD-KK"
+                value={editForm.code}
+                onChange={(e) => setEditForm({ ...editForm, code: e.target.value })}
+                className="w-full p-2 bg-[#FAF9F6] border border-[#E8E2DC] rounded font-mono uppercase focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-[#252525] mb-1">Product Name *</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Keshar Kali / Keshar Kali 10 kg"
+                value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                className="w-full p-2 bg-[#FAF9F6] border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-[#252525] mb-1">Brand Tier</label>
+              <input
+                type="text"
+                placeholder="e.g. Keshar Kali"
+                value={editForm.brand}
+                onChange={(e) => setEditForm({ ...editForm, brand: e.target.value })}
+                className="w-full p-2 bg-[#FAF9F6] border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-[#252525] mb-1">Rice Variety / Grain Polish</label>
+              <input
+                type="text"
+                placeholder="e.g. Medium Slender Steam Polished"
+                value={editForm.variety}
+                onChange={(e) => setEditForm({ ...editForm, variety: e.target.value })}
+                className="w-full p-2 bg-[#FAF9F6] border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-[#252525] mb-1">Measurement Unit</label>
+              <select
+                value={editForm.unit}
+                onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })}
+                className="w-full p-2 bg-[#FAF9F6] border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+              >
+                <option value="QTL">QTL (Quintal - 100 KG)</option>
+                <option value="KG">KG (Kilogram)</option>
+                <option value="BAG">BAG (Standard Mill Bag)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-[#252525] mb-1">Benchmark Selling Rate (₹/QTL)</label>
+              <input
+                type="number"
+                step="0.01"
+                placeholder="e.g. 3200.00"
+                value={editForm.standard_selling_rate}
+                onChange={(e) => setEditForm({ ...editForm, standard_selling_rate: e.target.value })}
+                className="w-full p-2 bg-[#FAF9F6] border border-[#E8E2DC] rounded font-mono focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-[#252525] mb-1">Min Safety Stock Level (QTL)</label>
+              <input
+                type="number"
+                step="0.01"
+                placeholder="e.g. 50.00"
+                value={editForm.min_stock_threshold}
+                onChange={(e) => setEditForm({ ...editForm, min_stock_threshold: e.target.value })}
+                className="w-full p-2 bg-[#FAF9F6] border border-[#E8E2DC] rounded font-mono focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="pt-3 border-t border-[#E8E2DC] flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setIsEditOpen(false);
+                setEditingProduct(null);
+              }}
+              className="px-4 py-2 font-semibold text-gray-600 hover:bg-gray-100 rounded cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-5 py-2 font-semibold bg-[#8F1717] text-white rounded hover:bg-[#771212] shadow-xs cursor-pointer"
+            >
+              Update Product Variety
             </button>
           </div>
         </form>

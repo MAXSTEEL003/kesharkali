@@ -69,15 +69,36 @@ router.post('/', (req, res) => {
 // Update product
 router.put('/:id', (req, res) => {
     try {
+        const existing = get('SELECT * FROM products WHERE id = ?', [req.params.id]);
+        if (!existing) return res.status(404).json({ error: 'Product not found' });
+
         const { code, name, brand, variety, unit, min_stock_threshold, standard_selling_rate, active } = req.body;
         run(`
             UPDATE products
-            SET code = ?, name = ?, brand = ?, variety = ?, unit = ?, min_stock_threshold = ?, standard_selling_rate = ?, active = COALESCE(?, active), updated_at = CURRENT_TIMESTAMP
+            SET code = COALESCE(?, code),
+                name = COALESCE(?, name),
+                brand = COALESCE(?, brand),
+                variety = COALESCE(?, variety),
+                unit = COALESCE(?, unit),
+                min_stock_threshold = COALESCE(?, min_stock_threshold),
+                standard_selling_rate = COALESCE(?, standard_selling_rate),
+                active = COALESCE(?, active),
+                updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
-        `, [code, name, brand, variety, unit, min_stock_threshold, standard_selling_rate, active, req.params.id]);
+        `, [
+            code ? code.toUpperCase() : null,
+            name ?? null,
+            brand ?? null,
+            variety ?? null,
+            unit ?? null,
+            min_stock_threshold !== undefined && min_stock_threshold !== null ? Number(min_stock_threshold) : null,
+            standard_selling_rate !== undefined && standard_selling_rate !== null ? Number(standard_selling_rate) : null,
+            active !== undefined && active !== null ? Number(active) : null,
+            req.params.id
+        ]);
 
         logAction('Product', req.params.id, 'UPDATE', req.user?.username || 'Staff', req.body);
-        res.json({ message: 'Product updated successfully' });
+        res.json({ success: true, message: 'Product updated successfully' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

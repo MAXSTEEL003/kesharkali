@@ -45,7 +45,21 @@ router.get('/', (req, res) => {
         const totalLoaded = Number(loadStats.total_loaded_qtl);
         const totalDispatched = Number(dspStats.total_dispatched_qtl);
 
-        const pendingLoading = Math.max(0, totalAllocated - totalLoaded);
+        // Pending Mill Loading: Total ordered QTL minus loaded QTL across active POs.
+        // Rule: Until a loading entry is recorded, the ordered QTL is strictly pending mill loading.
+        const pendingLoadingRow = get(`
+            SELECT 
+                COALESCE(SUM(MAX(0, po.ordered_quantity - COALESCE(le.loaded, 0))), 0) as pending_qtl
+            FROM purchase_orders po
+            LEFT JOIN (
+                SELECT po_id, SUM(loading_quantity) as loaded
+                FROM loading_entries
+                WHERE loading_status != 'Cancelled'
+                GROUP BY po_id
+            ) le ON po.id = le.po_id
+            WHERE po.status != 'Cancelled'
+        `);
+        const pendingLoading = Number(pendingLoadingRow?.pending_qtl ?? Math.max(0, totalOrdered - totalLoaded));
         const pendingDispatch = Math.max(0, totalLoaded - totalDispatched);
         const overallPendingFulfillment = Math.max(0, totalOrdered - totalDispatched);
 
