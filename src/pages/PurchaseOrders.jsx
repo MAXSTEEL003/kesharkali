@@ -45,6 +45,14 @@ function getLocalAcceptedPOs() {
   }
 }
 
+function markPOsAcceptedInStorage(poNumbers) {
+  try {
+    const current = getLocalAcceptedPOs();
+    (poNumbers || []).forEach(n => { if (n) current.add(n); });
+    localStorage.setItem('kk_accepted_pos', JSON.stringify(Array.from(current)));
+  } catch (_) {}
+}
+
 export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }) {
   const { showToast, confirm } = useNotification();
   const [purchaseOrders, setPurchaseOrders] = useState([]);
@@ -247,9 +255,12 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
     override_allowed: false
   });
 
-  const loadData = async () => {
+  const [syncingWithAppA, setSyncingWithAppA] = useState(false);
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
+
+  const loadData = async (isInitial = false) => {
     try {
-      setLoading(true);
+      if (isInitial && purchaseOrders.length === 0) setLoading(true);
       const [posRes, custRes, prodRes, indRes, whRes] = await Promise.all([
         api.purchaseOrders.getAll({ status: statusFilter, buyerId: buyerFilter, search, sortOrder }),
         api.customers.getAll(),
@@ -258,15 +269,21 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
         api.warehouses.getAll()
       ]);
       const localAccepted = getLocalAcceptedPOs();
+      const serverAcceptedNumbers = [];
       const reconciledPOs = (posRes.purchaseOrders || []).map(p => {
-        if (localAccepted.has(p.po_number)) {
-          return {
-            ...p,
-            status: (p.status === 'New' || p.status === 'Pending Acceptance' || p.status === 'Awaiting Settlement' || p.status === 'Pending') ? 'Accepted' : p.status
-          };
+        const accepted = p.is_accepted === 1 || p.is_accepted === true || Boolean(p.accepted_at) || localAccepted.has(p.po_number);
+        if (accepted && p.po_number) {
+          serverAcceptedNumbers.push(p.po_number);
         }
-        return p;
+        return {
+          ...p,
+          is_accepted: accepted ? 1 : 0,
+          status: accepted && (p.status === 'New' || p.status === 'Pending Acceptance' || p.status === 'Awaiting Settlement' || p.status === 'Pending') ? 'Accepted' : p.status
+        };
       });
+      if (serverAcceptedNumbers.length > 0) {
+        markPOsAcceptedInStorage(serverAcceptedNumbers);
+      }
       setPurchaseOrders(reconciledPOs);
       setCustomers(custRes.customers || []);
       setProducts(prodRes.products || []);
@@ -280,20 +297,36 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
     }
   };
 
-  const [syncingWithAppA, setSyncingWithAppA] = useState(false);
+  const handleManualRefresh = async () => {
+    try {
+      setIsManualRefreshing(true);
+      await loadData(false);
+      showToast('Purchase Orders list refreshed', 'info', 2000);
+    } catch (err) {
+      showToast(`Refresh error: ${err.message}`, 'error');
+    } finally {
+      setIsManualRefreshing(false);
+    }
+  };
 
   const handleSyncWithAppA = async () => {
     try {
       setSyncingWithAppA(true);
       const res = await api.integration.syncAppA();
       showToast(res.message || `Successfully synchronized with Orders App! ${res.count || 0} orders processed.`, 'success');
-      await loadData();
+      await loadData(false);
     } catch (err) {
       showToast(`Sync with Orders App failed: ${err.message}`, 'error');
     } finally {
       setSyncingWithAppA(false);
     }
   };
+
+  useEffect(() => {
+    const handlePortalRefresh = () => loadData(false);
+    window.addEventListener('portal-refresh-data', handlePortalRefresh);
+    return () => window.removeEventListener('portal-refresh-data', handlePortalRefresh);
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -331,9 +364,11 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
 
       // 2. Status filter
       if (statusFilter) {
-        const effectiveStatus = (remaining > 0 && po.status !== 'Cancelled') ? 'Pending' : po.status;
         if (statusFilter === 'Pending') {
-          if (effectiveStatus !== 'Pending') return false;
+          if (po.status !== 'Pending' && (po.is_accepted === 1 || po.status === 'Accepted')) return false;
+          if (remaining <= 0) return false;
+        } else if (statusFilter === 'Accepted') {
+          if (po.status !== 'Accepted' && po.is_accepted !== 1) return false;
         } else if (statusFilter === 'Loaded') {
           if (remaining > 0 || po.status !== 'Loaded') return false;
         } else if (po.status !== statusFilter) {
@@ -565,12 +600,12 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
           <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
-              onClick={loadData}
-              disabled={loading}
-              className="flex items-center gap-1.5 text-xs font-semibold bg-white hover:bg-gray-50 text-gray-700 px-3 py-1.5 rounded-md border border-[#E8E2DC] shadow-2xs transition-colors cursor-pointer"
+              onClick={handleManualRefresh}
+              disabled={loading || isManualRefreshing || syncingWithAppA}
+              className="flex items-center gap-1.5 text-xs font-semibold bg-white hover:bg-gray-50 text-gray-700 px-3 py-1.5 rounded-md border border-[#E8E2DC] shadow-2xs transition-colors cursor-pointer disabled:opacity-60"
               title="Refresh Purchase Orders list"
             >
-              <RefreshCw size={13} className={loading ? 'animate-spin text-[#8F1717]' : 'text-gray-500'} />
+              <RefreshCw size={13} className={isManualRefreshing ? 'animate-spin text-[#8F1717]' : 'text-gray-500'} />
               <span>Refresh</span>
             </button>
 
@@ -637,6 +672,7 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
             className="w-full px-2.5 py-1.5 bg-[#FAF9F6] border border-[#E8E2DC] rounded text-xs focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
           >
             <option value="">All Statuses</option>
+            <option value="Accepted">Accepted / Confirmed</option>
             <option value="Pending">Pending (Awaiting Loading)</option>
             <option value="New">New</option>
             <option value="Partially Allocated">Partially Allocated</option>
@@ -1245,34 +1281,18 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
               </div>
             </div>
 
-            {/* Multi-Industry Sourcing Allocations Section */}
+            {/* Multi-Industry Sourcing Allocations Section (Supplier Sourced View) */}
             <div className="bg-white rounded-lg border border-[#E8E2DC] overflow-hidden shadow-xs">
               <div className="bg-[#FAF9F6] px-4 py-3 border-b border-[#E8E2DC] flex items-center justify-between">
                 <div>
                   <h4 className="text-xs font-bold uppercase tracking-wider text-[#8F1717] flex items-center gap-1.5">
                     <Factory size={15} />
-                    Industry Sourcing (External Mill Procurement)
+                    Supplier Sourcing Status (External Mill Procurement)
                   </h4>
                   <p className="text-[11px] text-[#777777]">
-                    When the supplier buys from other suppliers/mills to load into the Keshar Kali brand
+                    Managed exclusively by Supplier: Shows when supplier buys from other mills to load under Keshar Kali brand
                   </p>
                 </div>
-                {poDetails.purchaseOrder.status !== 'Completed' && (
-                  <button
-                    onClick={() => {
-                      const remainingToAlloc = Math.max(0, poDetails.purchaseOrder.ordered_quantity - poDetails.stats.totalAllocated);
-                      setAllocForm({
-                        ...allocForm,
-                        allocated_quantity: remainingToAlloc > 0 ? remainingToAlloc : ''
-                      });
-                      setIsAllocModalOpen(true);
-                    }}
-                    className="flex items-center gap-1 text-xs font-semibold bg-[#8F1717] hover:bg-[#771212] text-white px-2.5 py-1.5 rounded transition-colors"
-                  >
-                    <Plus size={13} />
-                    <span>+ Sourced Mill</span>
-                  </button>
-                )}
               </div>
 
               <div className="overflow-x-auto">
@@ -1287,15 +1307,14 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
                       <th className="text-right">Loaded QTL</th>
                       <th className="text-right">Pending Loading</th>
                       <th className="text-center">Status</th>
-                      <th className="text-center w-16">Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {poDetails.allocations.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="text-center py-6 text-xs text-[#777777]">
-                          <span className="font-semibold text-gray-700 block mb-0.5">Fulfilled directly from Own Mill Production</span>
-                          <span>No external sourcing required. Click "+ Sourced Mill" only when buying stock from another supplier to load under Keshar Kali brand.</span>
+                        <td colSpan={8} className="text-center py-6 text-xs text-[#777777]">
+                          <span className="font-semibold text-gray-700 block mb-0.5">Fulfilled from Primary Mill Production</span>
+                          <span>No external supplier sourcing recorded by the supplier for this order.</span>
                         </td>
                       </tr>
                     ) : (
@@ -1312,17 +1331,6 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
                             <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-700">
                               {alloc.status}
                             </span>
-                          </td>
-                          <td className="text-center">
-                            {alloc.loaded_quantity === 0 && (
-                              <button
-                                onClick={() => handleRemoveAllocation(alloc.id)}
-                                className="p-1 rounded text-red-400 hover:text-red-700 hover:bg-red-50"
-                                title="Remove allocation"
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            )}
                           </td>
                         </tr>
                       ))

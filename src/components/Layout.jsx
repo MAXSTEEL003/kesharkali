@@ -41,6 +41,15 @@ export default function Layout({ activePage, setActivePage, children, onOpenQuic
     }
   });
   const [time, setTime] = useState(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleGlobalRefresh = () => {
+    setIsRefreshing(true);
+    window.dispatchEvent(new CustomEvent('portal-refresh-data'));
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 700);
+  };
 
   useEffect(() => {
     const handleLogoUpdate = (e) => {
@@ -288,11 +297,12 @@ export default function Layout({ activePage, setActivePage, children, onOpenQuic
 
             {/* Quick Refresh Page Trigger */}
             <button
-              onClick={() => window.location.reload()}
-              className="flex items-center gap-1.5 text-xs text-[#555555] hover:text-[#8F1717] bg-white/50 hover:bg-white/80 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-white/60 shadow-xs transition-colors cursor-pointer"
+              onClick={handleGlobalRefresh}
+              disabled={isRefreshing}
+              className="flex items-center gap-1.5 text-xs text-[#555555] hover:text-[#8F1717] bg-white/50 hover:bg-white/80 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-white/60 shadow-xs transition-colors cursor-pointer disabled:opacity-60"
               title="Refresh Application Data"
             >
-              <RefreshCw size={13} />
+              <RefreshCw size={13} className={isRefreshing ? 'animate-spin text-[#8F1717]' : ''} />
               <span className="hidden md:inline">Refresh</span>
             </button>
 

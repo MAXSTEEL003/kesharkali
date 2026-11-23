@@ -1,6 +1,6 @@
 // src/pages/SupplierDashboard.jsx
 // Dedicated Supplier Fulfilment & Operations Workspace for Application B
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Inbox,
   CheckCircle2,
@@ -166,6 +166,7 @@ export default function SupplierDashboard() {
   const [poSortOrder, setPoSortOrder] = useState('new-to-old');
   const [pendingFilter, setPendingFilter] = useState('all'); // 'all' | 'pending-qtl' | 'fully-loaded'
   const [syncingWithAppA, setSyncingWithAppA] = useState(false);
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
   const [expandedPOs, setExpandedPOs] = useState({});
 
   // Loading Register Filters (Tab 4)
@@ -311,74 +312,83 @@ export default function SupplierDashboard() {
     }
   };
 
+  // Load All Supplier Data
+  const fetchSupplierData = useCallback(async (isInitial = false) => {
+    try {
+      if (isInitial) setLoading(true);
+      setError(null);
+
+      const [poRes, loadRes, dspRes, docRes, stockRes, prodRes, indRes] = await Promise.all([
+        api.purchaseOrders.getAll().catch(() => ({ purchaseOrders: [] })),
+        api.loadingRegister.getAll().catch(() => ({ loadingEntries: [] })),
+        api.dispatches.getAll().catch(() => ({ dispatches: [] })),
+        api.supplier.getDocuments().catch(() => ({ documents: [] })),
+        api.stock.getSummary().catch(() => ({ summary: [] })),
+        api.products.getAll().catch(() => ({ products: [] })),
+        api.industries.getAll().catch(() => ({ industries: [] }))
+      ]);
+
+      const localAccepted = getLocalAcceptedPOs();
+      const serverAcceptedNumbers = [];
+      const reconciledPOs = (poRes.purchaseOrders || []).map(p => {
+        const accepted = p.is_accepted === 1 || p.is_accepted === true || Boolean(p.accepted_at) || localAccepted.has(p.po_number);
+        if (accepted && p.po_number) {
+          serverAcceptedNumbers.push(p.po_number);
+        }
+        return { 
+          ...p, 
+          is_accepted: accepted ? 1 : 0,
+          status: accepted && (p.status === 'New' || p.status === 'Pending Acceptance' || p.status === 'Awaiting Settlement' || p.status === 'Pending') ? 'Accepted' : p.status
+        };
+      });
+      if (serverAcceptedNumbers.length > 0) {
+        markPOsAcceptedInStorage(serverAcceptedNumbers);
+      }
+      setPurchaseOrders(reconciledPOs);
+      setLoadings(loadRes.loadingEntries || []);
+      setDispatches(dspRes.dispatches || []);
+      setDocuments(docRes.documents || []);
+      setStockSummary(stockRes.summary || []);
+      setProducts(prodRes.products || []);
+      setIndustries(indRes.industries || []);
+    } catch (err) {
+      setError(err.message || 'Failed to load supplier workspace');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleManualRefresh = async () => {
+    try {
+      setIsManualRefreshing(true);
+      await fetchSupplierData(false);
+      showToast('Supplier workspace refreshed', 'info', 2000);
+    } catch (err) {
+      showToast(`Refresh error: ${err.message}`, 'error');
+    } finally {
+      setIsManualRefreshing(false);
+    }
+  };
+
   const handleSyncWithAppA = async () => {
     try {
       setSyncingWithAppA(true);
       const res = await api.integration.syncAppA();
-      setRefreshKey(k => k + 1);
+      await fetchSupplierData(false);
       showToast(`Successfully synchronized with App A! ${res.count || 0} active placed orders checked.`, 'success');
     } catch (err) {
-      setRefreshKey(k => k + 1);
       showToast(`Sync with App A: ${err.message}`, 'error');
     } finally {
       setSyncingWithAppA(false);
     }
   };
 
-  // Load All Supplier Data
   useEffect(() => {
-    let isMounted = true;
-    async function fetchSupplierData() {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const [poRes, loadRes, dspRes, docRes, stockRes, prodRes, indRes] = await Promise.all([
-          api.purchaseOrders.getAll().catch(() => ({ purchaseOrders: [] })),
-          api.loadingRegister.getAll().catch(() => ({ loadingEntries: [] })),
-          api.dispatches.getAll().catch(() => ({ dispatches: [] })),
-          api.supplier.getDocuments().catch(() => ({ documents: [] })),
-          api.stock.getSummary().catch(() => ({ summary: [] })),
-          api.products.getAll().catch(() => ({ products: [] })),
-          api.industries.getAll().catch(() => ({ industries: [] }))
-        ]);
-
-        if (isMounted) {
-          const localAccepted = getLocalAcceptedPOs();
-          const serverAcceptedNumbers = [];
-          const reconciledPOs = (poRes.purchaseOrders || []).map(p => {
-            const accepted = p.is_accepted === 1 || p.is_accepted === true || Boolean(p.accepted_at) || localAccepted.has(p.po_number);
-            if (accepted && p.po_number) {
-              serverAcceptedNumbers.push(p.po_number);
-            }
-            return { 
-              ...p, 
-              is_accepted: accepted ? 1 : 0
-            };
-          });
-          if (serverAcceptedNumbers.length > 0) {
-            markPOsAcceptedInStorage(serverAcceptedNumbers);
-          }
-          setPurchaseOrders(reconciledPOs);
-          setLoadings(loadRes.loadingEntries || []);
-          setDispatches(dspRes.dispatches || []);
-          setDocuments(docRes.documents || []);
-          setStockSummary(stockRes.summary || []);
-          setProducts(prodRes.products || []);
-          setIndustries(indRes.industries || []);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError(err.message || 'Failed to load supplier workspace');
-        }
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    }
-
-    fetchSupplierData();
-    return () => { isMounted = false; };
-  }, [refreshKey]);
+    fetchSupplierData(true);
+    const handlePortalRefresh = () => fetchSupplierData(false);
+    window.addEventListener('portal-refresh-data', handlePortalRefresh);
+    return () => window.removeEventListener('portal-refresh-data', handlePortalRefresh);
+  }, [fetchSupplierData, refreshKey]);
 
   // Derived KPI Metrics
   const metrics = useMemo(() => {
@@ -483,10 +493,11 @@ export default function SupplierDashboard() {
         );
 
       const matchStatus = poStatusFilter === 'ALL' || 
-        (poStatusFilter === 'Pending' && remaining > 0) ||
-        (poStatusFilter === 'Loaded' && remaining <= 0) ||
-        (poStatusFilter === 'New' && !isPOAccepted(po)) ||
+        (poStatusFilter === 'New' && !isPOAccepted(po) && (po.status === 'New' || po.status === 'Pending' || po.status === 'Awaiting Settlement')) ||
+        (poStatusFilter === 'Pending' && !isPOAccepted(po) && remaining > 0) ||
         (poStatusFilter === 'Accepted' && isPOAccepted(po)) ||
+        (poStatusFilter === 'Partially Loaded' && Number(po.loaded_quantity || 0) > 0 && Number(po.loaded_quantity || 0) < Number(po.ordered_quantity || 0)) ||
+        (poStatusFilter === 'Loaded' && Number(po.loaded_quantity || 0) >= Number(po.ordered_quantity || 0) && Number(po.ordered_quantity || 0) > 0) ||
         po.status === poStatusFilter;
       return matchSearch && matchStatus;
     });
@@ -1040,12 +1051,12 @@ export default function SupplierDashboard() {
 
           <button
             type="button"
-            onClick={() => setRefreshKey(k => k + 1)}
-            disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 transition-all shadow-2xs cursor-pointer"
+            onClick={handleManualRefresh}
+            disabled={loading || isManualRefreshing || syncingWithAppA}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 transition-all shadow-2xs cursor-pointer disabled:opacity-60"
             title="Refresh dashboard data"
           >
-            <RefreshCw size={13} className={loading && !syncingWithAppA ? 'animate-spin text-[#8F1717]' : 'text-gray-500'} />
+            <RefreshCw size={13} className={isManualRefreshing ? 'animate-spin text-[#8F1717]' : 'text-gray-500'} />
             <span>Refresh</span>
           </button>
 
@@ -1666,8 +1677,8 @@ export default function SupplierDashboard() {
                             <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${statusClass}`}>
                               {Number(po.remaining_quantity ?? (po.ordered_quantity - (po.loaded_quantity || 0))) > 0
                                 ? (Number(po.loaded_quantity || 0) > 0 
-                                    ? `Pending (${Number(po.loaded_quantity).toFixed(0)}/${Number(po.ordered_quantity).toFixed(0)} QTL)`
-                                    : 'Pending')
+                                    ? `Partially Loaded (${Number(po.loaded_quantity).toFixed(0)}/${Number(po.ordered_quantity).toFixed(0)} QTL)`
+                                    : isPOAccepted(po) ? 'Accepted' : 'Pending')
                                 : po.status}
                             </span>
                             {isPOAccepted(po) && (

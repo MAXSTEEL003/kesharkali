@@ -25,12 +25,17 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
   const { showToast } = useNotification();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState(null);
 
-  const loadData = async () => {
+  const loadData = async (isInitial = false) => {
     try {
-      setLoading(true);
+      if (isInitial || !data) {
+        setLoading(true);
+      } else {
+        setIsRefreshing(true);
+      }
       const res = await api.dashboard.getData();
       setData(res);
       setError(null);
@@ -38,6 +43,7 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
       setError(err.message);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -46,7 +52,7 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
       setSyncing(true);
       const res = await api.integration.syncAppA();
       showToast(res.message || `Synchronized successfully! ${res.count || 0} orders processed.`, 'success');
-      await loadData();
+      await loadData(false);
     } catch (err) {
       showToast(`Sync failed: ${err.message}`, 'error');
     } finally {
@@ -55,10 +61,13 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
   };
 
   useEffect(() => {
-    loadData();
+    loadData(true);
+    const handlePortalRefresh = () => loadData(false);
+    window.addEventListener('portal-refresh-data', handlePortalRefresh);
+    return () => window.removeEventListener('portal-refresh-data', handlePortalRefresh);
   }, []);
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <div className="flex items-center justify-center h-64 text-[#777777] text-sm">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8F1717] mr-3"></div>
@@ -101,12 +110,12 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
         <div className="flex flex-wrap items-center gap-2.5">
           <button 
             type="button"
-            onClick={loadData}
-            disabled={loading || syncing}
-            className="flex items-center gap-1.5 text-xs font-semibold bg-white/70 hover:bg-white text-gray-700 px-3 py-2 rounded-xl border border-[#E8E2DC] transition-all shadow-xs cursor-pointer"
+            onClick={() => loadData(false)}
+            disabled={loading || isRefreshing || syncing}
+            className="flex items-center gap-1.5 text-xs font-semibold bg-white/70 hover:bg-white text-gray-700 px-3 py-2 rounded-xl border border-[#E8E2DC] transition-all shadow-xs cursor-pointer disabled:opacity-60"
             title="Refresh dashboard statistics"
           >
-            <RefreshCw size={13} className={loading && !syncing ? 'animate-spin text-[#8F1717]' : 'text-gray-500'} />
+            <RefreshCw size={13} className={(loading || isRefreshing) && !syncing ? 'animate-spin text-[#8F1717]' : 'text-gray-500'} />
             <span>Refresh</span>
           </button>
 

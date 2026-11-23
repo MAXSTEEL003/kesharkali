@@ -15,14 +15,21 @@ const APP_A_FIREBASE_CONFIG = {
     authDomain: 'tejascanavssingstore.firebaseapp.com'
 };
 
+function getEnvOrFallback(val, fallback) {
+    if (!val || val.includes('your-') || val.includes('your_') || val.includes('G-XXXX')) {
+        return fallback;
+    }
+    return val;
+}
+
 // App B Firestore Configuration (Target Cloud Database for Keshar Kali Portal)
 const APP_B_FIREBASE_CONFIG = {
-    apiKey: process.env.VITE_FIREBASE_API_KEY || 'AIzaSyBhks0oj5288L3He_JhgH2M7IVtE5rYyUc',
-    authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || 'kesharkaliportal.firebaseapp.com',
-    projectId: process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || 'kesharkaliportal',
-    storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || 'kesharkaliportal.firebasestorage.app',
-    messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '758973369267',
-    appId: process.env.VITE_FIREBASE_APP_ID || '1:758973369267:web:e24c25e878f14b2e39d9c6'
+    apiKey: getEnvOrFallback(process.env.VITE_FIREBASE_API_KEY, 'AIzaSyBhks0oj5288L3He_JhgH2M7IVtE5rYyUc'),
+    authDomain: getEnvOrFallback(process.env.VITE_FIREBASE_AUTH_DOMAIN, 'kesharkaliportal.firebaseapp.com'),
+    projectId: getEnvOrFallback(process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID, 'kesharkaliportal'),
+    storageBucket: getEnvOrFallback(process.env.VITE_FIREBASE_STORAGE_BUCKET, 'kesharkaliportal.firebasestorage.app'),
+    messagingSenderId: getEnvOrFallback(process.env.VITE_FIREBASE_MESSAGING_SENDER_ID, '758973369267'),
+    appId: getEnvOrFallback(process.env.VITE_FIREBASE_APP_ID, '1:758973369267:web:e24c25e878f14b2e39d9c6')
 };
 
 function toIsoDate(dStr) {
@@ -70,34 +77,38 @@ function sanitizeDocId(str) {
 }
 
 /**
- * Persist customer record to App B Cloud Firestore
+ * Persist customer record to App B Cloud Firestore (non-blocking)
  */
 async function saveCustomerToFirebase(custData, docId) {
     try {
         const firestoreB = getAppBFirestore();
         if (!firestoreB) return;
         const custRef = doc(firestoreB, 'customers', docId);
-        await setDoc(custRef, {
+        setDoc(custRef, {
             ...custData,
             updated_at: new Date().toISOString()
-        }, { merge: true });
+        }, { merge: true }).catch(err => {
+            console.warn(`[Firebase App B] Warning saving customer (${docId}):`, err.message);
+        });
     } catch (err) {
         console.warn(`[Firebase App B] Warning saving customer (${docId}):`, err.message);
     }
 }
 
 /**
- * Persist purchase order record to App B Cloud Firestore
+ * Persist purchase order record to App B Cloud Firestore (non-blocking)
  */
 async function savePOToFirebase(poData, docId) {
     try {
         const firestoreB = getAppBFirestore();
         if (!firestoreB) return;
         const poRef = doc(firestoreB, 'purchase_orders', docId);
-        await setDoc(poRef, {
+        setDoc(poRef, {
             ...poData,
             updated_at: new Date().toISOString()
-        }, { merge: true });
+        }, { merge: true }).catch(err => {
+            console.warn(`[Firebase App B] Warning saving PO (${docId}):`, err.message);
+        });
     } catch (err) {
         console.warn(`[Firebase App B] Warning saving PO (${docId}):`, err.message);
     }
@@ -196,6 +207,21 @@ async function ingestAppAOrder(docId, docData) {
                 created_at: new Date().toISOString()
             }, custDocId);
 
+            let existingSub = null;
+            const existingPO = db.get('SELECT id, status, is_accepted, bill_no FROM purchase_orders WHERE po_number = ?', [poNumber]);
+            if (existingPO) {
+                try {
+                    existingSub = db.get('SELECT id, loaded_quantity, bill_no, bill_url, bill_file_name, bill_uploaded_at, status FROM po_sub_orders WHERE po_id = ? AND sub_order_no = ?', [existingPO.id, subNo]);
+                } catch (_) {}
+            }
+            const finalBillNo = (existingSub && existingSub.bill_no) || (docData.supplierBillNos ? (docData.supplierBillNos[o.id] || docData.supplierBillNos[o.subOrderNo] || rawBillNo) : rawBillNo);
+            const finalBillUrl = (existingSub && existingSub.bill_url) || null;
+            const finalBillFileName = (existingSub && existingSub.bill_file_name) || null;
+            const finalBillUploadedAt = (existingSub && existingSub.bill_uploaded_at) || null;
+            const finalSubLoaded = (existingSub && existingSub.loaded_quantity) || 0;
+            const subAccepted = (existingSub && existingSub.status === 'Accepted') || docData.status === 'Accepted' || (existingPO && (existingPO.is_accepted === 1 || existingPO.status === 'Accepted'));
+            const finalSubStatus = subAccepted ? 'Accepted' : (o.status || 'Approved');
+
             subOrders.push({
                 subOrderNo: subNo,
                 customerId: subCust ? subCust.id : null,
@@ -204,9 +230,18 @@ async function ingestAppAOrder(docId, docData) {
                 orderedQuantity: subQty,
                 rate: subRate,
                 amount: Math.round(subQty * subRate),
-                billNo: docData.supplierBillNos ? (docData.supplierBillNos[o.id] || docData.supplierBillNos[o.subOrderNo] || rawBillNo) : rawBillNo,
+                billNo: finalBillNo,
+                bill_no: finalBillNo,
+                billUrl: finalBillUrl,
+                bill_url: finalBillUrl,
+                billFileName: finalBillFileName,
+                bill_file_name: finalBillFileName,
+                billUploadedAt: finalBillUploadedAt,
+                bill_uploaded_at: finalBillUploadedAt,
+                loadedQuantity: finalSubLoaded,
+                loaded_quantity: finalSubLoaded,
                 deliveryLocation: o.unloadingPoint || 'shop',
-                status: o.status || 'Approved'
+                status: finalSubStatus
             });
         }
 
@@ -249,11 +284,13 @@ async function ingestAppAOrder(docId, docData) {
         }, leadCustDocId);
 
         // 4. Upsert Master PO in App B SQLite
-        const existingPO = db.get('SELECT id, status FROM purchase_orders WHERE po_number = ?', [poNumber]);
+        const existingPO = db.get('SELECT id, status, is_accepted, bill_no FROM purchase_orders WHERE po_number = ?', [poNumber]);
         let poId;
         const rawDb = db.getDb();
 
-        const initialStatus = docData.status || (existingPO && existingPO.status) || 'Accepted';
+        const shouldAccept = (docData.status === 'Accepted' || (existingPO && (existingPO.is_accepted === 1 || existingPO.status === 'Accepted')));
+        const initialStatus = shouldAccept ? 'Accepted' : (docData.status || (existingPO && existingPO.status) || 'Pending');
+        const finalMasterBillNo = rawBillNo || (existingPO && existingPO.bill_no) || null;
 
         if (!existingPO) {
             const insertStmt = rawDb.prepare(`
@@ -261,15 +298,15 @@ async function ingestAppAOrder(docId, docData) {
                     po_number, customer_id, product_id, po_date, ordered_quantity, customer_selling_rate,
                     delivery_location, notes, status, created_by, original_order_id, supplier_id,
                     supplier_rate, sync_status, customer_name_text, customer_contact_text,
-                    sub_order_no, bill_no, sub_orders_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    sub_order_no, bill_no, sub_orders_json, is_accepted
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `);
             const res = insertStmt.run(
                 poNumber, leadCustomerId, productId, isoDate, totalQty, rate,
                 destination, `Real-time sync from App A placed_orders. Supplier: Bhagwathi Rice`,
                 initialStatus, 'App A Live Listener', poNumber, supplierId,
                 rate, 'Synced', leadBuyerName, '+91 98800 12345',
-                subOrderNoString, rawBillNo, JSON.stringify(subOrders)
+                subOrderNoString, finalMasterBillNo, JSON.stringify(subOrders), shouldAccept ? 1 : 0
             );
             poId = res.lastInsertRowid;
             console.log(`[App A Listener] Created new PO ${poNumber} in App B (DB ID: ${poId})`);
@@ -289,14 +326,17 @@ async function ingestAppAOrder(docId, docData) {
                     sync_status = 'Synced',
                     customer_name_text = ?,
                     sub_order_no = ?,
-                    bill_no = ?,
+                    bill_no = COALESCE(?, bill_no),
                     sub_orders_json = ?,
+                    is_accepted = ?,
+                    status = CASE WHEN status IN ('Loaded', 'Dispatched', 'Completed') THEN status ELSE ? END,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             `).run(
                 leadCustomerId, productId, isoDate, totalQty, rate,
                 destination, poNumber, supplierId, rate,
-                leadBuyerName, subOrderNoString, rawBillNo, JSON.stringify(subOrders),
+                leadBuyerName, subOrderNoString, finalMasterBillNo, JSON.stringify(subOrders),
+                shouldAccept ? 1 : 0, initialStatus,
                 poId
             );
         }
@@ -464,6 +504,16 @@ async function syncAllAppAOrders() {
             const ok = await ingestAppAOrder(docSnap.id, docSnap.data());
             if (ok) syncedCount++;
         }
+
+        if (syncedCount === 0) {
+            console.log('[App A Manual Sync] 0 orders returned from live Firestore, falling back to bundled appA_bhagwathi_orders.json...');
+            return await syncFromLocalAppAOrders();
+        }
+
+        // Reconcile any accepted statuses from App B Cloud Firestore
+        try {
+            await syncAcceptedStatusesFromFirestore();
+        } catch (_) {}
 
         console.log(`[App A Manual Sync] Completed. Synced ${syncedCount} orders from App A to SQLite & Firebase.`);
         return { success: true, count: syncedCount };

@@ -896,5 +896,33 @@
         "status": "Approved"
       }
     ]
+  },
+  {
+    "poNumber": "TC-Q2SBVC",
+    "originalOrderId": "TC-Q2SBVC",
+    "date": "21-Nov-2026",
+    "status": "Accepted",
+    "buyerName": "B.S GOPAL SHETTY",
+    "productName": "KESHAR KALI",
+    "totalQuantity": 20,
+    "rate": 9999,
+    "destination": "Multiple Destinations",
+    "notes": "Real-time sync from App A placed_orders. Supplier: Bhagwathi Rice",
+    "subOrderNo": "BRI-0063",
+    "billNo": null,
+    "is_accepted": 1,
+    "subOrders": [
+      {
+        "subOrderNo": "BRI-0063",
+        "buyerName": "B.S GOPAL SHETTY",
+        "productName": "KESHAR KALI",
+        "orderedQuantity": 20,
+        "rate": 9999,
+        "amount": 199980,
+        "billNo": null,
+        "deliveryLocation": "shop",
+        "status": "Approved"
+      }
+    ]
   }
 ]

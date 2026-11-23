@@ -235,6 +235,12 @@ export default function MasterLoadingRegister({ onOpenQuickAction, quickActionTr
   };
 
   useEffect(() => {
+    const handlePortalRefresh = () => loadData();
+    window.addEventListener('portal-refresh-data', handlePortalRefresh);
+    return () => window.removeEventListener('portal-refresh-data', handlePortalRefresh);
+  }, []);
+
+  useEffect(() => {
     const timer = setTimeout(() => {
       loadData();
     }, 200);

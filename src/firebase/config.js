@@ -35,14 +35,16 @@ import {
   getDownloadURL 
 } from 'firebase/storage';
 
+const getCleanEnv = (val, fallback) => (!val || val.includes('your-') || val.includes('your_') || val.includes('G-XXXX') ? fallback : val);
+
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyBhks0oj5288L3He_JhgH2M7IVtE5rYyUc",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "kesharkaliportal.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "kesharkaliportal",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "kesharkaliportal.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "758973369267",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:758973369267:web:e24c25e878f14b2e39d9c6",
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-FXR9L2X0HC"
+  apiKey: getCleanEnv(import.meta.env.VITE_FIREBASE_API_KEY, "AIzaSyBhks0oj5288L3He_JhgH2M7IVtE5rYyUc"),
+  authDomain: getCleanEnv(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN, "kesharkaliportal.firebaseapp.com"),
+  projectId: getCleanEnv(import.meta.env.VITE_FIREBASE_PROJECT_ID, "kesharkaliportal"),
+  storageBucket: getCleanEnv(import.meta.env.VITE_FIREBASE_STORAGE_BUCKET, "kesharkaliportal.firebasestorage.app"),
+  messagingSenderId: getCleanEnv(import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID, "758973369267"),
+  appId: getCleanEnv(import.meta.env.VITE_FIREBASE_APP_ID, "1:758973369267:web:e24c25e878f14b2e39d9c6"),
+  measurementId: getCleanEnv(import.meta.env.VITE_FIREBASE_MEASUREMENT_ID, "G-FXR9L2X0HC")
 };
 
 export const isFirebaseConfigured = Boolean(

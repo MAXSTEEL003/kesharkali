@@ -37,7 +37,7 @@ function generatePONumber() {
 function derivePOStatus(poId, explicitStatus = null) {
     if (explicitStatus === 'Cancelled') return 'Cancelled';
 
-    const po = get('SELECT ordered_quantity, status FROM purchase_orders WHERE id = ?', [poId]);
+    const po = get('SELECT ordered_quantity, status, is_accepted FROM purchase_orders WHERE id = ?', [poId]);
     if (!po) return explicitStatus || 'Pending';
 
     const ord = Number(po.ordered_quantity);
@@ -51,8 +51,9 @@ function derivePOStatus(poId, explicitStatus = null) {
     if (dsp >= ord && ord > 0) return 'Completed';
     if (dsp > 0 && dsp >= load && load >= ord) return 'Dispatched';
     if (load >= ord && ord > 0) return 'Loaded';
+    if (load > 0) return 'Partially Loaded';
+    if (po.is_accepted === 1 || po.status === 'Accepted') return 'Accepted';
 
-    // Strict Rule: Until loaded, and if loading QTL < PO QTL, it is considered Pending
     return 'Pending';
 }
 
@@ -140,8 +141,12 @@ router.get('/', (req, res) => {
             params.push(productId);
         }
         if (status) {
-            if (status === 'Pending') {
-                sql += ` AND po.status != 'Cancelled' AND (
+            if (status === 'Accepted') {
+                sql += ` AND po.status != 'Cancelled' AND (po.is_accepted = 1 OR po.status = 'Accepted' OR po.accepted_at IS NOT NULL) AND (
+                    SELECT COALESCE(SUM(loading_quantity), 0) FROM loading_entries WHERE po_id = po.id AND loading_status != 'Cancelled'
+                ) < po.ordered_quantity`;
+            } else if (status === 'Pending') {
+                sql += ` AND po.status != 'Cancelled' AND (po.is_accepted = 0 OR po.is_accepted IS NULL) AND po.status != 'Accepted' AND (
                     po.id NOT IN (
                         SELECT po_id FROM loading_entries WHERE loading_status != 'Cancelled'
                     ) OR (
@@ -203,8 +208,12 @@ router.get('/', (req, res) => {
                     p.status = 'Dispatched';
                 } else if (load >= ord && ord > 0) {
                     p.status = 'Loaded';
+                } else if (load > 0) {
+                    p.status = 'Partially Loaded';
+                } else if (p.is_accepted === 1 || p.status === 'Accepted' || p.accepted_at) {
+                    p.status = 'Accepted';
                 } else {
-                    p.status = 'Pending';
+                    p.status = p.status || 'Pending';
                 }
             }
 
@@ -214,7 +223,18 @@ router.get('/', (req, res) => {
                     p.sub_orders = rawList.map(s => {
                         const sOrd = Number(s.ordered_quantity ?? s.orderedQuantity ?? 0);
                         const sLoad = Number(s.loaded_quantity ?? s.loadedQuantity ?? 0);
-                        const sStatus = s.status === 'Cancelled' ? 'Cancelled' : ((sLoad >= sOrd && sOrd > 0) ? 'Loaded' : 'Pending');
+                        let sStatus = s.status;
+                        if (sStatus !== 'Cancelled') {
+                            if (sLoad >= sOrd && sOrd > 0) {
+                                sStatus = 'Loaded';
+                            } else if (sLoad > 0) {
+                                sStatus = 'Partially Loaded';
+                            } else if (p.status === 'Accepted' || p.is_accepted === 1 || sStatus === 'Accepted' || sStatus === 'Approved') {
+                                sStatus = 'Accepted';
+                            } else {
+                                sStatus = sStatus || 'Pending';
+                            }
+                        }
                         return {
                             id: s.id,
                             sub_order_no: s.sub_order_no || s.subOrderNo,
@@ -385,7 +405,7 @@ router.get('/:id', (req, res) => {
         const totalDispatched = dispatches.reduce((sum, d) => sum + (Number(d.dispatch_quantity) || 0), 0);
         const remainingQty = Math.max(0, po.ordered_quantity - totalLoaded);
 
-        // Strict Rule: Until fully loaded, and if loading QTL < PO QTL, it is considered Pending!
+        // Fulfillment Calculations
         if (po.status !== 'Cancelled') {
             const ord = Number(po.ordered_quantity || 0);
             if (totalDispatched >= ord && ord > 0) {
@@ -394,8 +414,12 @@ router.get('/:id', (req, res) => {
                 po.status = 'Dispatched';
             } else if (totalLoaded >= ord && ord > 0) {
                 po.status = 'Loaded';
+            } else if (totalLoaded > 0) {
+                po.status = 'Partially Loaded';
+            } else if (po.is_accepted === 1 || po.status === 'Accepted' || po.accepted_at) {
+                po.status = 'Accepted';
             } else {
-                po.status = 'Pending';
+                po.status = po.status || 'Pending';
             }
         }
 
@@ -586,7 +610,7 @@ router.post('/supplier-accept-all', async (req, res) => {
                     } catch (_) {}
                 }
 
-                run("UPDATE purchase_orders SET is_accepted = 1, accepted_at = CURRENT_TIMESTAMP, sub_orders_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [updatedSubJson, po.id]);
+                run("UPDATE purchase_orders SET is_accepted = 1, status = 'Accepted', accepted_at = CURRENT_TIMESTAMP, sub_orders_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [updatedSubJson, po.id]);
                 run("UPDATE po_sub_orders SET status = 'Accepted' WHERE po_id = ?", [po.id]);
 
                 run(`
@@ -675,7 +699,7 @@ router.post('/:id/supplier-accept', async (req, res) => {
             } catch (_) {}
         }
 
-        run("UPDATE purchase_orders SET is_accepted = 1, accepted_at = CURRENT_TIMESTAMP, sub_orders_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [updatedSubJson, po.id]);
+        run("UPDATE purchase_orders SET is_accepted = 1, status = 'Accepted', accepted_at = CURRENT_TIMESTAMP, sub_orders_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [updatedSubJson, po.id]);
         run("UPDATE po_sub_orders SET status = 'Accepted' WHERE po_id = ?", [po.id]);
 
         // Persist accepted status to Cloud Firestore (awaited for serverless permanence)

@@ -99,59 +99,69 @@ function initDb() {
         db.exec('ALTER TABLE purchase_orders ADD COLUMN accepted_at DATETIME;');
     } catch (_) { }
 
-    // Migrate CHECK constraint if existing table rejects 'Pending'
+    // Migrate CHECK constraint on purchase_orders if existing table rejects 'Accepted' or 'Pending'
     try {
-        db.exec("UPDATE purchase_orders SET status = 'Pending' WHERE 1=0;");
-    } catch (checkErr) {
-        if (checkErr.message && checkErr.message.includes('CHECK constraint')) {
-            try {
-                db.exec('PRAGMA foreign_keys = OFF;');
-                db.exec(`
-                    CREATE TABLE IF NOT EXISTS purchase_orders_v2 (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        po_number TEXT UNIQUE NOT NULL,
-                        customer_id INTEGER NOT NULL REFERENCES customers(id),
-                        product_id INTEGER NOT NULL REFERENCES products(id),
-                        po_date DATE NOT NULL,
-                        ordered_quantity REAL NOT NULL,
-                        customer_selling_rate REAL NOT NULL,
-                        delivery_location TEXT NOT NULL,
-                        expected_delivery_date DATE,
-                        notes TEXT,
-                        status TEXT NOT NULL DEFAULT 'Pending',
-                        original_order_id TEXT,
-                        supplier_id INTEGER REFERENCES industries(id),
-                        supplier_rate REAL DEFAULT 0,
-                        supplier_notes TEXT,
-                        query_text TEXT,
-                        revised_date DATE,
-                        customer_name_text TEXT,
-                        customer_contact_text TEXT,
-                        sub_order_no TEXT,
-                        bill_no TEXT,
-                        sub_orders_json TEXT,
-                        is_accepted INTEGER DEFAULT 0,
-                        accepted_at DATETIME,
-                        sync_status TEXT DEFAULT 'Pending',
-                        created_by TEXT,
-                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                    );
-                    INSERT OR IGNORE INTO purchase_orders_v2 SELECT 
-                        id, po_number, customer_id, product_id, po_date, ordered_quantity, customer_selling_rate,
-                        delivery_location, expected_delivery_date, notes, status, original_order_id, supplier_id,
-                        supplier_rate, supplier_notes, query_text, revised_date, customer_name_text, customer_contact_text,
-                        sub_order_no, bill_no, sub_orders_json, is_accepted, accepted_at, sync_status, created_by,
-                        created_at, updated_at
-                    FROM purchase_orders;
-                    DROP TABLE purchase_orders;
-                    ALTER TABLE purchase_orders_v2 RENAME TO purchase_orders;
-                    PRAGMA foreign_keys = ON;
-                `);
-            } catch (migErr) {
-                console.warn('[DB] Migration of purchase_orders notice:', migErr.message);
-            }
+        const poMaster = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='purchase_orders'").get();
+        if (poMaster && (!poMaster.sql.includes("'Accepted'") || !poMaster.sql.includes("'Pending'"))) {
+            console.log('[DB] Migrating purchase_orders table to support Accepted, Pending, and Settlement statuses...');
+            db.exec('PRAGMA foreign_keys = OFF;');
+            db.exec(`
+                CREATE TABLE purchase_orders_migrated (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    po_number TEXT UNIQUE NOT NULL,
+                    customer_id INTEGER NOT NULL REFERENCES customers(id),
+                    product_id INTEGER NOT NULL REFERENCES products(id),
+                    po_date DATE NOT NULL,
+                    ordered_quantity REAL NOT NULL,
+                    customer_selling_rate REAL NOT NULL,
+                    delivery_location TEXT NOT NULL,
+                    expected_delivery_date DATE,
+                    notes TEXT,
+                    status TEXT NOT NULL DEFAULT 'Pending' CHECK(status IN (
+                        'Pending', 'New', 'Allocation Pending', 'Partially Allocated', 'Allocated',
+                        'Pending Acceptance', 'Accepted', 'Query Raised', 'Loading Scheduled',
+                        'Partially Loaded', 'Loaded', 'Partially Dispatched', 'Dispatched',
+                        'Delivered', 'Completed', 'Cancelled', 'Awaiting Settlement'
+                    )),
+                    created_by TEXT DEFAULT 'Staff',
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    original_order_id TEXT,
+                    supplier_id INTEGER REFERENCES industries(id),
+                    supplier_rate REAL DEFAULT 0,
+                    supplier_notes TEXT,
+                    query_text TEXT,
+                    revised_date DATE,
+                    sync_status TEXT DEFAULT 'Synced',
+                    customer_name_text TEXT,
+                    customer_contact_text TEXT,
+                    sub_order_no TEXT,
+                    bill_no TEXT,
+                    sub_orders_json TEXT,
+                    is_accepted INTEGER DEFAULT 0,
+                    accepted_at DATETIME
+                );
+                INSERT INTO purchase_orders_migrated (
+                    id, po_number, customer_id, product_id, po_date, ordered_quantity, customer_selling_rate,
+                    delivery_location, expected_delivery_date, notes, status, created_by, created_at, updated_at,
+                    original_order_id, supplier_id, supplier_rate, supplier_notes, query_text, revised_date,
+                    sync_status, customer_name_text, customer_contact_text, sub_order_no, bill_no, sub_orders_json,
+                    is_accepted, accepted_at
+                ) SELECT 
+                    id, po_number, customer_id, product_id, po_date, ordered_quantity, customer_selling_rate,
+                    delivery_location, expected_delivery_date, notes, status, created_by, created_at, updated_at,
+                    original_order_id, supplier_id, supplier_rate, supplier_notes, query_text, revised_date,
+                    sync_status, customer_name_text, customer_contact_text, sub_order_no, bill_no, sub_orders_json,
+                    is_accepted, accepted_at
+                FROM purchase_orders;
+                DROP TABLE purchase_orders;
+                ALTER TABLE purchase_orders_migrated RENAME TO purchase_orders;
+                PRAGMA foreign_keys = ON;
+            `);
+            console.log('[DB] purchase_orders table migration completed successfully!');
         }
+    } catch (migErr) {
+        console.warn('[DB] Migration of purchase_orders notice:', migErr.message);
     }
     try {
         db.exec(`
@@ -291,12 +301,13 @@ function initDb() {
                 } catch (_) {}
             }
 
-            // Reconcile status: if loading QTL < ordered QTL -> Pending; if loading QTL >= ordered QTL -> Loaded
+            // Reconcile status: preserve Accepted status for accepted orders
             db.prepare(`
                 UPDATE purchase_orders 
                 SET status = CASE 
                     WHEN (SELECT COALESCE(SUM(dispatch_quantity), 0) FROM dispatches WHERE po_id = purchase_orders.id) >= ordered_quantity AND ordered_quantity > 0 THEN 'Completed'
                     WHEN (SELECT COALESCE(SUM(loading_quantity), 0) FROM loading_entries WHERE po_id = purchase_orders.id AND loading_status != 'Cancelled') >= ordered_quantity AND ordered_quantity > 0 THEN 'Loaded'
+                    WHEN is_accepted = 1 OR status = 'Accepted' THEN 'Accepted'
                     ELSE 'Pending'
                 END
                 WHERE status != 'Cancelled'

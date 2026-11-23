@@ -57,6 +57,9 @@ export default function StockManagement({ initialTab = 'ledger' }) {
 
   useEffect(() => {
     loadSummary();
+    const handlePortalRefresh = () => loadSummary();
+    window.addEventListener('portal-refresh-data', handlePortalRefresh);
+    return () => window.removeEventListener('portal-refresh-data', handlePortalRefresh);
   }, []);
 
   const handleSubNavigation = (target) => {
