@@ -126,7 +126,7 @@ export default function Settings() {
                   type="button"
                   onClick={() => {
                     localStorage.removeItem('keshar_kali_logo');
-                    window.dispatchEvent(new CustomEvent('company-logo-updated', { detail: { logoUrl: '/logo.svg' } }));
+                    window.dispatchEvent(new CustomEvent('company-logo-updated', { detail: { logoUrl: '/logo.webp' } }));
                     showToast('Reset to default Keshar Kali logo.', 'info');
                   }}
                   className="text-[10px] text-[#8F1717] hover:underline font-semibold"
@@ -136,9 +136,9 @@ export default function Settings() {
               </div>
               <div className="p-3 bg-[#F8F4EE] rounded-lg border border-[#E8E2DC] flex items-center justify-center">
                 <img 
-                  src={localStorage.getItem('keshar_kali_logo') || "/logo.svg"} 
+                  src={localStorage.getItem('keshar_kali_logo') || "/logo.webp"} 
                   alt="Current Logo" 
-                  className="h-10 w-auto max-w-[220px] object-contain drop-shadow-xs" 
+                  className="h-12 w-auto max-w-[220px] object-contain drop-shadow-xs" 
                 />
               </div>
               <div className="mt-2.5 flex items-center gap-2">
@@ -434,13 +434,16 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Row 3: Full Audit Trail */}
-      <div className="bg-white rounded-lg border border-[#E8E2DC] shadow-xs overflow-hidden">
-        <div className="bg-[#FAF9F6] px-4 py-3 border-b border-[#E8E2DC]">
+      {/* Row 3: Full Audit Trail & Operational Logs */}
+      <div id="audit-logs" className="bg-white rounded-lg border border-[#E8E2DC] shadow-xs overflow-hidden">
+        <div className="bg-[#FAF9F6] px-4 py-3 border-b border-[#E8E2DC] flex items-center justify-between">
           <h3 className="text-xs font-bold uppercase tracking-wider text-[#252525] flex items-center gap-1.5">
             <History size={15} className="text-[#8F1717]" />
-            Complete Chronological Audit Trail (Last 50 Operations)
+            Operational Log & Chronological Audit Trail (Last 50 Operations)
           </h3>
+          <span className="text-[11px] font-mono text-gray-500 font-medium">
+            {auditLogs.length} Events Logged
+          </span>
         </div>
         <div className="overflow-x-auto max-h-96">
           <table className="excel-grid">

@@ -26,7 +26,6 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState(null);
 
   const loadData = async (isInitial = false) => {
@@ -44,19 +43,6 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
     } finally {
       setLoading(false);
       setIsRefreshing(false);
-    }
-  };
-
-  const handleSync = async () => {
-    try {
-      setSyncing(true);
-      const res = await api.integration.syncAppA();
-      showToast(res.message || `Synchronized successfully! ${res.count || 0} orders processed.`, 'success');
-      await loadData(false);
-    } catch (err) {
-      showToast(`Sync failed: ${err.message}`, 'error');
-    } finally {
-      setSyncing(false);
     }
   };
 
@@ -92,7 +78,7 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
     );
   }
 
-  const { metrics, dailyLoading, dailyDispatch, industryDistribution, productDistribution, lowStockProducts, pendingTasks, recentActivities } = data;
+  const { metrics, dailyLoading, dailyDispatch, industryDistribution, productDistribution, lowStockProducts, pendingTasks, recentActivities, pendingLoadings } = data;
 
   return (
     <div className="space-y-6">
@@ -111,23 +97,12 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
           <button 
             type="button"
             onClick={() => loadData(false)}
-            disabled={loading || isRefreshing || syncing}
+            disabled={loading || isRefreshing}
             className="flex items-center gap-1.5 text-xs font-semibold bg-white/70 hover:bg-white text-gray-700 px-3 py-2 rounded-xl border border-[#E8E2DC] transition-all shadow-xs cursor-pointer disabled:opacity-60"
             title="Refresh dashboard statistics"
           >
-            <RefreshCw size={13} className={(loading || isRefreshing) && !syncing ? 'animate-spin text-[#8F1717]' : 'text-gray-500'} />
+            <RefreshCw size={13} className={loading || isRefreshing ? 'animate-spin text-[#8F1717]' : 'text-gray-500'} />
             <span>Refresh</span>
-          </button>
-
-          <button 
-            type="button"
-            onClick={handleSync}
-            disabled={loading || syncing}
-            className="flex items-center gap-1.5 text-xs font-semibold bg-[#FAF9F6] hover:bg-gray-100 text-[#8F1717] px-3.5 py-2 rounded-xl border border-[#8F1717]/30 transition-all shadow-xs cursor-pointer disabled:opacity-50"
-            title="Sync latest orders from Orders Webapp"
-          >
-            <RefreshCw size={13} className={syncing ? 'animate-spin' : ''} />
-            <span>{syncing ? 'Syncing...' : 'Sync'}</span>
           </button>
 
           <button 
@@ -345,33 +320,84 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
         </div>
       </div>
 
-      {/* Row 4: Industry Distribution & Stock Distribution */}
+      {/* Row 4: Pending Loadings & Stock Distribution */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Industry Sourcing Distribution */}
-        <div className="glass-panel rounded-2xl p-5 shadow-xs">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-[#8F1717] mb-3 flex items-center justify-between">
-            <span>Sourcing & Mill Fulfillment Breakdown</span>
-            <span className="text-[10px] text-gray-500 font-normal">Actual loaded volume</span>
-          </h3>
-          <div className="space-y-3">
-            {industryDistribution.map((ind, idx) => {
-              const maxQtl = Math.max(...industryDistribution.map(i => i.total_loaded_qtl), 1);
-              const pct = ((ind.total_loaded_qtl / maxQtl) * 100).toFixed(0);
-              return (
-                <div key={idx} className="space-y-1">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-[#252525]">{ind.industry_name}</span>
-                    <span className="tabular-nums font-bold text-[#8F1717]">{ind.total_loaded_qtl} QTL</span>
-                  </div>
-                  <div className="h-2 w-full bg-gray-100/70 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-gradient-to-r from-[#8F1717] to-[#C69A3B] rounded-full transition-all duration-300"
-                      style={{ width: `${pct}%` }}
-                    ></div>
-                  </div>
-                </div>
-              );
-            })}
+        {/* Pending Loadings */}
+        <div className="glass-panel rounded-2xl p-5 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[#8F1717] flex items-center gap-2">
+                <Clock size={14} className="text-[#8F1717]" />
+                <span>Pending Loadings</span>
+              </h3>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded">
+                  {metrics.pendingLoading?.toLocaleString('en-IN') || 0} QTL Pending
+                </span>
+                <button
+                  onClick={() => setActivePage('master-loading-register')}
+                  className="text-xs text-[#8F1717] hover:underline flex items-center gap-1 font-semibold"
+                >
+                  Register →
+                </button>
+              </div>
+            </div>
+
+            {(!pendingLoadings || pendingLoadings.length === 0) ? (
+              <div className="p-8 text-center text-xs text-[#777777]">
+                No shipments awaiting mill trucks. All active orders loaded!
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-white/40 text-[#777777] border-b border-[#E8E2DC]">
+                      <th className="py-2 px-2 text-left">Sub-Order #</th>
+                      <th className="py-2 px-2 text-left">Buyer / PO</th>
+                      <th className="py-2 px-2 text-left">Product</th>
+                      <th className="py-2 px-2 text-right">Pending QTL</th>
+                      <th className="py-2 px-2 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#E8E2DC]">
+                    {pendingLoadings.slice(0, 5).map((ld, idx) => (
+                      <tr key={ld.id || idx} className="hover:bg-amber-50/40">
+                        <td className="py-2 px-2 font-mono font-bold text-blue-700">
+                          {ld.sub_order_no || 'Direct'}
+                        </td>
+                        <td className="py-2 px-2">
+                          <div className="font-semibold text-[#252525] truncate max-w-[150px]">{ld.buyer_name}</div>
+                          <div className="text-[10px] text-gray-500 font-mono">{ld.po_number}</div>
+                        </td>
+                        <td className="py-2 px-2 text-gray-700 truncate max-w-[120px]">
+                          {ld.product_name}
+                        </td>
+                        <td className="py-2 px-2 text-right tabular-nums font-bold text-amber-700">
+                          {Number(ld.pending_quantity).toFixed(2)} QTL
+                        </td>
+                        <td className="py-2 px-2 text-center">
+                          <button
+                            onClick={() => setActivePage('master-loading-register')}
+                            className="px-2 py-0.5 rounded bg-[#8F1717] text-white text-[10px] font-semibold hover:bg-[#771212] shadow-xs"
+                          >
+                            Load
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+          <div className="pt-3 mt-3 border-t border-gray-100/80 flex items-center justify-between text-[11px] text-gray-500">
+            <span>Awaiting trucks at sourcing mills</span>
+            <button
+              onClick={() => setActivePage('master-loading-register')}
+              className="font-semibold text-[#8F1717] hover:underline"
+            >
+              Open Master Loading Register →
+            </button>
           </div>
         </div>
 
@@ -397,32 +423,6 @@ export default function Dashboard({ setActivePage, onOpenQuickAction }) {
               </div>
             ))}
           </div>
-        </div>
-      </div>
-
-      {/* Row 5: Recent Chronological Audit Log */}
-      <div className="glass-panel rounded-2xl p-5 shadow-xs">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-[#777777] mb-3 flex items-center justify-between">
-          <span>Recent Operational Log</span>
-          <button onClick={() => setActivePage('settings')} className="text-xs text-[#8F1717] hover:underline font-semibold">
-            All Logs →
-          </button>
-        </h3>
-        <div className="space-y-2">
-          {recentActivities.slice(0, 5).map((log, idx) => (
-            <div key={idx} className="flex items-center justify-between text-xs py-1.5 border-b border-gray-100/80 last:border-0">
-              <div className="flex items-center gap-2">
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-white/80 border border-gray-200 text-gray-700">
-                  {log.action}
-                </span>
-                <span className="font-medium text-[#252525]">{log.entity_type} {log.entity_id}</span>
-                <span className="text-[#777777] text-[11px] truncate max-w-md">{log.details}</span>
-              </div>
-              <div className="text-right shrink-0 text-[11px] text-[#777777] font-mono">
-                {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} by {log.actor}
-              </div>
-            </div>
-          ))}
         </div>
       </div>
     </div>

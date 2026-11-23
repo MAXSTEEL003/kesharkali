@@ -123,7 +123,7 @@ export default function App() {
       : { ...payload, timestamp: Date.now() };
     setQuickActionTrigger(triggerData);
     if (actionName === 'po') {
-      setActivePage('purchase-orders');
+      setActivePage('supplier-dashboard');
     } else if (actionName === 'loading' || actionName === 'dispatch') {
       setActivePage('master-loading-register');
     }
@@ -134,9 +134,14 @@ export default function App() {
       case 'dashboard':
         return <Dashboard setActivePage={handleNavigate} onOpenQuickAction={handleQuickAction} />;
       case 'supplier-dashboard':
-        return <SupplierDashboard />;
       case 'purchase-orders':
-        return <PurchaseOrders onOpenQuickAction={handleQuickAction} quickActionTrigger={quickActionTrigger} />;
+        return (
+          <SupplierDashboard
+            onOpenQuickAction={handleQuickAction}
+            quickActionTrigger={quickActionTrigger}
+            defaultTab={activePage === 'purchase-orders' ? 'pos' : undefined}
+          />
+        );
       case 'industry-sourcing':
         return <IndustrySourcing />;
       case 'stock':

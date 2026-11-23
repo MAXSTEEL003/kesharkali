@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { query, get, run, transaction } = require('../db');
-const { recordInward } = require('../services/stockService');
+const { recordInward, recordOutward } = require('../services/stockService');
 const { derivePOStatus } = require('./purchaseOrders');
 const { logAction } = require('../services/auditService');
 const { pushReverseUpdateToOrdersPortal } = require('./integration');
@@ -304,7 +304,7 @@ router.post('/', (req, res) => {
                     amount,
                     prodId,
                     subNo: subOrder?.sub_order_no || subNo || null,
-                    subId: subOrder?.id || subId || null,
+                    subId: subOrder ? subOrder.id : null,
                     location: it.loading_location || loading_location || subOrder?.delivery_location || po.delivery_location || ''
                 });
             }
@@ -315,6 +315,11 @@ router.post('/', (req, res) => {
             const affectedPoIds = new Set();
 
             transaction((db) => {
+                const whRow = (fulfillment_type === 'Warehouse' && warehouse_id)
+                    ? db.prepare('SELECT id, name FROM warehouses WHERE id = ?').get(warehouse_id)
+                    : null;
+                const safeWarehouseId = whRow ? whRow.id : null;
+
                 const insertStmt = db.prepare(`
                     INSERT INTO loading_entries (
                         loading_number, loading_date, po_id, sub_order_no, sub_order_id, allocation_id,
@@ -336,17 +341,22 @@ router.post('/', (req, res) => {
                 for (let i = 0; i < validatedItems.length; i++) {
                     const item = validatedItems[i];
                     const loadingNumber = generateLoadingNumber(i);
+                    const pCheck = db.prepare('SELECT id FROM products WHERE id = ?').get(item.prodId);
+                    const safeProdId = pCheck ? pCheck.id : (db.prepare('SELECT id FROM products LIMIT 1').get()?.id || 1);
+                    const subCheck = item.subId ? db.prepare('SELECT id FROM po_sub_orders WHERE id = ?').get(item.subId) : null;
+                    const safeSubId = subCheck ? subCheck.id : null;
+
                     const resInsert = insertStmt.run(
                         loadingNumber,
                         date,
                         item.po.id,
                         item.subNo,
-                        item.subId,
+                        safeSubId,
                         null,
                         industry_id,
-                        item.prodId,
+                        safeProdId,
                         fulfillment_type,
-                        fulfillment_type === 'Warehouse' ? warehouse_id : null,
+                        safeWarehouseId,
                         item.location,
                         vehicle_number.toUpperCase().trim(),
                         driver_phone || null,
@@ -372,7 +382,7 @@ router.post('/', (req, res) => {
                         vehicle_number.toUpperCase().trim(),
                         driver_phone || null,
                         fulfillment_type,
-                        fulfillment_type === 'Warehouse' ? warehouse_id : null,
+                        safeWarehouseId,
                         remarks || '',
                         req.user?.fullName || 'Staff'
                     );
@@ -401,22 +411,63 @@ router.post('/', (req, res) => {
                         }
                     }
 
-                    // Warehouse inward stock
-                    if (fulfillment_type === 'Warehouse') {
-                        const ind = db.prepare('SELECT name FROM industries WHERE id = ?').get(industry_id);
-                        const wh = db.prepare('SELECT name FROM warehouses WHERE id = ?').get(warehouse_id);
+                    // Stock accounting: Inward receipt & Outward customer dispatch
+                    const ind = db.prepare('SELECT name FROM industries WHERE id = ?').get(industry_id);
+                    const millName = ind?.name || 'Rice Mill Facility';
+                    const buyerName = item.subOrder?.buyer_name || item.po.customer_name;
 
+                    if (fulfillment_type === 'Warehouse' && safeWarehouseId) {
                         recordInward({
                             date,
-                            productId: item.prodId,
-                            warehouseId: warehouse_id,
+                            productId: safeProdId,
+                            warehouseId: safeWarehouseId,
                             transactionType: 'Purchase Inward',
                             referenceNumber: loadingNumber,
-                            source: ind?.name || 'Rice Mill',
-                            destination: wh?.name || 'Warehouse',
+                            source: millName,
+                            destination: whRow?.name || 'Warehouse',
                             quantity: item.loadQty,
                             rate: item.rate,
                             remarks: `Bulk Inwarded from Loading ${loadingNumber} (Vehicle: ${vehicle_number}) for Sub ${item.subNo || 'Direct'}`
+                        }, db);
+
+                        recordOutward({
+                            date,
+                            productId: safeProdId,
+                            warehouseId: safeWarehouseId,
+                            transactionType: 'Customer Dispatch',
+                            referenceNumber: dispatchNumber,
+                            source: whRow?.name || 'Warehouse',
+                            destination: `${buyerName} (PO: ${item.po.po_number}${item.subNo ? ` / Sub: ${item.subNo}` : ''})`,
+                            quantity: item.loadQty,
+                            rate: item.rate,
+                            remarks: `Customer dispatch ${dispatchNumber} via vehicle ${vehicle_number.toUpperCase().trim()} from Loading ${loadingNumber}`
+                        }, db);
+                    } else {
+                        // Direct Fulfillment: Sourced from mill & dispatched straight to customer (no warehouse foreign key violation)
+                        recordInward({
+                            date,
+                            productId: safeProdId,
+                            warehouseId: null,
+                            transactionType: 'Purchase Inward',
+                            referenceNumber: loadingNumber,
+                            source: millName,
+                            destination: 'Direct Transit',
+                            quantity: item.loadQty,
+                            rate: item.rate,
+                            remarks: `Direct mill procurement for PO ${item.po.po_number}`
+                        }, db);
+
+                        recordOutward({
+                            date,
+                            productId: safeProdId,
+                            warehouseId: null,
+                            transactionType: 'Customer Dispatch',
+                            referenceNumber: dispatchNumber,
+                            source: millName,
+                            destination: `${buyerName} (PO: ${item.po.po_number}${item.subNo ? ` / Sub: ${item.subNo}` : ''})`,
+                            quantity: item.loadQty,
+                            rate: item.rate,
+                            remarks: `Direct mill dispatch ${dispatchNumber} via vehicle ${vehicle_number.toUpperCase().trim()} for PO ${item.po.po_number}`
                         }, db);
                     }
 
@@ -532,6 +583,32 @@ router.post('/', (req, res) => {
         let newDispatchId;
 
         transaction((db) => {
+            const whRow = (fulfillment_type === 'Warehouse' && warehouse_id)
+                ? db.prepare('SELECT id, name FROM warehouses WHERE id = ?').get(warehouse_id)
+                : null;
+            const safeWarehouseId = whRow ? whRow.id : null;
+
+            let safeAllocId = null;
+            if (allocation_id) {
+                const allocCheck = db.prepare('SELECT id, allocated_quantity FROM industry_allocations WHERE id = ?').get(allocation_id);
+                if (allocCheck) safeAllocId = allocCheck.id;
+            }
+
+            let safeSubOrderId = null;
+            if (subOrder?.id) {
+                safeSubOrderId = subOrder.id;
+            } else if (sub_order_id) {
+                const subCheck = db.prepare('SELECT id FROM po_sub_orders WHERE id = ?').get(sub_order_id);
+                if (subCheck) safeSubOrderId = subCheck.id;
+            }
+
+            let safeProdId = prodId;
+            const pCheck = db.prepare('SELECT id FROM products WHERE id = ?').get(safeProdId);
+            if (!pCheck) {
+                const firstProd = db.prepare('SELECT id FROM products LIMIT 1').get();
+                safeProdId = firstProd?.id || 1;
+            }
+
             const stmt = db.prepare(`
                 INSERT INTO loading_entries (
                     loading_number, loading_date, po_id, sub_order_no, sub_order_id, allocation_id,
@@ -547,12 +624,12 @@ router.post('/', (req, res) => {
                 date,
                 po_id,
                 subOrder?.sub_order_no || sub_order_no || null,
-                subOrder?.id || sub_order_id || null,
-                allocation_id || null,
+                safeSubOrderId,
+                safeAllocId,
                 industry_id,
-                prodId,
+                safeProdId,
                 fulfillment_type,
-                fulfillment_type === 'Warehouse' ? warehouse_id : null,
+                safeWarehouseId,
                 loading_location || '',
                 vehicle_number.toUpperCase().trim(),
                 driver_phone || null,
@@ -581,7 +658,7 @@ router.post('/', (req, res) => {
                 vehicle_number.toUpperCase().trim(),
                 driver_phone || null,
                 fulfillment_type,
-                fulfillment_type === 'Warehouse' ? warehouse_id : null,
+                safeWarehouseId,
                 remarks || '',
                 req.user?.fullName || 'Staff'
             );
@@ -610,33 +687,75 @@ router.post('/', (req, res) => {
                 }
             }
 
-            // Scenario 1: Industry sends rice to supplier's warehouse
-            if (fulfillment_type === 'Warehouse') {
-                const ind = db.prepare('SELECT name FROM industries WHERE id = ?').get(industry_id);
-                const wh = db.prepare('SELECT name FROM warehouses WHERE id = ?').get(warehouse_id);
+            // Stock accounting: Inward receipt & Outward customer dispatch
+            const ind = db.prepare('SELECT name FROM industries WHERE id = ?').get(industry_id);
+            const millName = ind?.name || 'Rice Mill Facility';
+            const buyerName = subOrder?.buyer_name || po.customer_name;
 
+            if (fulfillment_type === 'Warehouse' && safeWarehouseId) {
                 recordInward({
                     date,
-                    productId: prodId,
-                    warehouseId: warehouse_id,
+                    productId: safeProdId,
+                    warehouseId: safeWarehouseId,
                     transactionType: 'Purchase Inward',
                     referenceNumber: loadingNumber,
-                    source: ind?.name || 'Rice Mill',
-                    destination: wh?.name || 'Warehouse',
+                    source: millName,
+                    destination: whRow?.name || 'Warehouse',
                     quantity: loadQty,
                     rate,
                     remarks: `Inwarded from Loading ${loadingNumber} (Vehicle: ${vehicle_number}) for PO ${po.po_number}`
                 }, db);
+
+                recordOutward({
+                    date,
+                    productId: safeProdId,
+                    warehouseId: safeWarehouseId,
+                    transactionType: 'Customer Dispatch',
+                    referenceNumber: dispatchNumber,
+                    source: whRow?.name || 'Warehouse',
+                    destination: `${buyerName} (PO: ${po.po_number}${subOrder?.sub_order_no ? ` / Sub: ${subOrder.sub_order_no}` : ''})`,
+                    quantity: loadQty,
+                    rate,
+                    remarks: `Customer dispatch ${dispatchNumber} via vehicle ${vehicle_number.toUpperCase().trim()} from Loading ${loadingNumber}`
+                }, db);
+            } else {
+                // Direct fulfillment: loaded at mill & dispatched to customer (no warehouse foreign key violation)
+                recordInward({
+                    date,
+                    productId: safeProdId,
+                    warehouseId: null,
+                    transactionType: 'Purchase Inward',
+                    referenceNumber: loadingNumber,
+                    source: millName,
+                    destination: 'Direct Transit',
+                    quantity: loadQty,
+                    rate,
+                    remarks: `Direct mill procurement for PO ${po.po_number}`
+                }, db);
+
+                recordOutward({
+                    date,
+                    productId: safeProdId,
+                    warehouseId: null,
+                    transactionType: 'Customer Dispatch',
+                    referenceNumber: dispatchNumber,
+                    source: millName,
+                    destination: `${buyerName} (PO: ${po.po_number}${subOrder?.sub_order_no ? ` / Sub: ${subOrder.sub_order_no}` : ''})`,
+                    quantity: loadQty,
+                    rate,
+                    remarks: `Direct mill dispatch ${dispatchNumber} via vehicle ${vehicle_number.toUpperCase().trim()} for PO ${po.po_number}`
+                }, db);
             }
-            // Scenario 2: Direct dispatch from mill to customer -> does NOT increase warehouse stock
 
             // Update allocation status if allocation_id present
-            if (allocation_id) {
-                const allocRow = db.prepare('SELECT allocated_quantity FROM industry_allocations WHERE id = ?').get(allocation_id);
-                const loadedSumRow = db.prepare("SELECT COALESCE(SUM(loading_quantity), 0) as total FROM loading_entries WHERE allocation_id = ? AND loading_status != 'Cancelled'").get(allocation_id);
+            if (safeAllocId) {
+                const allocRow = db.prepare('SELECT allocated_quantity FROM industry_allocations WHERE id = ?').get(safeAllocId);
+                const loadedSumRow = db.prepare("SELECT COALESCE(SUM(loading_quantity), 0) as total FROM loading_entries WHERE allocation_id = ? AND loading_status != 'Cancelled'").get(safeAllocId);
                 const loadedSum = Number(loadedSumRow?.total || 0);
-                const allocStatus = loadedSum >= allocRow.allocated_quantity ? 'Loaded' : 'Partially Loaded';
-                db.prepare('UPDATE industry_allocations SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(allocStatus, allocation_id);
+                if (allocRow) {
+                    const allocStatus = loadedSum >= allocRow.allocated_quantity ? 'Loaded' : 'Partially Loaded';
+                    db.prepare('UPDATE industry_allocations SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(allocStatus, safeAllocId);
+                }
             }
 
             // Update derived PO status
@@ -775,8 +894,17 @@ router.delete('/:id', (req, res) => {
         if (!loading) return res.status(404).json({ error: 'Loading entry not found' });
 
         transaction((db) => {
+            // Delete associated whatsapp notifications for dispatches of this loading entry
+            db.prepare(`
+                DELETE FROM whatsapp_notifications 
+                WHERE dispatch_id IN (SELECT id FROM dispatches WHERE loading_id = ?)
+            `).run(loading.id);
+
             // Delete associated dispatch records
             db.prepare('DELETE FROM dispatches WHERE loading_id = ?').run(loading.id);
+
+            // Delete or unlink associated supplier documents
+            db.prepare('UPDATE supplier_documents SET loading_id = NULL WHERE loading_id = ?').run(loading.id);
 
             // If warehouse fulfillment, reverse inward stock ledger entry
             if (loading.fulfillment_type === 'Warehouse') {

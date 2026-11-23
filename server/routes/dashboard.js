@@ -157,6 +157,27 @@ router.get('/', (req, res) => {
             ORDER BY le.loading_date DESC, le.id DESC LIMIT 5
         `);
 
+        // 9. Pending Sub-Orders / Mill Loadings awaiting trucks
+        const pendingLoadings = query(`
+            SELECT 
+                pso.id,
+                pso.sub_order_no,
+                po.id as po_id,
+                po.po_number,
+                COALESCE(pso.buyer_name, c.name, po.customer_name_text, 'Designated Buyer') as buyer_name,
+                pso.product_name,
+                pso.ordered_quantity,
+                pso.loaded_quantity,
+                ROUND(pso.ordered_quantity - pso.loaded_quantity, 2) as pending_quantity,
+                pso.delivery_location
+            FROM po_sub_orders pso
+            JOIN purchase_orders po ON pso.po_id = po.id
+            LEFT JOIN customers c ON po.customer_id = c.id
+            WHERE po.status != 'Cancelled' AND (pso.ordered_quantity - pso.loaded_quantity) > 0.001
+            ORDER BY po.po_date ASC, pso.id ASC
+            LIMIT 10
+        `);
+
         res.json({
             metrics: {
                 totalPurchaseOrders: poStats.total_pos,
@@ -180,10 +201,12 @@ router.get('/', (req, res) => {
             lowStockProducts,
             recentActivities,
             recentLoadings,
+            pendingLoadings,
             pendingTasks: {
                 unallocatedPOs: pendingPOs,
                 undispatchedLoadings: pendingDispatchLoadings,
-                recentLoadings
+                recentLoadings,
+                pendingLoadings
             }
         });
     } catch (err) {

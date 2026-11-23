@@ -187,6 +187,10 @@ export const api = {
       const q = new URLSearchParams(params).toString();
       return request(`/api/stock/ledger${q ? '?' + q : ''}`);
     },
+    getOutwards: (params = {}) => {
+      const q = new URLSearchParams(params).toString();
+      return request(`/api/stock/outwards${q ? '?' + q : ''}`);
+    },
     inward: (data) => request('/api/stock/inward', { method: 'POST', body: JSON.stringify(data) }),
     outward: (data) => request('/api/stock/outward', { method: 'POST', body: JSON.stringify(data) }),
     reserve: (data) => request('/api/stock/reserve', { method: 'POST', body: JSON.stringify(data) }),

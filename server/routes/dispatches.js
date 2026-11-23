@@ -211,6 +211,11 @@ router.post('/', async (req, res) => {
 
         // Perform transactional dispatch and inventory update
         transaction((db) => {
+            const wh = (loading.fulfillment_type === 'Warehouse' && loading.warehouse_id)
+                ? db.prepare('SELECT id, name FROM warehouses WHERE id = ?').get(loading.warehouse_id)
+                : null;
+            const safeWarehouseId = wh ? wh.id : null;
+
             const stmt = db.prepare(`
                 INSERT INTO dispatches (
                     dispatch_number, loading_id, po_id, dispatch_date,
@@ -228,7 +233,7 @@ router.post('/', async (req, res) => {
                 vehicle,
                 phone,
                 loading.fulfillment_type,
-                loading.fulfillment_type === 'Warehouse' ? loading.warehouse_id : null,
+                safeWarehouseId,
                 remarks || '',
                 req.user?.fullName || 'Staff'
             );
@@ -240,13 +245,11 @@ router.post('/', async (req, res) => {
             db.prepare('UPDATE loading_entries SET dispatch_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(loadingDspStatus, loading.id);
 
             // Inventory Accounting: Deduct physical stock ONLY if dispatched from supplier's warehouse
-            if (loading.fulfillment_type === 'Warehouse') {
-                const wh = db.prepare('SELECT name FROM warehouses WHERE id = ?').get(loading.warehouse_id);
-
+            if (loading.fulfillment_type === 'Warehouse' && safeWarehouseId) {
                 recordOutward({
                     date,
                     productId: loading.product_id,
-                    warehouseId: loading.warehouse_id,
+                    warehouseId: safeWarehouseId,
                     transactionType: 'Customer Dispatch',
                     referenceNumber: dispatchNumber,
                     source: wh?.name || 'Warehouse',

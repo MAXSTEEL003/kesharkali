@@ -34,6 +34,12 @@ export default function IndustrySourcing() {
   const [error, setError] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [isAddIndustryOpen, setIsAddIndustryOpen] = useState(false);
+  const [newIndustryForm, setNewIndustryForm] = useState({
+    name: '',
+    location: '',
+    default_purchase_rate: ''
+  });
 
   // Filters
   const [search, setSearch] = useState('');
@@ -61,7 +67,11 @@ export default function IndustrySourcing() {
         api.purchaseOrders.getAll()
       ]);
       setAllocations(allocRes.allocations || []);
-      setIndustries(indRes.industries || []);
+      let savedCustom = [];
+      try {
+        savedCustom = JSON.parse(localStorage.getItem('industry_sourcing_page_industries') || '[]');
+      } catch (_) {}
+      setIndustries([...(indRes.industries || []), ...savedCustom]);
       setPurchaseOrders(poRes.purchaseOrders || []);
       setError(null);
     } catch (err) {
@@ -70,6 +80,39 @@ export default function IndustrySourcing() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAddIndustry = (e) => {
+    e.preventDefault();
+    if (!newIndustryForm.name.trim()) {
+      showToast('Please enter an industry or mill name.', 'warning');
+      return;
+    }
+
+    const newInd = {
+      id: `custom_${Date.now()}`,
+      name: newIndustryForm.name.trim(),
+      location: newIndustryForm.location.trim() || 'Direct Sourced Mill',
+      default_purchase_rate: Number(newIndustryForm.default_purchase_rate) || 2800,
+      is_default: 0
+    };
+
+    setIndustries(prev => [...prev, newInd]);
+    try {
+      const savedCustom = JSON.parse(localStorage.getItem('industry_sourcing_page_industries') || '[]');
+      localStorage.setItem('industry_sourcing_page_industries', JSON.stringify([...savedCustom, newInd]));
+    } catch (_) {}
+
+    // If sourcing modal is open, auto-select this new industry
+    setForm(prev => ({
+      ...prev,
+      industry_id: String(newInd.id),
+      purchase_rate: newInd.default_purchase_rate || prev.purchase_rate
+    }));
+
+    showToast(`Industry "${newInd.name}" added (this page only).`, 'success');
+    setNewIndustryForm({ name: '', location: '', default_purchase_rate: '' });
+    setIsAddIndustryOpen(false);
   };
 
   useEffect(() => {
@@ -118,7 +161,7 @@ export default function IndustrySourcing() {
     const externalMill = industries.find(i => !i.is_default && !i.name?.toLowerCase().includes('bhagwathi')) || industries[0];
     const firstPo = purchaseOrders.find(p => p.status !== 'Completed') || purchaseOrders[0];
     
-    const remQtl = firstPo ? Math.max(0, Number(firstPo.ordered_quantity || 0) - Number(firstPo.total_allocated || 0)) : '';
+    const remQtl = firstPo ? Math.max(0, Number(firstPo.ordered_quantity || 0) - Number(firstPo.allocated_quantity || firstPo.total_allocated || 0)) : '';
 
     setForm({
       po_id: firstPo ? String(firstPo.id) : '',
@@ -137,7 +180,7 @@ export default function IndustrySourcing() {
   const handlePoChange = (poId) => {
     const selectedPo = purchaseOrders.find(p => String(p.id) === String(poId));
     if (selectedPo) {
-      const remQtl = Math.max(0, Number(selectedPo.ordered_quantity || 0) - Number(selectedPo.total_allocated || 0));
+      const remQtl = Math.max(0, Number(selectedPo.ordered_quantity || 0) - Number(selectedPo.allocated_quantity || selectedPo.total_allocated || 0));
       setForm(prev => ({
         ...prev,
         po_id: poId,
@@ -256,6 +299,15 @@ export default function IndustrySourcing() {
             title="Refresh sourcing data"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          </button>
+
+          <button
+            onClick={() => setIsAddIndustryOpen(true)}
+            className="flex items-center gap-1.5 text-xs font-semibold bg-white hover:bg-[#FAF9F6] text-[#8F1717] border border-[#8F1717]/30 px-3 py-2 rounded shadow-xs transition-colors"
+            title="Add industry (applicable to this page only)"
+          >
+            <Factory size={14} />
+            <span>+ Add Industry</span>
           </button>
 
           <button
@@ -463,9 +515,18 @@ export default function IndustrySourcing() {
         <form onSubmit={handleCreateSourcing} className="space-y-4 text-xs">
           {/* External Supplier Selection */}
           <div>
-            <label className="block font-semibold text-[#252525] mb-1">
-              Select External Supplier (Other Rice Mill) *
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="font-semibold text-[#252525]">
+                Select External Supplier (Other Rice Mill) *
+              </label>
+              <button
+                type="button"
+                onClick={() => setIsAddIndustryOpen(true)}
+                className="text-[11px] font-semibold text-[#8F1717] hover:underline flex items-center gap-0.5"
+              >
+                <Plus size={11} /> Add New Mill
+              </button>
+            </div>
             <select
               required
               value={form.industry_id}
@@ -502,7 +563,7 @@ export default function IndustrySourcing() {
               {purchaseOrders
                 .filter(p => p.status !== 'Completed')
                 .map(po => {
-                  const remQtl = Math.max(0, Number(po.ordered_quantity || 0) - Number(po.total_allocated || 0));
+                  const remQtl = Math.max(0, Number(po.ordered_quantity || 0) - Number(po.allocated_quantity || po.total_allocated || 0));
                   return (
                     <option key={po.id} value={po.id}>
                       {po.po_number} | {po.customer_name} — {po.product_name} ({po.ordered_quantity} QTL total, {remQtl.toFixed(2)} QTL unallocated)
@@ -637,6 +698,76 @@ export default function IndustrySourcing() {
                   <span>Save Industry Sourcing</span>
                 </>
               )}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Add Industry Modal (Applicable to Industry Sourcing page only) */}
+      <Modal
+        isOpen={isAddIndustryOpen}
+        onClose={() => setIsAddIndustryOpen(false)}
+        title="Add Industry / Rice Mill"
+        subtitle="Applicable for Industry Sourcing page only"
+        maxWidth="max-w-md"
+      >
+        <form onSubmit={handleAddIndustry} className="space-y-4 text-xs">
+          <div>
+            <label className="block font-semibold text-[#252525] mb-1">
+              Industry / Mill Name *
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. Venkateshwara Agro Industries"
+              value={newIndustryForm.name}
+              onChange={(e) => setNewIndustryForm({ ...newIndustryForm, name: e.target.value })}
+              className="w-full p-2 bg-white border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none text-xs"
+            />
+          </div>
+
+          <div>
+            <label className="block font-semibold text-[#252525] mb-1">
+              Location / City
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Gangavathi, Karnataka"
+              value={newIndustryForm.location}
+              onChange={(e) => setNewIndustryForm({ ...newIndustryForm, location: e.target.value })}
+              className="w-full p-2 bg-white border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none text-xs"
+            />
+          </div>
+
+          <div>
+            <label className="block font-semibold text-[#252525] mb-1">
+              Standard Purchase Rate (₹/QTL)
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="e.g. 2800"
+              value={newIndustryForm.default_purchase_rate}
+              onChange={(e) => setNewIndustryForm({ ...newIndustryForm, default_purchase_rate: e.target.value })}
+              className="w-full p-2 bg-white border border-[#E8E2DC] rounded font-mono focus:ring-1 focus:ring-[#8F1717] focus:outline-none text-xs"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#E8E2DC]">
+            <button
+              type="button"
+              onClick={() => setIsAddIndustryOpen(false)}
+              className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-5 py-2 text-xs font-semibold bg-[#8F1717] hover:bg-[#771212] text-white rounded shadow-xs transition-colors flex items-center gap-1.5"
+            >
+              <Plus size={14} />
+              <span>Add Industry</span>
             </button>
           </div>
         </form>

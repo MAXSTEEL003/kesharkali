@@ -255,7 +255,6 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
     override_allowed: false
   });
 
-  const [syncingWithAppA, setSyncingWithAppA] = useState(false);
   const [isManualRefreshing, setIsManualRefreshing] = useState(false);
 
   const loadData = async (isInitial = false) => {
@@ -306,19 +305,6 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
       showToast(`Refresh error: ${err.message}`, 'error');
     } finally {
       setIsManualRefreshing(false);
-    }
-  };
-
-  const handleSyncWithAppA = async () => {
-    try {
-      setSyncingWithAppA(true);
-      const res = await api.integration.syncAppA();
-      showToast(res.message || `Successfully synchronized with Orders App! ${res.count || 0} orders processed.`, 'success');
-      await loadData(false);
-    } catch (err) {
-      showToast(`Sync with Orders App failed: ${err.message}`, 'error');
-    } finally {
-      setSyncingWithAppA(false);
     }
   };
 
@@ -601,23 +587,12 @@ export default function PurchaseOrders({ onOpenQuickAction, quickActionTrigger }
             <button
               type="button"
               onClick={handleManualRefresh}
-              disabled={loading || isManualRefreshing || syncingWithAppA}
+              disabled={loading || isManualRefreshing}
               className="flex items-center gap-1.5 text-xs font-semibold bg-white hover:bg-gray-50 text-gray-700 px-3 py-1.5 rounded-md border border-[#E8E2DC] shadow-2xs transition-colors cursor-pointer disabled:opacity-60"
               title="Refresh Purchase Orders list"
             >
               <RefreshCw size={13} className={isManualRefreshing ? 'animate-spin text-[#8F1717]' : 'text-gray-500'} />
               <span>Refresh</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleSyncWithAppA}
-              disabled={loading || syncingWithAppA}
-              className="flex items-center gap-1.5 text-xs font-semibold bg-[#FAF9F6] hover:bg-gray-100 text-[#8F1717] px-3 py-1.5 rounded-md border border-[#8F1717]/30 shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
-              title="Sync with Orders Webapp"
-            >
-              <RefreshCw size={13} className={syncingWithAppA ? 'animate-spin' : ''} />
-              <span>{syncingWithAppA ? 'Syncing...' : 'Sync'}</span>
             </button>
 
             <button

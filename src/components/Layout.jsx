@@ -25,9 +25,11 @@ import {
   Scale,
   RefreshCw
 } from 'lucide-react';
-import { getRole, setRole } from '../api';
+import { api, getRole, setRole } from '../api';
+import { useNotification } from '../context/NotificationContext';
 
 export default function Layout({ activePage, setActivePage, children, onOpenQuickAction }) {
+  const { showToast } = useNotification();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [stockMenuOpen, setStockMenuOpen] = useState(false);
   const [loadingMenuOpen, setLoadingMenuOpen] = useState(false);
@@ -35,25 +37,32 @@ export default function Layout({ activePage, setActivePage, children, onOpenQuic
   const [currentRoleState, setCurrentRoleState] = useState(getRole());
   const [logoUrl, setLogoUrl] = useState(() => {
     try {
-      return localStorage.getItem('keshar_kali_logo') || '/logo.svg';
+      const stored = localStorage.getItem('keshar_kali_logo');
+      if (!stored || stored === '/logo.svg') return '/logo.webp';
+      return stored;
     } catch {
-      return '/logo.svg';
+      return '/logo.webp';
     }
   });
   const [time, setTime] = useState(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
-  const handleGlobalRefresh = () => {
-    setIsRefreshing(true);
-    window.dispatchEvent(new CustomEvent('portal-refresh-data'));
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 700);
+  const handleGlobalSync = async () => {
+    try {
+      setIsSyncing(true);
+      const res = await api.integration.syncAppA();
+      showToast(res?.message || `Synchronized successfully with Orders App! ${res?.count || 0} orders processed.`, 'success');
+      window.dispatchEvent(new CustomEvent('portal-refresh-data'));
+    } catch (err) {
+      showToast(`Sync with Orders App failed: ${err.message}`, 'error');
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   useEffect(() => {
     const handleLogoUpdate = (e) => {
-      const url = e.detail?.logoUrl || localStorage.getItem('keshar_kali_logo') || '/logo.svg';
+      const url = e.detail?.logoUrl || localStorage.getItem('keshar_kali_logo') || '/logo.webp';
       setLogoUrl(url);
     };
     window.addEventListener('company-logo-updated', handleLogoUpdate);
@@ -75,11 +84,10 @@ export default function Layout({ activePage, setActivePage, children, onOpenQuic
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'supplier-dashboard', label: 'Supplier Workspace', icon: Factory },
-    { id: 'purchase-orders', label: 'Received POs', icon: Inbox },
+    { id: 'supplier-dashboard', label: 'Orders & Mill Workspace', icon: Inbox },
+    { id: 'master-loading-register', label: 'Master Loading Register', icon: Truck },
     { id: 'industry-sourcing', label: 'Industry Sourcing', icon: Factory },
     { id: 'stock-management', label: 'Stock Management', icon: Warehouse },
-    { id: 'master-loading-register', label: 'Master Loading Register', icon: Truck },
     { id: 'customer-notifications', label: 'WhatsApp Notifications', icon: MessageSquare },
     { 
       id: 'reports', 
@@ -112,21 +120,27 @@ export default function Layout({ activePage, setActivePage, children, onOpenQuic
         className={`${sidebarOpen ? 'w-64' : 'w-20'} my-3 ml-3 h-[calc(100vh-1.5rem)] rounded-3xl transition-all duration-300 glass-sidebar text-white flex flex-col z-30 shrink-0 overflow-hidden`}
       >
         {/* Brand Header */}
-        <div className="h-16 flex items-center justify-between px-3.5 bg-[#8F1717]/85 backdrop-blur-md border-b border-[#C69A3B]/40">
+        <div className="h-16 flex items-center justify-between px-3.5 bg-[#8F1717]/90 backdrop-blur-md border-b border-[#C69A3B]/40">
           {sidebarOpen ? (
             <>
-              <div className="flex items-center gap-2.5 overflow-hidden">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#C69A3B] to-[#b08730] flex items-center justify-center font-bold text-xs text-[#5E1010] shadow-[0_0_12px_rgba(198,154,59,0.5)] shrink-0 font-['Space_Grotesk']">
-                  KK
-                </div>
+              <div 
+                onClick={() => setActivePage('dashboard')}
+                className="flex items-center gap-2.5 overflow-hidden cursor-pointer group"
+                title="Keshar Kali Operations Portal"
+              >
+                <img 
+                  src="/logo.webp" 
+                  alt="Keshar Kali" 
+                  className="h-10 w-auto object-contain shrink-0 drop-shadow group-hover:scale-105 transition-transform" 
+                />
                 <div className="leading-tight truncate">
-                  <span className="font-bold text-sm tracking-wider uppercase font-['Space_Grotesk',sans-serif]">Keshar Kali</span>
-                  <span className="block text-[10px] text-[#C69A3B] font-medium tracking-tight">Precision in Every Grain</span>
+                  <span className="font-bold text-sm tracking-wider uppercase font-['Space_Grotesk',sans-serif] text-white">Keshar Kali</span>
+                  <span className="block text-[10px] text-[#C69A3B] font-semibold tracking-tight">Precision in Every Grain</span>
                 </div>
               </div>
               <button 
                 onClick={() => setSidebarOpen(false)}
-                className="text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors shrink-0"
+                className="text-white/70 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors shrink-0 cursor-pointer"
                 title="Collapse sidebar"
               >
                 <ChevronLeft size={18} />
@@ -136,10 +150,10 @@ export default function Layout({ activePage, setActivePage, children, onOpenQuic
             <div className="w-full flex items-center justify-center">
               <button 
                 onClick={() => setSidebarOpen(true)}
-                className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all shadow-xs group"
-                title="Expand sidebar"
+                className="p-1 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all shadow-xs group cursor-pointer"
+                title="Expand sidebar — Keshar Kali"
               >
-                <ChevronRight size={18} className="group-hover:translate-x-0.5 transition-transform" />
+                <img src="/logo.webp" alt="Keshar Kali" className="h-8 w-auto object-contain group-hover:scale-110 transition-transform" />
               </button>
             </div>
           )}
@@ -151,7 +165,10 @@ export default function Layout({ activePage, setActivePage, children, onOpenQuic
             const Icon = item.icon;
             const hasSub = !!item.subItems;
             const isSubActive = hasSub && item.subItems.some(sub => sub.id === activePage);
-            const isDirectActive = activePage === item.id || (item.id === 'stock-management' && (activePage === 'stock' || activePage === 'stock-management' || activePage.startsWith('stock-')));
+            const isDirectActive = activePage === item.id || 
+              (item.id === 'supplier-dashboard' && (activePage === 'supplier-dashboard' || activePage === 'purchase-orders')) ||
+              (item.id === 'master-loading-register' && (activePage === 'master-loading-register' || activePage === 'pending-loadings' || activePage === 'dispatch-management')) ||
+              (item.id === 'stock-management' && (activePage === 'stock' || activePage === 'stock-management' || activePage.startsWith('stock-')));
             const isMenuOpen = item.id === 'stock' ? stockMenuOpen : item.id === 'loading' ? loadingMenuOpen : item.id === 'reports' ? reportsMenuOpen : false;
 
             return (
@@ -267,19 +284,13 @@ export default function Layout({ activePage, setActivePage, children, onOpenQuic
                 title="Keshar Kali — Dashboard"
               >
                 <img 
-                  src={logoUrl || "/logo.svg"} 
+                  src={logoUrl || "/logo.webp"} 
                   alt="Keshar Kali" 
-                  className="h-7 md:h-8 w-auto max-w-[170px] object-contain drop-shadow-xs"
+                  className="h-9 md:h-10 w-auto max-w-[190px] object-contain drop-shadow-xs"
                   onError={(e) => {
-                    e.target.style.display = 'none';
-                    if (e.target.nextSibling) {
-                      e.target.nextSibling.style.display = 'inline-flex';
-                    }
+                    e.target.src = '/logo.svg';
                   }}
                 />
-                <span className="hidden text-xs uppercase tracking-wider font-bold text-[#8F1717]">
-                  Keshar Kali
-                </span>
               </div>
               <span className="text-gray-300 text-sm font-light">/</span>
               <span className="text-xs font-semibold text-[#252525] capitalize bg-black/5 px-2.5 py-1 rounded-lg">
@@ -295,15 +306,15 @@ export default function Layout({ activePage, setActivePage, children, onOpenQuic
               <span>{time} IST</span>
             </div>
 
-            {/* Quick Refresh Page Trigger */}
+            {/* Global Sync Trigger (Syncs with Orders App & Refreshes Data) */}
             <button
-              onClick={handleGlobalRefresh}
-              disabled={isRefreshing}
-              className="flex items-center gap-1.5 text-xs text-[#555555] hover:text-[#8F1717] bg-white/50 hover:bg-white/80 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-white/60 shadow-xs transition-colors cursor-pointer disabled:opacity-60"
-              title="Refresh Application Data"
+              onClick={handleGlobalSync}
+              disabled={isSyncing}
+              className="flex items-center gap-1.5 text-xs font-semibold text-[#8F1717] hover:text-[#771212] bg-white/70 hover:bg-white backdrop-blur-md px-3 py-1.5 rounded-xl border border-[#C69A3B]/40 shadow-xs transition-all cursor-pointer disabled:opacity-60"
+              title="Sync with Orders App (App A) & Refresh Data"
             >
-              <RefreshCw size={13} className={isRefreshing ? 'animate-spin text-[#8F1717]' : ''} />
-              <span className="hidden md:inline">Refresh</span>
+              <RefreshCw size={13} className={isSyncing ? 'animate-spin text-[#8F1717]' : 'text-[#8F1717]'} />
+              <span>{isSyncing ? 'Syncing...' : 'Sync'}</span>
             </button>
 
             {/* Quick Actions Dropdown / Modal Trigger */}

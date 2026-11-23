@@ -156,11 +156,13 @@ router.post('/inward', (req, res) => {
         }
 
         const mill = get('SELECT name FROM industries WHERE id = ?', [targetFacilityId]);
+        const wh = get('SELECT id FROM warehouses WHERE id = ?', [targetFacilityId]);
+        const safeWarehouseId = wh ? wh.id : null;
 
         const result = recordInward({
             date: date || new Date().toISOString().split('T')[0],
             productId: Number(productId),
-            warehouseId: Number(targetFacilityId),
+            warehouseId: safeWarehouseId,
             quantity: Number(quantity),
             rate: 0, // Purchase inward rate removed as requested
             transactionType: transactionType || 'Purchase Inward',
@@ -176,6 +178,143 @@ router.post('/inward', (req, res) => {
     }
 });
 
+// GET all Stock Outward records (combines Customer Dispatches from Loading Register and manual issues from Stock Ledger)
+router.get('/outwards', (req, res) => {
+    try {
+        const { startDate, endDate, productId, search } = req.query;
+
+        let dispatchSql = `
+            SELECT 
+                d.id,
+                d.dispatch_number as reference_number,
+                d.dispatch_number,
+                d.dispatch_date as date,
+                'Customer Dispatch' as transaction_type,
+                d.dispatch_quantity as quantity,
+                d.dispatch_quantity as outward_quantity,
+                d.vehicle_number,
+                d.driver_phone,
+                d.source_type,
+                COALESCE(w.name, ind.name, 'Mill Facility') as source,
+                COALESCE(pso.buyer_name, c.name, 'Customer') as destination,
+                c.name as customer_name,
+                pso.buyer_name,
+                po.po_number,
+                le.sub_order_no,
+                p.id as product_id,
+                p.name as product_name,
+                p.code as product_code,
+                le.purchase_rate as rate,
+                ROUND(d.dispatch_quantity * COALESCE(le.purchase_rate, 0), 2) as amount,
+                le.loading_number,
+                d.remarks,
+                d.created_at
+            FROM dispatches d
+            JOIN loading_entries le ON d.loading_id = le.id
+            JOIN purchase_orders po ON d.po_id = po.id
+            JOIN customers c ON po.customer_id = c.id
+            JOIN products p ON le.product_id = p.id
+            LEFT JOIN warehouses w ON d.warehouse_id = w.id
+            LEFT JOIN industries ind ON le.industry_id = ind.id
+            LEFT JOIN po_sub_orders pso ON (le.sub_order_id = pso.id OR (le.sub_order_no = pso.sub_order_no AND le.po_id = pso.po_id))
+            WHERE le.loading_status != 'Cancelled'
+        `;
+
+        let ledgerSql = `
+            SELECT 
+                sl.id,
+                sl.transaction_number as reference_number,
+                sl.reference_number as dispatch_number,
+                sl.date,
+                sl.transaction_type,
+                sl.outward_quantity as quantity,
+                sl.outward_quantity,
+                '' as vehicle_number,
+                '' as driver_phone,
+                'Warehouse' as source_type,
+                COALESCE(sl.source, w.name, ind.name, 'Mill Facility') as source,
+                sl.destination,
+                sl.destination as customer_name,
+                '' as buyer_name,
+                '' as po_number,
+                '' as sub_order_no,
+                p.id as product_id,
+                p.name as product_name,
+                p.code as product_code,
+                sl.rate,
+                sl.amount,
+                sl.reference_number as loading_number,
+                sl.remarks,
+                sl.created_at
+            FROM stock_ledger sl
+            JOIN products p ON sl.product_id = p.id
+            LEFT JOIN warehouses w ON sl.warehouse_id = w.id
+            LEFT JOIN industries ind ON sl.warehouse_id = ind.id
+            WHERE sl.outward_quantity > 0 
+              AND sl.reference_number NOT IN (SELECT dispatch_number FROM dispatches WHERE dispatch_number IS NOT NULL)
+        `;
+
+        const params1 = [];
+        const params2 = [];
+        if (startDate) {
+            dispatchSql += ' AND d.dispatch_date >= ?';
+            params1.push(startDate);
+            ledgerSql += ' AND sl.date >= ?';
+            params2.push(startDate);
+        }
+        if (endDate) {
+            dispatchSql += ' AND d.dispatch_date <= ?';
+            params1.push(endDate);
+            ledgerSql += ' AND sl.date <= ?';
+            params2.push(endDate);
+        }
+        if (productId) {
+            dispatchSql += ' AND p.id = ?';
+            params1.push(productId);
+            ledgerSql += ' AND p.id = ?';
+            params2.push(productId);
+        }
+
+        const dispatches = query(dispatchSql, params1);
+        const manualOutwards = query(ledgerSql, params2);
+        let allOutwards = [...dispatches, ...manualOutwards].sort((a, b) => new Date(b.date) - new Date(a.date) || b.id - a.id);
+
+        if (search && search.trim()) {
+            const q = search.trim().toLowerCase();
+            allOutwards = allOutwards.filter(o => 
+                o.dispatch_number?.toLowerCase().includes(q) ||
+                o.po_number?.toLowerCase().includes(q) ||
+                o.sub_order_no?.toLowerCase().includes(q) ||
+                o.customer_name?.toLowerCase().includes(q) ||
+                o.buyer_name?.toLowerCase().includes(q) ||
+                o.destination?.toLowerCase().includes(q) ||
+                o.product_name?.toLowerCase().includes(q) ||
+                o.vehicle_number?.toLowerCase().includes(q) ||
+                o.loading_number?.toLowerCase().includes(q) ||
+                o.remarks?.toLowerCase().includes(q)
+            );
+        }
+
+        const today = new Date().toISOString().split('T')[0];
+        const currentMonth = today.substring(0, 7);
+        const todayQtl = allOutwards.filter(o => o.date === today).reduce((sum, o) => sum + Number(o.quantity || 0), 0);
+        const monthQtl = allOutwards.filter(o => o.date && o.date.startsWith(currentMonth)).reduce((sum, o) => sum + Number(o.quantity || 0), 0);
+        const totalQtl = allOutwards.reduce((sum, o) => sum + Number(o.quantity || 0), 0);
+
+        res.json({
+            outwards: allOutwards,
+            summary: {
+                todayQtl: Number(todayQtl.toFixed(2)),
+                monthQtl: Number(monthQtl.toFixed(2)),
+                totalQtl: Number(totalQtl.toFixed(2)),
+                totalCount: allOutwards.length
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Record Stock Outward (Customer dispatch, internal issue)
 router.post('/outward', (req, res) => {
     try {
@@ -185,17 +324,20 @@ router.post('/outward', (req, res) => {
             return res.status(400).json({ error: 'Product, mill, and quantity are required' });
         }
 
-        const available = getAvailableStock(Number(productId), Number(targetFacilityId));
+        const wh = get('SELECT id FROM warehouses WHERE id = ?', [targetFacilityId]);
+        const safeWarehouseId = wh ? wh.id : null;
+
+        const available = getAvailableStock(Number(productId), safeWarehouseId);
         if (available < Number(quantity)) {
             return res.status(400).json({
-                error: `Insufficient available stock! Available in selected mill: ${available} QTL. Attempted outward: ${quantity} QTL.`
+                error: `Insufficient available stock! Available in selected facility: ${available} QTL. Attempted outward: ${quantity} QTL.`
             });
         }
 
         const result = recordOutward({
             date: date || new Date().toISOString().split('T')[0],
             productId: Number(productId),
-            warehouseId: Number(targetFacilityId),
+            warehouseId: safeWarehouseId,
             quantity: Number(quantity),
             rate: Number(rate || 0),
             transactionType: transactionType || 'Internal Stock Issue',

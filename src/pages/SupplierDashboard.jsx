@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Inbox,
+  Plus,
   CheckCircle2,
   Clock,
   AlertTriangle,
@@ -26,6 +27,7 @@ import {
   X,
   FileCheck,
   ArrowRight,
+  ArrowLeft,
   Warehouse,
   ExternalLink,
   Download,
@@ -68,12 +70,13 @@ function isPOAccepted(po) {
   return current.has(po.po_number);
 }
 
-export default function SupplierDashboard() {
+export default function SupplierDashboard({ onOpenQuickAction, quickActionTrigger, defaultTab }) {
   const [activeTab, setActiveTabState] = useState(() => {
+    if (defaultTab) return defaultTab;
     try {
-      return localStorage.getItem('kk_supplier_tab') || 'overview';
+      return localStorage.getItem('kk_supplier_tab') || 'pos';
     } catch (_) {
-      return 'overview';
+      return 'pos';
     }
   });
 
@@ -83,6 +86,13 @@ export default function SupplierDashboard() {
       localStorage.setItem('kk_supplier_tab', tab);
     } catch (_) {}
   };
+
+  useEffect(() => {
+    if (defaultTab) {
+      setActiveTab(defaultTab);
+    }
+  }, [defaultTab]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -106,6 +116,7 @@ export default function SupplierDashboard() {
 
   // Core Data
   const [purchaseOrders, setPurchaseOrders] = useState([]);
+  const [customers, setCustomers] = useState([]);
   const [loadings, setLoadings] = useState([]);
   const [dispatches, setDispatches] = useState([]);
   const [documents, setDocuments] = useState([]);
@@ -121,10 +132,45 @@ export default function SupplierDashboard() {
   const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
   const [isLedgerModalOpen, setIsLedgerModalOpen] = useState(false);
   const [isLoadingModalOpen, setIsLoadingModalOpen] = useState(false);
+  const [loadingModalStep, setLoadingModalStep] = useState('configure'); // 'configure' | 'review'
+  const [isPlacingLoading, setIsPlacingLoading] = useState(false);
   const [isDocUploadModalOpen, setIsDocUploadModalOpen] = useState(false);
   const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
 
+  // Receive Customer PO & External Industry Sourcing Modals
+  const [isReceiveOpen, setIsReceiveOpen] = useState(false);
+  const [isAllocModalOpen, setIsAllocModalOpen] = useState(false);
+  const [allocatingPO, setAllocatingPO] = useState(null);
+
+  useEffect(() => {
+    if (quickActionTrigger?.action === 'po') {
+      setActiveTab('pos');
+      setIsReceiveOpen(true);
+    }
+  }, [quickActionTrigger]);
+
   // Forms
+  const [receiveForm, setReceiveForm] = useState({
+    po_number: '',
+    customer_id: '',
+    product_id: '',
+    po_date: new Date().toISOString().split('T')[0],
+    ordered_quantity: '',
+    customer_selling_rate: '',
+    delivery_location: '',
+    expected_delivery_date: '',
+    notes: ''
+  });
+
+  const [allocForm, setAllocForm] = useState({
+    industry_id: '',
+    allocated_quantity: '',
+    purchase_rate: '',
+    expected_loading_date: '',
+    notes: '',
+    override_allowed: false
+  });
+
   const [queryForm, setQueryForm] = useState({ queryText: '' });
   const [rescheduleForm, setRescheduleForm] = useState({ revisedDate: '', reason: '' });
   const [poLedgerEvents, setPoLedgerEvents] = useState([]);
@@ -163,9 +209,9 @@ export default function SupplierDashboard() {
   // Filters & Sorting
   const [poSearch, setPoSearch] = useState('');
   const [poStatusFilter, setPoStatusFilter] = useState('ALL');
+  const [buyerFilter, setBuyerFilter] = useState('');
   const [poSortOrder, setPoSortOrder] = useState('new-to-old');
   const [pendingFilter, setPendingFilter] = useState('all'); // 'all' | 'pending-qtl' | 'fully-loaded'
-  const [syncingWithAppA, setSyncingWithAppA] = useState(false);
   const [isManualRefreshing, setIsManualRefreshing] = useState(false);
   const [expandedPOs, setExpandedPOs] = useState({});
 
@@ -318,14 +364,15 @@ export default function SupplierDashboard() {
       if (isInitial) setLoading(true);
       setError(null);
 
-      const [poRes, loadRes, dspRes, docRes, stockRes, prodRes, indRes] = await Promise.all([
+      const [poRes, loadRes, dspRes, docRes, stockRes, prodRes, indRes, custRes] = await Promise.all([
         api.purchaseOrders.getAll().catch(() => ({ purchaseOrders: [] })),
         api.loadingRegister.getAll().catch(() => ({ loadingEntries: [] })),
         api.dispatches.getAll().catch(() => ({ dispatches: [] })),
         api.supplier.getDocuments().catch(() => ({ documents: [] })),
         api.stock.getSummary().catch(() => ({ summary: [] })),
         api.products.getAll().catch(() => ({ products: [] })),
-        api.industries.getAll().catch(() => ({ industries: [] }))
+        api.industries.getAll().catch(() => ({ industries: [] })),
+        api.customers.getAll().catch(() => ({ customers: [] }))
       ]);
 
       const localAccepted = getLocalAcceptedPOs();
@@ -345,6 +392,7 @@ export default function SupplierDashboard() {
         markPOsAcceptedInStorage(serverAcceptedNumbers);
       }
       setPurchaseOrders(reconciledPOs);
+      setCustomers(custRes.customers || []);
       setLoadings(loadRes.loadingEntries || []);
       setDispatches(dspRes.dispatches || []);
       setDocuments(docRes.documents || []);
@@ -370,16 +418,69 @@ export default function SupplierDashboard() {
     }
   };
 
-  const handleSyncWithAppA = async () => {
+  const handleReceivePO = async (e) => {
+    e.preventDefault();
     try {
-      setSyncingWithAppA(true);
-      const res = await api.integration.syncAppA();
-      await fetchSupplierData(false);
-      showToast(`Successfully synchronized with App A! ${res.count || 0} active placed orders checked.`, 'success');
+      await api.purchaseOrders.create(receiveForm);
+      setIsReceiveOpen(false);
+      setReceiveForm({
+        po_number: '',
+        customer_id: '',
+        product_id: '',
+        po_date: new Date().toISOString().split('T')[0],
+        ordered_quantity: '',
+        customer_selling_rate: '',
+        delivery_location: '',
+        expected_delivery_date: '',
+        notes: ''
+      });
+      showToast('Purchase Order received and registered successfully!', 'success');
+      fetchSupplierData(false);
     } catch (err) {
-      showToast(`Sync with App A: ${err.message}`, 'error');
-    } finally {
-      setSyncingWithAppA(false);
+      showToast(`Failed to record received PO: ${err.message}`, 'error');
+    }
+  };
+
+  const handleOpenAllocModal = (po) => {
+    setAllocatingPO(po);
+    setAllocForm({
+      industry_id: '',
+      allocated_quantity: po ? (po.remaining_quantity || po.ordered_quantity || '') : '',
+      purchase_rate: po?.supplier_rate || po?.customer_selling_rate || '',
+      expected_loading_date: po?.expected_delivery_date || '',
+      notes: '',
+      override_allowed: false
+    });
+    setIsAllocModalOpen(true);
+  };
+
+  const handleAddAllocation = async (e) => {
+    e.preventDefault();
+    if (!allocatingPO) return;
+    try {
+      await api.allocations.create({
+        po_id: allocatingPO.id,
+        industry_id: allocForm.industry_id,
+        product_id: allocatingPO.product_id,
+        allocated_quantity: allocForm.allocated_quantity,
+        purchase_rate: allocForm.purchase_rate,
+        expected_loading_date: allocForm.expected_loading_date,
+        notes: allocForm.notes,
+        override_allowed: allocForm.override_allowed
+      });
+      setIsAllocModalOpen(false);
+      setAllocForm({
+        industry_id: '',
+        allocated_quantity: '',
+        purchase_rate: '',
+        expected_loading_date: '',
+        notes: '',
+        override_allowed: false
+      });
+      showToast('Mill allocation recorded successfully!', 'success');
+      fetchSupplierData(false);
+    } catch (err) {
+      showToast(err.message, 'error');
     }
   };
 
@@ -460,12 +561,13 @@ export default function SupplierDashboard() {
 
   // Filtered & Chronologically Sorted POs
   const hasActivePOFilters = Boolean(
-    poSearch.trim() || poStatusFilter !== 'ALL' || pendingFilter !== 'all' || poSortOrder !== 'new-to-old'
+    poSearch.trim() || poStatusFilter !== 'ALL' || buyerFilter || pendingFilter !== 'all' || poSortOrder !== 'new-to-old'
   );
 
   const handleClearPOFilters = () => {
     setPoSearch('');
     setPoStatusFilter('ALL');
+    setBuyerFilter('');
     setPendingFilter('all');
     setPoSortOrder('new-to-old');
   };
@@ -475,6 +577,15 @@ export default function SupplierDashboard() {
       const remaining = Number(po.remaining_quantity ?? (po.ordered_quantity - (po.loaded_quantity || 0)));
       if (pendingFilter === 'pending-qtl' && remaining <= 0) return false;
       if (pendingFilter === 'fully-loaded' && remaining > 0) return false;
+
+      if (buyerFilter) {
+        const matchesMainCustomer = String(po.customer_id) === String(buyerFilter);
+        const selectedCustomer = customers.find(c => String(c.id) === String(buyerFilter));
+        const matchesSubCustomer = Boolean(selectedCustomer && po.sub_orders?.some(s => 
+          (s.buyer_name || s.buyerName) === selectedCustomer.name
+        ));
+        if (!matchesMainCustomer && !matchesSubCustomer) return false;
+      }
 
       const q = poSearch.trim().toLowerCase();
       const matchSearch = !q || 
@@ -521,7 +632,7 @@ export default function SupplierDashboard() {
         return idB - idA;
       }
     });
-  }, [purchaseOrders, poSearch, poStatusFilter, poSortOrder, pendingFilter]);
+  }, [purchaseOrders, poSearch, poStatusFilter, buyerFilter, poSortOrder, pendingFilter, customers]);
 
   // Tab 4 Filtered Loadings
   const hasActiveLoadingFilters = Boolean(
@@ -700,6 +811,7 @@ export default function SupplierDashboard() {
       loadingQuantity: remQty > 0 ? remQty.toFixed(2) : String(po.ordered_quantity || ''),
       remarks: `Mill loading for PO ${po.po_number}`
     });
+    setLoadingModalStep('configure');
     setIsLoadingModalOpen(true);
   };
 
@@ -717,14 +829,20 @@ export default function SupplierDashboard() {
       loadingQuantity: remQty > 0 ? remQty.toFixed(2) : ordQty.toFixed(2),
       remarks: `Loading for Sub-Order ${sub.sub_order_no || sub.subOrderNo} (${sub.buyer_name || sub.buyerName})`
     });
+    setLoadingModalStep('configure');
     setIsLoadingModalOpen(true);
   };
 
-  const handleCreateLoading = async (e) => {
-    e.preventDefault();
+  const handleProceedToLoadingReview = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
     const po = purchaseOrders.find(p => String(p.id) === String(loadingForm.poId));
     if (!po) {
       showToast('Please select a valid Purchase Order', 'warning');
+      return;
+    }
+
+    if (!loadingForm.vehicleNumber.trim()) {
+      showToast('Please enter a valid Vehicle Registration Number', 'warning');
       return;
     }
 
@@ -758,7 +876,25 @@ export default function SupplierDashboard() {
       }
     }
 
+    setLoadingModalStep('review');
+  };
+
+  const handleCreateLoading = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const po = purchaseOrders.find(p => String(p.id) === String(loadingForm.poId));
+    if (!po) {
+      showToast('Please select a valid Purchase Order', 'warning');
+      return;
+    }
+
+    const loadQty = Number(loadingForm.loadingQuantity);
+    if (!loadQty || loadQty <= 0) {
+      showToast('Please enter a valid loading quantity', 'warning');
+      return;
+    }
+
     try {
+      setIsPlacingLoading(true);
       const defaultInd = industries.find(i => i.is_default === 1) || industries[0];
       await api.loadingRegister.create({
         po_id: po.id,
@@ -776,6 +912,7 @@ export default function SupplierDashboard() {
       });
 
       setIsLoadingModalOpen(false);
+      setLoadingModalStep('configure');
       setLoadingForm({
         poId: '',
         subOrderNo: '',
@@ -787,9 +924,11 @@ export default function SupplierDashboard() {
         remarks: ''
       });
       setRefreshKey(k => k + 1);
-      showToast('Loading entry recorded successfully and synced with Orders Portal!', 'success');
+      showToast(`Loading placed successfully for vehicle ${loadingForm.vehicleNumber.toUpperCase().trim()} (${loadQty} QTL)! Synced with Stock Outward.`, 'success');
     } catch (err) {
       showToast(`Error creating loading: ${err.message}`, 'error');
+    } finally {
+      setIsPlacingLoading(false);
     }
   };
 
@@ -1051,8 +1190,18 @@ export default function SupplierDashboard() {
 
           <button
             type="button"
+            onClick={() => setIsReceiveOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 transition-all shadow-2xs cursor-pointer"
+            title="Register a newly received customer purchase order"
+          >
+            <Plus size={14} className="text-[#8F1717]" />
+            <span>Receive PO</span>
+          </button>
+
+          <button
+            type="button"
             onClick={handleManualRefresh}
-            disabled={loading || isManualRefreshing || syncingWithAppA}
+            disabled={loading || isManualRefreshing}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 transition-all shadow-2xs cursor-pointer disabled:opacity-60"
             title="Refresh dashboard data"
           >
@@ -1061,17 +1210,10 @@ export default function SupplierDashboard() {
           </button>
 
           <button
-            onClick={handleSyncWithAppA}
-            disabled={loading || syncingWithAppA}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-[#FAF9F6] hover:bg-gray-100 text-[#8F1717] border border-[#8F1717]/20 transition-all shadow-2xs cursor-pointer disabled:opacity-50"
-            title="Sync with Orders App"
-          >
-            <RefreshCw size={13} className={syncingWithAppA ? 'animate-spin' : ''} />
-            <span>{syncingWithAppA ? 'Syncing...' : 'Sync'}</span>
-          </button>
-
-          <button
-            onClick={() => setIsLoadingModalOpen(true)}
+            onClick={() => {
+              setLoadingModalStep('configure');
+              setIsLoadingModalOpen(true);
+            }}
             className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-gradient-to-r from-[#8F1717] to-[#771212] text-white shadow-xs hover:shadow-sm transition-all cursor-pointer"
           >
             <Truck size={14} className="text-[#C69A3B]" />
@@ -1091,8 +1233,8 @@ export default function SupplierDashboard() {
       {/* Navigation Tabs */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-black/5">
         {[
-          { id: 'overview', label: 'Overview', icon: Layers },
           { id: 'pos', label: 'Purchase Orders', icon: Inbox, count: metrics.pendingCount },
+          { id: 'overview', label: 'Overview', icon: Layers },
           { id: 'stock', label: 'Stock Ledger', icon: Warehouse },
           { id: 'loading', label: 'Loading Register', icon: Truck },
           { id: 'documents', label: 'Bills & Documents', icon: FileText, count: documents.length }
@@ -1333,6 +1475,20 @@ export default function SupplierDashboard() {
 
             <div className="flex flex-wrap items-center gap-2.5">
               <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-gray-400 font-medium">Buyer:</span>
+                <select
+                  value={buyerFilter}
+                  onChange={e => setBuyerFilter(e.target.value)}
+                  className="text-xs bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 font-medium focus:outline-none cursor-pointer max-w-[140px] truncate"
+                >
+                  <option value="">All Buyers</option>
+                  {customers.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1.5">
                 <span className="text-[11px] text-gray-400 font-medium">Status:</span>
                 <select
                   value={poStatusFilter}
@@ -1380,6 +1536,16 @@ export default function SupplierDashboard() {
                   </button>
                 )}
               </div>
+
+              <button
+                type="button"
+                onClick={() => setIsReceiveOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-[#8F1717] hover:bg-[#771212] text-white shadow-2xs transition-all cursor-pointer"
+                title="Register a newly received customer purchase order"
+              >
+                <Plus size={13} />
+                <span>Receive PO</span>
+              </button>
             </div>
           </div>
 
@@ -1724,6 +1890,13 @@ export default function SupplierDashboard() {
                                 </button>
                               )}
                               <button
+                                onClick={() => handleOpenAllocModal(po)}
+                                className="p-1.5 hover:bg-amber-50 text-amber-700 rounded-lg cursor-pointer"
+                                title="Add External Industry Sourcing Allocation"
+                              >
+                                <Factory size={15} />
+                              </button>
+                              <button
                                 onClick={() => handleOpenPODetail(po)}
                                 className="p-1.5 hover:bg-gray-100 text-gray-600 rounded-lg cursor-pointer"
                                 title="Open Full PO Detail Drawer"
@@ -1959,8 +2132,11 @@ export default function SupplierDashboard() {
               </p>
             </div>
             <button
-              onClick={() => setIsLoadingModalOpen(true)}
-              className="px-3.5 py-1.5 bg-[#8F1717] text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-xs"
+              onClick={() => {
+                setLoadingModalStep('configure');
+                setIsLoadingModalOpen(true);
+              }}
+              className="px-3.5 py-1.5 bg-[#8F1717] text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-xs cursor-pointer"
             >
               <Truck size={14} className="text-[#C69A3B]" />
               <span>Record Vehicle Loading</span>
@@ -2479,164 +2655,336 @@ export default function SupplierDashboard() {
       <Modal
         isOpen={isLoadingModalOpen}
         onClose={() => setIsLoadingModalOpen(false)}
-        title="Record Vehicle Loading Entry"
-        subtitle="Log grain loading for a purchase order (overload prevention enforced)"
+        title={loadingModalStep === 'review' ? 'Review & Place Vehicle Loading' : 'Record Vehicle Loading Entry'}
+        subtitle={loadingModalStep === 'review' ? 'Step 2 of 2: Confirm truck dispatch and consignee quantity before placement' : 'Step 1 of 2: Log grain loading for a purchase order (overload prevention enforced)'}
         maxWidth="max-w-lg"
       >
-        <form onSubmit={handleCreateLoading} className="space-y-3.5 text-xs">
-          <div>
-            <label className="block font-semibold text-gray-700 mb-1">Target Purchase Order *</label>
-            <select
-              required
-              value={loadingForm.poId}
-              onChange={e => {
-                const poId = e.target.value;
-                const po = purchaseOrders.find(p => String(p.id) === String(poId));
-                setLoadingForm(prev => ({
-                  ...prev,
-                  poId,
-                  subOrderNo: '',
-                  loadingQuantity: po ? (po.remaining_quantity || po.ordered_quantity || '') : '',
-                  loadingLocation: po?.delivery_location || 'Mill Facility'
-                }));
-              }}
-              className="w-full p-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-[#8F1717] focus:outline-none bg-white font-mono"
-            >
-              <option value="">Select PO...</option>
-              {purchaseOrders.filter(p => p.status !== 'Completed' && p.status !== 'Cancelled').map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.po_number} — {p.product_name} ({p.ordered_quantity} QTL)
-                </option>
-              ))}
-            </select>
-          </div>
+        {loadingModalStep === 'review' ? (() => {
+          const currentPo = purchaseOrders.find(p => String(p.id) === String(loadingForm.poId));
+          const sub = currentPo?.sub_orders?.find(s => (s.sub_order_no || s.subOrderNo) === loadingForm.subOrderNo);
+          const loadQty = Number(loadingForm.loadingQuantity) || 0;
 
-          {/* Sub-Order Selector */}
-          {(() => {
-            const currentPo = purchaseOrders.find(p => String(p.id) === String(loadingForm.poId));
-            const subList = currentPo?.sub_orders || [];
-            if (subList.length === 0) return null;
-            return (
-              <div className="bg-blue-50/70 p-3 rounded-xl border border-blue-200">
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block font-semibold text-blue-900">
-                    Select Sub-Order to Load (Supplier Choice)
-                  </label>
-                  <span className="text-[10px] text-blue-700 font-mono">
-                    Partial loading allowed
-                  </span>
+          return (
+            <div className="space-y-4 text-xs">
+              {/* Step Progress Pill Indicator */}
+              <div className="flex items-center justify-between bg-[#FAF9F6] p-2.5 rounded-lg border border-[#E8E2DC]">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setLoadingModalStep('configure')}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-white border border-[#E8E2DC] text-gray-700 hover:border-gray-400 font-semibold text-[11px] cursor-pointer"
+                  >
+                    <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold flex items-center justify-center">✓</span>
+                    <span>1. Loading Details</span>
+                  </button>
+                  <span className="text-gray-400">→</span>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#8F1717] text-white font-bold text-[11px] shadow-xs">
+                    <span className="w-4 h-4 rounded-full bg-white/20 text-white text-[10px] font-bold flex items-center justify-center">2</span>
+                    <span>2. Review & Place</span>
+                  </div>
                 </div>
-                <select
-                  value={loadingForm.subOrderNo}
-                  onChange={e => {
-                    const subNo = e.target.value;
-                    const sub = subList.find(s => (s.sub_order_no || s.subOrderNo) === subNo);
-                    const rem = sub ? Math.max(0, Number(sub.ordered_quantity || sub.orderedQuantity || 0) - Number(sub.loaded_quantity || sub.loadedQuantity || 0)) : (currentPo?.remaining_quantity || currentPo?.ordered_quantity || '');
-                    setLoadingForm(prev => ({
-                      ...prev,
-                      subOrderNo: subNo,
-                      loadingQuantity: rem ? Number(rem).toFixed(2) : prev.loadingQuantity,
-                      loadingLocation: sub?.delivery_location || prev.loadingLocation
-                    }));
-                  }}
-                  className="w-full p-2.5 border border-blue-300 rounded-xl bg-white font-mono text-xs focus:ring-1 focus:ring-blue-600 focus:outline-none"
-                >
-                  <option value="">Entire PO (All Consignees / Unspecified)</option>
-                  {subList.map((sub, sIdx) => {
-                    const subNo = sub.sub_order_no || sub.subOrderNo || `Sub #${sIdx + 1}`;
-                    const ordQty = Number(sub.ordered_quantity || sub.orderedQuantity || 0);
-                    const ldQty = Number(sub.loaded_quantity || sub.loadedQuantity || 0);
-                    const remQty = Math.max(0, ordQty - ldQty);
-                    return (
-                      <option key={subNo} value={subNo}>
-                        {subNo} — {sub.buyer_name || sub.buyerName} | Ordered: {ordQty} QTL | Loaded: {ldQty} QTL | Pending: {remQty.toFixed(2)} QTL
-                      </option>
-                    );
-                  })}
-                </select>
-                <p className="text-[11px] text-blue-700 mt-1.5">
-                  💡 Supplier can load partial quantity now (e.g. 10 QTL) and load remaining balance in a later vehicle entry.
-                </p>
+                <div className="text-[11px] text-gray-500 font-mono">
+                  Verification
+                </div>
               </div>
-            );
-          })()}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block font-semibold text-gray-700 mb-1">Loading Date *</label>
-              <input
-                type="date"
-                required
-                value={loadingForm.loadingDate}
-                onChange={e => setLoadingForm(prev => ({ ...prev, loadingDate: e.target.value }))}
-                className="w-full p-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="block font-semibold text-gray-700 mb-1">Quantity Loaded (QTL) *</label>
-              <input
-                type="number"
-                step="0.01"
-                required
-                placeholder="e.g. 35.5"
-                value={loadingForm.loadingQuantity}
-                onChange={e => setLoadingForm(prev => ({ ...prev, loadingQuantity: e.target.value }))}
-                className="w-full p-2.5 border border-gray-200 rounded-xl font-mono focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
-              />
-            </div>
-          </div>
+              {/* Review Manifest Card */}
+              <div className="bg-gradient-to-r from-red-50/70 via-amber-50/40 to-white p-3.5 rounded-xl border border-red-100 space-y-3">
+                <div className="flex items-center justify-between border-b border-red-100 pb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-[#8F1717] text-white rounded-lg shadow-xs">
+                      <Truck size={18} />
+                    </div>
+                    <div>
+                      <span className="text-sm font-bold font-mono tracking-wider px-2 py-0.5 rounded bg-white border border-red-200 text-[#8F1717] shadow-2xs">
+                        {loadingForm.vehicleNumber.toUpperCase().trim()}
+                      </span>
+                      <p className="text-[11px] text-gray-600 mt-0.5">
+                        Date: <strong className="font-semibold text-gray-900">{formatDateDMY(loadingForm.loadingDate)}</strong>
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] uppercase font-bold text-gray-400 block">Loading Weight</span>
+                    <span className="text-base font-bold font-mono text-[#8F1717]">
+                      {loadQty.toFixed(2)} QTL
+                    </span>
+                    <span className="text-[10px] text-gray-500 block">
+                      ~{Math.round(loadQty * 2)} Bags (50kg)
+                    </span>
+                  </div>
+                </div>
 
-          <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between py-1 border-b border-gray-100">
+                    <span className="text-gray-500">Lead PO Number:</span>
+                    <span className="font-mono font-bold text-gray-900">{currentPo?.po_number || '—'}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-gray-100">
+                    <span className="text-gray-500">Sub-Order # / Consignee:</span>
+                    <span className="font-semibold text-blue-700">
+                      {loadingForm.subOrderNo ? (
+                        <span>{loadingForm.subOrderNo} ({sub?.buyer_name || sub?.buyerName || currentPo?.customer_name})</span>
+                      ) : (
+                        <span>Entire PO ({currentPo?.customer_name})</span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-gray-100">
+                    <span className="text-gray-500">Rice Variety:</span>
+                    <span className="font-semibold text-gray-800">{currentPo?.product_name || '—'}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-gray-100">
+                    <span className="text-gray-500">Delivery Destination:</span>
+                    <span className="text-gray-700">{sub?.delivery_location || currentPo?.delivery_location || 'Commercial Market'}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-gray-100">
+                    <span className="text-gray-500">Loading Facility:</span>
+                    <span className="text-gray-700">{loadingForm.loadingLocation || 'Mill Facility'}</span>
+                  </div>
+                  {loadingForm.driverPhone && (
+                    <div className="flex justify-between py-1 border-b border-gray-100">
+                      <span className="text-gray-500">Driver Phone:</span>
+                      <span className="font-mono text-gray-800">{loadingForm.driverPhone}</span>
+                    </div>
+                  )}
+                  {loadingForm.remarks && (
+                    <div className="pt-1">
+                      <span className="text-gray-500 block mb-0.5">Remarks / Inspection:</span>
+                      <span className="font-mono text-gray-800 bg-white p-1.5 rounded border border-[#E8E2DC] block">
+                        {loadingForm.remarks}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Stock Outward Auto-Sync Notice */}
+              <div className="bg-emerald-50/80 p-2.5 rounded-lg border border-emerald-200 text-emerald-900 flex items-start gap-2">
+                <CheckCircle2 size={15} className="text-emerald-700 shrink-0 mt-0.5" />
+                <div className="text-[11px] leading-tight">
+                  <strong>Stock Outward Sync:</strong> Placing this loading automatically registers an outward dispatch in the stock ledger and updates the PO status.
+                </div>
+              </div>
+
+              {/* Actions: Edit vs Place Loading */}
+              <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setLoadingModalStep('configure')}
+                  className="px-3.5 py-1.5 border border-gray-200 rounded-xl font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <ArrowLeft size={13} />
+                  <span>Edit Details</span>
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsLoadingModalOpen(false)}
+                    className="px-3.5 py-1.5 border border-gray-200 rounded-xl font-semibold text-gray-600 hover:bg-gray-50 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isPlacingLoading}
+                    onClick={handleCreateLoading}
+                    className="px-4 py-1.5 bg-[#8F1717] hover:bg-[#771212] text-white font-semibold rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    {isPlacingLoading ? (
+                      <span>Placing Loading...</span>
+                    ) : (
+                      <>
+                        <Check size={14} />
+                        <span>Place Loading Entry ({loadQty.toFixed(2)} QTL)</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })() : (
+          <form onSubmit={handleProceedToLoadingReview} className="space-y-3.5 text-xs">
+            {/* Step Progress Pill Indicator */}
+            <div className="flex items-center justify-between bg-[#FAF9F6] p-2.5 rounded-lg border border-[#E8E2DC]">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#8F1717] text-white font-bold text-[11px] shadow-xs">
+                  <span className="w-4 h-4 rounded-full bg-white/20 text-white text-[10px] font-bold flex items-center justify-center">1</span>
+                  <span>1. Loading Details</span>
+                </div>
+                <span className="text-gray-400">→</span>
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-white border border-[#E8E2DC] text-gray-400 font-medium text-[11px]">
+                  <span className="w-4 h-4 rounded-full bg-gray-100 text-gray-500 text-[10px] font-bold flex items-center justify-center">2</span>
+                  <span>2. Review & Place</span>
+                </div>
+              </div>
+              <div className="text-[11px] text-gray-500 font-mono">
+                Step 1 of 2
+              </div>
+            </div>
+
             <div>
-              <label className="block font-semibold text-gray-700 mb-1">Vehicle Registration No *</label>
+              <label className="block font-semibold text-gray-700 mb-1">Target Purchase Order *</label>
+              <select
+                required
+                value={loadingForm.poId}
+                onChange={e => {
+                  const poId = e.target.value;
+                  const po = purchaseOrders.find(p => String(p.id) === String(poId));
+                  setLoadingForm(prev => ({
+                    ...prev,
+                    poId,
+                    subOrderNo: '',
+                    loadingQuantity: po ? (po.remaining_quantity || po.ordered_quantity || '') : '',
+                    loadingLocation: po?.delivery_location || 'Mill Facility'
+                  }));
+                }}
+                className="w-full p-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-[#8F1717] focus:outline-none bg-white font-mono"
+              >
+                <option value="">Select PO...</option>
+                {purchaseOrders.filter(p => p.status !== 'Completed' && p.status !== 'Cancelled').map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.po_number} — {p.product_name} ({p.ordered_quantity} QTL)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Sub-Order Selector */}
+            {(() => {
+              const currentPo = purchaseOrders.find(p => String(p.id) === String(loadingForm.poId));
+              const subList = currentPo?.sub_orders || [];
+              if (subList.length === 0) return null;
+              return (
+                <div className="bg-blue-50/70 p-3 rounded-xl border border-blue-200">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-semibold text-blue-900">
+                      Select Sub-Order to Load (Supplier Choice)
+                    </label>
+                    <span className="text-[10px] text-blue-700 font-mono">
+                      Partial loading allowed
+                    </span>
+                  </div>
+                  <select
+                    value={loadingForm.subOrderNo}
+                    onChange={e => {
+                      const subNo = e.target.value;
+                      const sub = subList.find(s => (s.sub_order_no || s.subOrderNo) === subNo);
+                      const rem = sub ? Math.max(0, Number(sub.ordered_quantity || sub.orderedQuantity || 0) - Number(sub.loaded_quantity || sub.loadedQuantity || 0)) : (currentPo?.remaining_quantity || currentPo?.ordered_quantity || '');
+                      setLoadingForm(prev => ({
+                        ...prev,
+                        subOrderNo: subNo,
+                        loadingQuantity: rem ? Number(rem).toFixed(2) : prev.loadingQuantity,
+                        loadingLocation: sub?.delivery_location || prev.loadingLocation
+                      }));
+                    }}
+                    className="w-full p-2.5 border border-blue-300 rounded-xl bg-white font-mono text-xs focus:ring-1 focus:ring-blue-600 focus:outline-none"
+                  >
+                    <option value="">Entire PO (All Consignees / Unspecified)</option>
+                    {subList.map((sub, sIdx) => {
+                      const subNo = sub.sub_order_no || sub.subOrderNo || `Sub #${sIdx + 1}`;
+                      const ordQty = Number(sub.ordered_quantity || sub.orderedQuantity || 0);
+                      const ldQty = Number(sub.loaded_quantity || sub.loadedQuantity || 0);
+                      const remQty = Math.max(0, ordQty - ldQty);
+                      return (
+                        <option key={subNo} value={subNo}>
+                          {subNo} — {sub.buyer_name || sub.buyerName} | Ordered: {ordQty} QTL | Loaded: {ldQty} QTL | Pending: {remQty.toFixed(2)} QTL
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <p className="text-[11px] text-blue-700 mt-1.5">
+                    💡 Supplier can load partial quantity now (e.g. 10 QTL) and load remaining balance in a later vehicle entry.
+                  </p>
+                </div>
+              );
+            })()}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block font-semibold text-gray-700 mb-1">Loading Date *</label>
+                <input
+                  type="date"
+                  required
+                  value={loadingForm.loadingDate}
+                  onChange={e => setLoadingForm(prev => ({ ...prev, loadingDate: e.target.value }))}
+                  className="w-full p-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-gray-700 mb-1">Quantity Loaded (QTL) *</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  placeholder="e.g. 35.5"
+                  value={loadingForm.loadingQuantity}
+                  onChange={e => setLoadingForm(prev => ({ ...prev, loadingQuantity: e.target.value }))}
+                  className="w-full p-2.5 border border-gray-200 rounded-xl font-mono focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block font-semibold text-gray-700 mb-1">Vehicle Registration No *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. MH-31-CB-8821"
+                  value={loadingForm.vehicleNumber}
+                  onChange={e => setLoadingForm(prev => ({ ...prev, vehicleNumber: e.target.value }))}
+                  className="w-full p-2.5 border border-gray-200 rounded-xl font-mono uppercase focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-gray-700 mb-1">Driver Phone Number</label>
+                <input
+                  type="tel"
+                  placeholder="e.g. +91 98220 11223"
+                  value={loadingForm.driverPhone}
+                  onChange={e => setLoadingForm(prev => ({ ...prev, driverPhone: e.target.value }))}
+                  className="w-full p-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-gray-700 mb-1">Loading Facility / Yard</label>
               <input
                 type="text"
-                required
-                placeholder="e.g. MH-31-CB-8821"
-                value={loadingForm.vehicleNumber}
-                onChange={e => setLoadingForm(prev => ({ ...prev, vehicleNumber: e.target.value }))}
-                className="w-full p-2.5 border border-gray-200 rounded-xl font-mono uppercase focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="block font-semibold text-gray-700 mb-1">Driver Phone Number</label>
-              <input
-                type="tel"
-                placeholder="e.g. +91 98220 11223"
-                value={loadingForm.driverPhone}
-                onChange={e => setLoadingForm(prev => ({ ...prev, driverPhone: e.target.value }))}
+                placeholder="e.g. Balaji Modern Mill Yard No. 2"
+                value={loadingForm.loadingLocation}
+                onChange={e => setLoadingForm(prev => ({ ...prev, loadingLocation: e.target.value }))}
                 className="w-full p-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
               />
             </div>
-          </div>
 
-          <div>
-            <label className="block font-semibold text-gray-700 mb-1">Loading Facility / Yard</label>
-            <input
-              type="text"
-              placeholder="e.g. Balaji Modern Mill Yard No. 2"
-              value={loadingForm.loadingLocation}
-              onChange={e => setLoadingForm(prev => ({ ...prev, loadingLocation: e.target.value }))}
-              className="w-full p-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={() => setIsLoadingModalOpen(false)}
-              className="px-3 py-1.5 border border-gray-200 rounded-xl font-semibold text-gray-600"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-1.5 bg-[#8F1717] text-white font-semibold rounded-xl shadow-xs"
-            >
-              Record & Sync Loading
-            </button>
-          </div>
-        </form>
+            <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => setIsLoadingModalOpen(false)}
+                className="px-3.5 py-1.5 border border-gray-200 rounded-xl font-semibold text-gray-600 hover:bg-gray-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!loadingForm.poId || !loadingForm.vehicleNumber || !loadingForm.loadingQuantity}
+                className={`px-4 py-1.5 font-semibold rounded-xl shadow-xs flex items-center gap-1.5 transition-colors ${
+                  loadingForm.poId && loadingForm.vehicleNumber && loadingForm.loadingQuantity
+                    ? 'bg-[#8F1717] hover:bg-[#771212] text-white cursor-pointer'
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                <span>Review Loading ({loadingForm.loadingQuantity || '0'} QTL)</span>
+                <ArrowRight size={13} />
+              </button>
+            </div>
+          </form>
+        )}
       </Modal>
 
       {/* MODAL 6: UPLOAD BILL / SLIP */}
@@ -3008,6 +3356,248 @@ export default function SupplierDashboard() {
           </div>
         </Modal>
       )}
+
+      {/* MODAL: RECEIVE CUSTOMER PO */}
+      <Modal
+        isOpen={isReceiveOpen}
+        onClose={() => setIsReceiveOpen(false)}
+        title="Record Received Customer PO"
+        subtitle="Register customer purchase orders received for fulfillment"
+      >
+        <form onSubmit={handleReceivePO} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div>
+              <label className="block font-semibold text-[#252525] mb-1">Customer / Buyer *</label>
+              <select
+                required
+                value={receiveForm.customer_id}
+                onChange={(e) => setReceiveForm({ ...receiveForm, customer_id: e.target.value })}
+                className="w-full p-2 bg-white border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+              >
+                <option value="">Select Customer</option>
+                {customers.map(c => (
+                  <option key={c.id} value={c.id}>{c.name} ({c.city})</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-[#252525] mb-1">Buyer PO # / Reference (Optional)</label>
+              <input
+                type="text"
+                placeholder="e.g. PO-ABC-884 (or auto-assigned if empty)"
+                value={receiveForm.po_number}
+                onChange={(e) => setReceiveForm({ ...receiveForm, po_number: e.target.value })}
+                className="w-full p-2 bg-white border border-[#E8E2DC] rounded font-mono focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-[#252525] mb-1">Rice Product / Variety *</label>
+              <select
+                required
+                value={receiveForm.product_id}
+                onChange={(e) => setReceiveForm({ ...receiveForm, product_id: e.target.value })}
+                className="w-full p-2 bg-white border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+              >
+                <option value="">Select Product</option>
+                {products.map(p => (
+                  <option key={p.id} value={p.id}>{p.name} — {p.variety} (Std: ₹{p.standard_selling_rate})</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-[#252525] mb-1">PO Received Date *</label>
+              <input
+                type="date"
+                required
+                value={receiveForm.po_date}
+                onChange={(e) => setReceiveForm({ ...receiveForm, po_date: e.target.value })}
+                className="w-full p-2 bg-white border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-[#252525] mb-1">Ordered Quantity (QTL) *</label>
+              <input
+                type="number"
+                step="0.01"
+                required
+                placeholder="e.g. 100"
+                value={receiveForm.ordered_quantity}
+                onChange={(e) => setReceiveForm({ ...receiveForm, ordered_quantity: e.target.value })}
+                className="w-full p-2 bg-white border border-[#E8E2DC] rounded font-mono focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-[#252525] mb-1">Agreed Selling Rate (₹/QTL) *</label>
+              <input
+                type="number"
+                step="0.01"
+                required
+                placeholder="e.g. 3200"
+                value={receiveForm.customer_selling_rate}
+                onChange={(e) => setReceiveForm({ ...receiveForm, customer_selling_rate: e.target.value })}
+                className="w-full p-2 bg-white border border-[#E8E2DC] rounded font-mono focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block font-semibold text-[#252525] mb-1">Expected Delivery Date</label>
+              <input
+                type="date"
+                value={receiveForm.expected_delivery_date}
+                onChange={(e) => setReceiveForm({ ...receiveForm, expected_delivery_date: e.target.value })}
+                className="w-full p-2 bg-white border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="text-xs">
+            <label className="block font-semibold text-[#252525] mb-1">Delivery Location / Godown Address *</label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. Customer Godown, Kalamna Mandi, Nagpur"
+              value={receiveForm.delivery_location}
+              onChange={(e) => setReceiveForm({ ...receiveForm, delivery_location: e.target.value })}
+              className="w-full p-2 bg-white border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+            />
+          </div>
+
+          <div className="text-xs">
+            <label className="block font-semibold text-[#252525] mb-1">Buyer Notes / Terms</label>
+            <textarea
+              rows={2}
+              placeholder="Payment terms, special packaging instructions from buyer..."
+              value={receiveForm.notes}
+              onChange={(e) => setReceiveForm({ ...receiveForm, notes: e.target.value })}
+              className="w-full p-2 bg-white border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+            />
+          </div>
+
+          <div className="pt-3 border-t border-[#E8E2DC] flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setIsReceiveOpen(false)}
+              className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-5 py-2 text-xs font-semibold bg-[#8F1717] text-white rounded hover:bg-[#771212] transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
+            >
+              <Inbox size={14} />
+              <span>Record Received PO</span>
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* MODAL: ADD SOURCING ALLOCATION */}
+      <Modal
+        isOpen={isAllocModalOpen}
+        onClose={() => setIsAllocModalOpen(false)}
+        title="Add External Industry Sourcing"
+        subtitle={allocatingPO ? `For PO ${allocatingPO.po_number} (${allocatingPO.product_name || 'Rice'})` : 'Allocate from external mill'}
+      >
+        <form onSubmit={handleAddAllocation} className="space-y-4 text-xs">
+          <div>
+            <label className="block font-semibold text-[#252525] mb-1">Select External Supplier (Rice Mill) *</label>
+            <select
+              required
+              value={allocForm.industry_id}
+              onChange={(e) => {
+                const indId = e.target.value;
+                const ind = industries.find(i => String(i.id) === String(indId));
+                setAllocForm({
+                  ...allocForm,
+                  industry_id: indId,
+                  purchase_rate: ind?.default_purchase_rate || allocForm.purchase_rate
+                });
+              }}
+              className="w-full p-2 bg-white border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+            >
+              <option value="">Select External Supplier / Rice Mill</option>
+              {industries.map(ind => (
+                <option key={ind.id} value={ind.id}>
+                  {ind.name} ({ind.location}) — Std Rate: ₹{ind.default_purchase_rate}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block font-semibold text-[#252525] mb-1">Allocated Quantity (QTL) *</label>
+              <input
+                type="number"
+                step="0.01"
+                required
+                placeholder="e.g. 40"
+                value={allocForm.allocated_quantity}
+                onChange={(e) => setAllocForm({ ...allocForm, allocated_quantity: e.target.value })}
+                className="w-full p-2 bg-white border border-[#E8E2DC] rounded font-mono focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-[#252525] mb-1">Purchase Rate (₹/QTL) *</label>
+              <input
+                type="number"
+                step="0.01"
+                required
+                placeholder="e.g. 2850"
+                value={allocForm.purchase_rate}
+                onChange={(e) => setAllocForm({ ...allocForm, purchase_rate: e.target.value })}
+                className="w-full p-2 bg-white border border-[#E8E2DC] rounded font-mono focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block font-semibold text-[#252525] mb-1">Expected Loading Date</label>
+            <input
+              type="date"
+              value={allocForm.expected_loading_date}
+              onChange={(e) => setAllocForm({ ...allocForm, expected_loading_date: e.target.value })}
+              className="w-full p-2 bg-white border border-[#E8E2DC] rounded focus:ring-1 focus:ring-[#8F1717] focus:outline-none"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 p-2 bg-amber-50 rounded border border-amber-200">
+            <input
+              type="checkbox"
+              id="sd_override"
+              checked={allocForm.override_allowed}
+              onChange={(e) => setAllocForm({ ...allocForm, override_allowed: e.target.checked })}
+              className="rounded text-[#8F1717] focus:ring-[#8F1717]"
+            />
+            <label htmlFor="sd_override" className="text-[11px] text-amber-900 font-medium cursor-pointer">
+              Authorized Override: Allow allocation to exceed customer PO quantity
+            </label>
+          </div>
+
+          <div className="pt-3 border-t border-[#E8E2DC] flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setIsAllocModalOpen(false)}
+              className="px-4 py-2 font-semibold text-gray-600 hover:bg-gray-100 rounded cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-5 py-2 font-semibold bg-[#8F1717] text-white rounded hover:bg-[#771212] shadow-xs cursor-pointer"
+            >
+              Confirm Sourcing Allocation
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       {/* IN-WEBAPP TOAST NOTIFICATIONS */}
       <div className="fixed top-5 right-5 z-[9999] flex flex-col gap-2 max-w-sm w-full pointer-events-none">

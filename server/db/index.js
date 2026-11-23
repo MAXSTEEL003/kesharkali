@@ -9,8 +9,8 @@ const os = require('node:os');
 const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NETLIFY);
 
 const DB_DIR = process.env.DB_DIR || (
-    isServerless 
-        ? path.join(os.tmpdir(), 'kesharkali_data') 
+    isServerless
+        ? path.join(os.tmpdir(), 'kesharkali_data')
         : path.resolve(__dirname, '../../data')
 );
 
@@ -278,7 +278,7 @@ function initDb() {
             const ordersJsonPath = path.resolve(__dirname, 'appA_bhagwathi_orders.json');
             let bundledCount = 0;
             if (fs.existsSync(ordersJsonPath)) {
-                try { bundledCount = JSON.parse(fs.readFileSync(ordersJsonPath, 'utf8')).length; } catch (_) {}
+                try { bundledCount = JSON.parse(fs.readFileSync(ordersJsonPath, 'utf8')).length; } catch (_) { }
             }
 
             if (!prodCount || prodCount.count === 0 || (bundledCount > 0 && (!poCount || poCount.count < bundledCount))) {
@@ -298,7 +298,7 @@ function initDb() {
                             db.prepare("UPDATE purchase_orders SET is_accepted = 1 WHERE po_number = ?").run(bo.poNumber);
                         }
                     }
-                } catch (_) {}
+                } catch (_) { }
             }
 
             // Reconcile status: preserve Accepted status for accepted orders
